@@ -26,7 +26,7 @@ all = ["stapel-profiles[kafka]"]
 
 [tool.setuptools]
 package-dir = {"stapel_profiles" = "."}
-packages = ["stapel_profiles", "stapel_profiles.migrations"]
+packages = ["stapel_profiles", "stapel_profiles.management", "stapel_profiles.management.commands", "stapel_profiles.migrations", "stapel_profiles.tests"]
 
 [tool.setuptools.package-data]
 stapel_profiles = ["migrations/*.py", "migrations/**/*.py"]
