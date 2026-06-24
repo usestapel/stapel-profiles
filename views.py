@@ -1,0 +1,543 @@
+"""
+Views for iron-profiles service.
+"""
+import logging
+
+from rest_framework import status, viewsets
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.decorators import action
+from drf_spectacular.utils import extend_schema, OpenApiParameter
+from drf_spectacular.types import OpenApiTypes
+
+from stapel_core.notifications.tokens import verify_unsubscribe_token
+
+from stapel_core.django.errors import IronResponse, IronErrorResponse, IronErrorSerializer
+from stapel_core.django.errors import IronResponse, ERR_401_UNAUTHORIZED
+from stapel_core.core.language import COOKIE_APP_LANGUAGE, COOKIE_USE_DEVICE_LANGUAGE, parse_accept_language
+
+logger = logging.getLogger(__name__)
+from stapel_profiles.errors import ERR_404_PROFILE_NOT_FOUND, ERR_400_CANNOT_FOLLOW_SELF, ERR_400_CANNOT_BLOCK_SELF
+from .models import Language, Profile, UserRelationship, RelationshipStatus
+from .dto import (
+    RelationshipActionResponse,
+    RelationshipResponse,
+    FollowersResponse,
+    FollowingResponse,
+)
+from .serializers import (
+    LanguageSerializer,
+    ProfileSerializer,
+    ProfilePublicSerializer,
+    ProfileCreateUpdateSerializer,
+    LanguageResponseSerializer,
+    ProfileResponseSerializer,
+    ProfilePublicResponseSerializer,
+    ProfileUpdateRequestSerializer,
+    RelationshipResponseSerializer,
+    RelationshipActionResponseSerializer,
+    FollowersResponseSerializer,
+    FollowingResponseSerializer,
+)
+
+
+# =============================================================================
+# Language Views
+# =============================================================================
+
+@extend_schema(tags=['Languages'])
+class LanguageViewSet(viewsets.ReadOnlyModelViewSet):
+    """Read-only viewset for languages."""
+    queryset = Language.objects.filter(is_active=True)
+    serializer_class = LanguageSerializer
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        operation_id='list_languages',
+        summary='List all languages',
+        description='Get list of all available languages.',
+        responses={200: LanguageResponseSerializer(many=True)},
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
+    @extend_schema(
+        operation_id='get_language',
+        summary='Get language by code',
+        description='Get language details by code.',
+        responses={
+            200: LanguageResponseSerializer,
+            404: IronErrorSerializer,
+        },
+    )
+    def retrieve(self, request, *args, **kwargs):
+        return super().retrieve(request, *args, **kwargs)
+
+
+# =============================================================================
+# Profile Views
+# =============================================================================
+
+def _set_language_cookies(response, profile):
+    """Set language preference cookies from profile."""
+    from django.conf import settings
+    cookie_domain = getattr(settings, 'JWT_COOKIE_DOMAIN', None)
+    cookie_secure = getattr(settings, 'JWT_COOKIE_SECURE', False)
+    cookie_samesite = getattr(settings, 'JWT_COOKIE_SAMESITE', 'Lax')
+    max_age = 365 * 24 * 3600  # 1 year
+
+    kwargs = dict(
+        max_age=max_age,
+        domain=cookie_domain,
+        path='/',
+        secure=cookie_secure,
+        httponly=False,  # readable by frontend
+        samesite=cookie_samesite,
+    )
+
+    app_lang = profile.app_language_id  # FK code or None
+    if app_lang:
+        response.set_cookie(COOKIE_APP_LANGUAGE, app_lang, **kwargs)
+    else:
+        response.delete_cookie(COOKIE_APP_LANGUAGE, domain=cookie_domain, path='/')
+
+    response.set_cookie(
+        COOKIE_USE_DEVICE_LANGUAGE,
+        '1' if profile.use_device_language else '0',
+        **kwargs,
+    )
+    return response
+
+
+def _update_auto_detected_language(request, profile):
+    """Update auto_detected_language from Accept-Language header if changed."""
+    detected = parse_accept_language(request.META.get('HTTP_ACCEPT_LANGUAGE', ''))
+    if detected and detected != profile.auto_detected_language:
+        profile.auto_detected_language = detected
+        profile.save(update_fields=['auto_detected_language'])
+
+
+@extend_schema(tags=['Profile'])
+class MyProfileView(APIView):
+    """Current user's profile management."""
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        operation_id='get_my_profile',
+        summary='Get my profile',
+        description='Get current user\'s profile. Creates profile with defaults if not exists. Works for both authenticated and anonymous users.',
+        responses={
+            200: ProfileResponseSerializer,
+            401: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(self, request):
+        """Get or create current user's profile."""
+        if not request.user or not request.user.is_authenticated:
+            return IronErrorResponse(401, ERR_401_UNAUTHORIZED)
+        profile, created = Profile.objects.get_or_create(
+            user_id=request.user.id
+        )
+        _update_auto_detected_language(request, profile)
+        serializer = ProfileSerializer(profile, context={'request': request})
+        response = Response(serializer.data)
+        _set_language_cookies(response, profile)
+        return response
+
+    @extend_schema(
+        operation_id='update_my_profile',
+        summary='Update my profile',
+        description='Update current user\'s profile. All fields are optional (PATCH semantics). Works for both authenticated and anonymous users.',
+        request=ProfileUpdateRequestSerializer,
+        responses={
+            200: ProfileResponseSerializer,
+            400: IronErrorSerializer,
+            401: OpenApiTypes.OBJECT,
+        },
+    )
+    def patch(self, request):
+        """Update current user's profile."""
+        if not request.user or not request.user.is_authenticated:
+            return IronErrorResponse(401, ERR_401_UNAUTHORIZED)
+
+        profile, created = Profile.objects.get_or_create(
+            user_id=request.user.id
+        )
+        serializer = ProfileCreateUpdateSerializer(
+            profile,
+            data=request.data,
+            partial=True
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+
+        _update_auto_detected_language(request, profile)
+
+        # Return full profile with nested data
+        response_serializer = ProfileSerializer(profile, context={'request': request})
+        response = Response(response_serializer.data)
+        _set_language_cookies(response, profile)
+        return response
+
+
+@extend_schema(tags=['Profile'])
+class ProfileDetailView(APIView):
+    """View other user's profile (compact public view)."""
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        operation_id='get_profile',
+        summary='Get user profile',
+        description='Get compact profile of a specific user by UUID. Includes relationship status with current user if authenticated.',
+        parameters=[
+            OpenApiParameter(
+                name='user_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='User UUID'
+            )
+        ],
+        responses={
+            200: ProfilePublicResponseSerializer,
+            404: IronErrorSerializer,
+        },
+    )
+    def get(self, request, user_id):
+        """Get user profile by UUID."""
+        try:
+            profile = Profile.objects.get(user_id=user_id)
+        except Profile.DoesNotExist:
+            return IronErrorResponse(404, ERR_404_PROFILE_NOT_FOUND)
+        serializer = ProfilePublicSerializer(profile, context={'request': request})
+        return IronResponse(serializer)
+
+
+# =============================================================================
+# Relationship Views
+# =============================================================================
+
+@extend_schema(tags=['Relationships'])
+class FollowView(APIView):
+    """Follow a user."""
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id='follow_user',
+        summary='Follow user',
+        description='Follow a user. Creates or updates relationship to "following" status.',
+        parameters=[
+            OpenApiParameter(
+                name='user_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='User UUID to follow'
+            )
+        ],
+        responses={
+            200: RelationshipActionResponseSerializer,
+            400: IronErrorSerializer,
+            401: OpenApiTypes.OBJECT,
+        },
+    )
+    def post(self, request, user_id):
+        """Follow a user."""
+        follower_id = request.user.id
+
+        if str(follower_id) == str(user_id):
+            return IronErrorResponse(400, ERR_400_CANNOT_FOLLOW_SELF)
+
+        relationship, created = UserRelationship.objects.update_or_create(
+            follower_id=follower_id,
+            following_id=user_id,
+            defaults={'status': RelationshipStatus.FOLLOWING}
+        )
+
+        dto = RelationshipActionResponse(success=True, status=relationship.status)
+        return IronResponse(RelationshipActionResponseSerializer(dto))
+
+
+@extend_schema(tags=['Relationships'])
+class UnfollowView(APIView):
+    """Unfollow a user."""
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id='unfollow_user',
+        summary='Unfollow user',
+        description='Unfollow a user. Sets relationship to "neutral" status.',
+        parameters=[
+            OpenApiParameter(
+                name='user_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='User UUID to unfollow'
+            )
+        ],
+        responses={
+            200: RelationshipActionResponseSerializer,
+            401: OpenApiTypes.OBJECT,
+        },
+    )
+    def post(self, request, user_id):
+        """Unfollow a user."""
+        follower_id = request.user.id
+
+        relationship, created = UserRelationship.objects.update_or_create(
+            follower_id=follower_id,
+            following_id=user_id,
+            defaults={'status': RelationshipStatus.NEUTRAL}
+        )
+
+        dto = RelationshipActionResponse(success=True, status=relationship.status)
+        return IronResponse(RelationshipActionResponseSerializer(dto))
+
+
+@extend_schema(tags=['Relationships'])
+class BlockView(APIView):
+    """Block a user."""
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id='block_user',
+        summary='Block user',
+        description='Block a user. Creates or updates relationship to "blocked" status.',
+        parameters=[
+            OpenApiParameter(
+                name='user_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='User UUID to block'
+            )
+        ],
+        responses={
+            200: RelationshipActionResponseSerializer,
+            400: IronErrorSerializer,
+            401: OpenApiTypes.OBJECT,
+        },
+    )
+    def post(self, request, user_id):
+        """Block a user."""
+        follower_id = request.user.id
+
+        if str(follower_id) == str(user_id):
+            return IronErrorResponse(400, ERR_400_CANNOT_BLOCK_SELF)
+
+        relationship, created = UserRelationship.objects.update_or_create(
+            follower_id=follower_id,
+            following_id=user_id,
+            defaults={'status': RelationshipStatus.BLOCKED}
+        )
+
+        dto = RelationshipActionResponse(success=True, status=relationship.status)
+        return IronResponse(RelationshipActionResponseSerializer(dto))
+
+
+@extend_schema(tags=['Relationships'])
+class UnblockView(APIView):
+    """Unblock a user."""
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id='unblock_user',
+        summary='Unblock user',
+        description='Unblock a user. Sets relationship to "neutral" status.',
+        parameters=[
+            OpenApiParameter(
+                name='user_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='User UUID to unblock'
+            )
+        ],
+        responses={
+            200: RelationshipActionResponseSerializer,
+            401: OpenApiTypes.OBJECT,
+        },
+    )
+    def post(self, request, user_id):
+        """Unblock a user."""
+        follower_id = request.user.id
+
+        relationship, created = UserRelationship.objects.update_or_create(
+            follower_id=follower_id,
+            following_id=user_id,
+            defaults={'status': RelationshipStatus.NEUTRAL}
+        )
+
+        dto = RelationshipActionResponse(success=True, status=relationship.status)
+        return IronResponse(RelationshipActionResponseSerializer(dto))
+
+
+@extend_schema(tags=['Relationships'])
+class RelationshipStatusView(APIView):
+    """Get relationship status with a user."""
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id='get_relationship',
+        summary='Get relationship status',
+        description='Get current relationship status with a user.',
+        parameters=[
+            OpenApiParameter(
+                name='user_id',
+                type=OpenApiTypes.UUID,
+                location=OpenApiParameter.PATH,
+                description='User UUID'
+            )
+        ],
+        responses={
+            200: RelationshipResponseSerializer,
+            401: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(self, request, user_id):
+        """Get relationship status with a user."""
+        follower_id = request.user.id
+
+        try:
+            relationship = UserRelationship.objects.get(
+                follower_id=follower_id,
+                following_id=user_id
+            )
+            dto = RelationshipResponse(user_id=user_id, status=relationship.status)
+            return IronResponse(RelationshipResponseSerializer(dto))
+        except UserRelationship.DoesNotExist:
+            dto = RelationshipResponse(user_id=user_id, status=RelationshipStatus.NEUTRAL)
+            return IronResponse(RelationshipResponseSerializer(dto))
+
+
+@extend_schema(tags=['Relationships'])
+class MyFollowersView(APIView):
+    """List current user's followers."""
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id='get_my_followers',
+        summary='Get my followers',
+        description='Get list of users following the current user.',
+        responses={
+            200: FollowersResponseSerializer,
+            401: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(self, request):
+        """Get followers of current user."""
+        user_id = request.user.id
+
+        followers = UserRelationship.objects.filter(
+            following_id=user_id,
+            status=RelationshipStatus.FOLLOWING
+        ).values_list('follower_id', flat=True)
+
+        followers_list = list(followers)
+        dto = FollowersResponse(followers=followers_list, count=len(followers_list))
+        return IronResponse(FollowersResponseSerializer(dto))
+
+
+@extend_schema(tags=['Relationships'])
+class MyFollowingView(APIView):
+    """List users the current user is following."""
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id='get_my_following',
+        summary='Get my following',
+        description='Get list of users the current user is following.',
+        responses={
+            200: FollowingResponseSerializer,
+            401: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(self, request):
+        """Get users current user is following."""
+        user_id = request.user.id
+
+        following = UserRelationship.objects.filter(
+            follower_id=user_id,
+            status=RelationshipStatus.FOLLOWING
+        ).values_list('following_id', flat=True)
+
+        following_list = list(following)
+        dto = FollowingResponse(following=following_list, count=len(following_list))
+        return IronResponse(FollowingResponseSerializer(dto))
+
+
+@extend_schema(tags=['Relationships'])
+class MyBlockedView(APIView):
+    """List profiles of users the current user has blocked."""
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        operation_id='get_my_blocked',
+        summary='Get my blocked users',
+        description='Get list of profiles of users the current user has blocked.',
+        responses={
+            200: ProfileSerializer(many=True),
+            401: OpenApiTypes.OBJECT,
+        },
+    )
+    def get(self, request):
+        """Get profiles of blocked users."""
+        user_id = request.user.id
+
+        blocked_ids = UserRelationship.objects.filter(
+            follower_id=user_id,
+            status=RelationshipStatus.BLOCKED
+        ).values_list('following_id', flat=True)
+
+        profiles = Profile.objects.filter(user_id__in=blocked_ids)
+        serializer = ProfileSerializer(profiles, many=True, context={'request': request})
+        return IronResponse(serializer)
+
+
+# =============================================================================
+# Unsubscribe
+# =============================================================================
+
+@extend_schema(tags=['Notifications'])
+class UnsubscribeView(APIView):
+    """One-click unsubscribe via HMAC token (RFC 8058)."""
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        operation_id='unsubscribe_notifications',
+        summary='Unsubscribe from notifications',
+        description='Verify HMAC token and toggle the corresponding notification preference off. '
+                    'Uses POST per RFC 8058 (List-Unsubscribe-Post).',
+        parameters=[
+            OpenApiParameter(name='token', type=str, location=OpenApiParameter.QUERY, required=True),
+        ],
+        responses={200: dict, 400: dict},
+    )
+    def post(self, request):
+        token = request.query_params.get('token', '') or request.data.get('token', '')
+        result = verify_unsubscribe_token(token)
+        if not result:
+            return IronResponse({"error": "Invalid or expired token"}, status=status.HTTP_400_BAD_REQUEST)
+
+        user_id = result["user_id"]
+        group = result["group"]
+        channel = result["channel"]
+
+        # Map to profile field
+        field_name = f"{channel}_{group}"
+        if field_name not in ("email_messages", "email_system", "push_messages", "push_system"):
+            return IronResponse({"error": "Invalid preference"}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            profile = Profile.objects.get(user_id=user_id)
+        except Profile.DoesNotExist:
+            return IronResponse({"error": "Profile not found"}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Skip if already unsubscribed (idempotent)
+        if getattr(profile, field_name) is False:
+            return IronResponse({"success": True, "unsubscribed": field_name})
+
+        setattr(profile, field_name, False)
+        profile.save(update_fields=[field_name])
+
+        from .events import publish_profile_changed
+        publish_profile_changed(profile)
+
+        return IronResponse({"success": True, "unsubscribed": field_name})

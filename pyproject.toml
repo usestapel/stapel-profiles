@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "stapel-profiles"
+version = "0.1.0"
+description = "User profiles Django app for the Stapel framework"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+keywords = ["django", "stapel", "profiles", "users", "social"]
+classifiers = [
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "stapel-core>=0.1.0",
+]
+
+[project.optional-dependencies]
+kafka = ["confluent-kafka>=2.3"]
+all = ["stapel-profiles[kafka]"]
+
+[tool.setuptools]
+package-dir = {"stapel_profiles" = "."}
+packages = ["stapel_profiles", "stapel_profiles.migrations"]
+
+[tool.setuptools.package-data]
+stapel_profiles = ["migrations/*.py", "migrations/**/*.py"]
