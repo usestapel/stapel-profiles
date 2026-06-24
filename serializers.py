@@ -11,7 +11,6 @@ from rest_framework import serializers
 from .errors import (
     ERR_400_AVATAR_NOT_FOUND,
     ERR_400_INVALID_AVATAR_FORMAT,
-    ERR_400_INVALID_CURRENCY,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,7 +29,6 @@ from .models import (
     Language,
     MeasurementUnit,
     Profile,
-    RelationshipStatus,
     Theme,
     UserRelationship,
 )

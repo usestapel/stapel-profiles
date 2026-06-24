@@ -7,14 +7,13 @@ from rest_framework import status, viewsets
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated, AllowAny
-from rest_framework.decorators import action
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from drf_spectacular.types import OpenApiTypes
 
 from stapel_core.notifications.tokens import verify_unsubscribe_token
 
 from stapel_core.django.errors import IronResponse, IronErrorResponse, IronErrorSerializer
-from stapel_core.django.errors import IronResponse, ERR_401_UNAUTHORIZED
+from stapel_core.django.errors import ERR_401_UNAUTHORIZED
 from stapel_core.core.language import COOKIE_APP_LANGUAGE, COOKIE_USE_DEVICE_LANGUAGE, parse_accept_language
 
 logger = logging.getLogger(__name__)
