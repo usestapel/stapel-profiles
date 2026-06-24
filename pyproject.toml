@@ -30,3 +30,7 @@ packages = ["stapel_profiles", "stapel_profiles.management", "stapel_profiles.ma
 
 [tool.setuptools.package-data]
 stapel_profiles = ["migrations/*.py", "migrations/**/*.py"]
+
+[tool.pytest.ini_options]
+django_find_project = false
+addopts = "--tb=short -q"
