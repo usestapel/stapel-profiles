@@ -7,11 +7,12 @@ logger = logging.getLogger(__name__)
 def publish_profile_changed(instance):
     """Publish profile-changed Kafka event."""
     try:
-        from stapel_core.kafka import publish_event, Event, EventType
+        from stapel_core.bus import publish, Event
+        from stapel_core.kafka.events import EventType
         from stapel_core.kafka.topics import TOPIC_PROFILE_CHANGED
-        publish_event(
-            topic=TOPIC_PROFILE_CHANGED,
-            event=Event(
+        publish(
+            TOPIC_PROFILE_CHANGED,
+            Event(
                 event_type=EventType.PROFILE_CHANGED,
                 service="profiles",
                 payload={
@@ -28,8 +29,8 @@ def publish_profile_changed(instance):
                     "push_messages": instance.push_messages,
                     "push_system": instance.push_system,
                 },
+                key=str(instance.user_id),
             ),
-            key=str(instance.user_id),
         )
     except Exception:
         logger.exception("Failed to publish profile-changed event")
