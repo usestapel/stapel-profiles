@@ -11,7 +11,8 @@ import logging
 
 from django.core.management.base import BaseCommand
 
-from stapel_core.kafka import publish_event, Event, EventType
+from stapel_core.bus import publish, Event
+from stapel_core.kafka.events import EventType
 from stapel_core.kafka.topics import TOPIC_PROFILE_CHANGED
 from stapel_profiles.models import Profile
 
@@ -31,9 +32,9 @@ class Command(BaseCommand):
 
         for i, profile in enumerate(profiles.iterator(), 1):
             try:
-                publish_event(
-                    topic=TOPIC_PROFILE_CHANGED,
-                    event=Event(
+                publish(
+                    TOPIC_PROFILE_CHANGED,
+                    Event(
                         event_type=EventType.PROFILE_CHANGED,
                         service="profiles",
                         payload={
@@ -43,8 +44,8 @@ class Command(BaseCommand):
                             "location_display_name_narrow": profile.location_display_name_narrow,
                             "location_display_name_broad": profile.location_display_name_broad,
                         },
+                        key=str(profile.user_id),
                     ),
-                    key=str(profile.user_id),
                 )
                 published += 1
             except Exception:
