@@ -1,5 +1,8 @@
 # stapel-profiles
 
+[![CI](https://github.com/usestapel/stapel-profiles/actions/workflows/ci.yml/badge.svg)](https://github.com/usestapel/stapel-profiles/actions/workflows/ci.yml)
+[![codecov](https://codecov.io/gh/usestapel/stapel-profiles/graph/badge.svg)](https://codecov.io/gh/usestapel/stapel-profiles)
+
 > User profiles — avatars, social graph (follow/block), privacy settings, language preferences
 
 Part of the [Stapel framework](https://github.com/usestapel) — composable Django apps for building production-grade platforms.
