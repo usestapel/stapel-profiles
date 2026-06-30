@@ -17,9 +17,9 @@ from stapel_core.core.language import (
 )
 from stapel_core.django.api.errors import (
     ERR_401_UNAUTHORIZED,
-    IronErrorResponse,
-    IronErrorSerializer,
-    IronResponse,
+    StapelErrorResponse,
+    StapelErrorSerializer,
+    StapelResponse,
 )
 from stapel_core.notifications.tokens import verify_unsubscribe_token
 
@@ -80,7 +80,7 @@ class LanguageViewSet(viewsets.ReadOnlyModelViewSet):
         description="Get language details by code.",
         responses={
             200: LanguageResponseSerializer,
-            404: IronErrorSerializer,
+            404: StapelErrorSerializer,
         },
     )
     def retrieve(self, request, *args, **kwargs):
@@ -150,7 +150,7 @@ class MyProfileView(APIView):
     def get(self, request):
         """Get or create current user's profile."""
         if not request.user or not request.user.is_authenticated:
-            return IronErrorResponse(401, ERR_401_UNAUTHORIZED)
+            return StapelErrorResponse(401, ERR_401_UNAUTHORIZED)
         profile, created = Profile.objects.get_or_create(user_id=request.user.id)
         _update_auto_detected_language(request, profile)
         serializer = ProfileSerializer(profile, context={"request": request})
@@ -165,14 +165,14 @@ class MyProfileView(APIView):
         request=ProfileUpdateRequestSerializer,
         responses={
             200: ProfileResponseSerializer,
-            400: IronErrorSerializer,
+            400: StapelErrorSerializer,
             401: OpenApiTypes.OBJECT,
         },
     )
     def patch(self, request):
         """Update current user's profile."""
         if not request.user or not request.user.is_authenticated:
-            return IronErrorResponse(401, ERR_401_UNAUTHORIZED)
+            return StapelErrorResponse(401, ERR_401_UNAUTHORIZED)
 
         profile, created = Profile.objects.get_or_create(user_id=request.user.id)
         serializer = ProfileCreateUpdateSerializer(
@@ -210,7 +210,7 @@ class ProfileDetailView(APIView):
         ],
         responses={
             200: ProfilePublicResponseSerializer,
-            404: IronErrorSerializer,
+            404: StapelErrorSerializer,
         },
     )
     def get(self, request, user_id):
@@ -218,9 +218,9 @@ class ProfileDetailView(APIView):
         try:
             profile = Profile.objects.get(user_id=user_id)
         except Profile.DoesNotExist:
-            return IronErrorResponse(404, ERR_404_PROFILE_NOT_FOUND)
+            return StapelErrorResponse(404, ERR_404_PROFILE_NOT_FOUND)
         serializer = ProfilePublicSerializer(profile, context={"request": request})
-        return IronResponse(serializer)
+        return StapelResponse(serializer)
 
 
 # =============================================================================
@@ -248,7 +248,7 @@ class FollowView(APIView):
         ],
         responses={
             200: RelationshipActionResponseSerializer,
-            400: IronErrorSerializer,
+            400: StapelErrorSerializer,
             401: OpenApiTypes.OBJECT,
         },
     )
@@ -257,7 +257,7 @@ class FollowView(APIView):
         follower_id = request.user.id
 
         if str(follower_id) == str(user_id):
-            return IronErrorResponse(400, ERR_400_CANNOT_FOLLOW_SELF)
+            return StapelErrorResponse(400, ERR_400_CANNOT_FOLLOW_SELF)
 
         relationship, created = UserRelationship.objects.update_or_create(
             follower_id=follower_id,
@@ -266,7 +266,7 @@ class FollowView(APIView):
         )
 
         dto = RelationshipActionResponse(success=True, status=relationship.status)
-        return IronResponse(RelationshipActionResponseSerializer(dto))
+        return StapelResponse(RelationshipActionResponseSerializer(dto))
 
 
 @extend_schema(tags=["Relationships"])
@@ -303,7 +303,7 @@ class UnfollowView(APIView):
         )
 
         dto = RelationshipActionResponse(success=True, status=relationship.status)
-        return IronResponse(RelationshipActionResponseSerializer(dto))
+        return StapelResponse(RelationshipActionResponseSerializer(dto))
 
 
 @extend_schema(tags=["Relationships"])
@@ -326,7 +326,7 @@ class BlockView(APIView):
         ],
         responses={
             200: RelationshipActionResponseSerializer,
-            400: IronErrorSerializer,
+            400: StapelErrorSerializer,
             401: OpenApiTypes.OBJECT,
         },
     )
@@ -335,7 +335,7 @@ class BlockView(APIView):
         follower_id = request.user.id
 
         if str(follower_id) == str(user_id):
-            return IronErrorResponse(400, ERR_400_CANNOT_BLOCK_SELF)
+            return StapelErrorResponse(400, ERR_400_CANNOT_BLOCK_SELF)
 
         relationship, created = UserRelationship.objects.update_or_create(
             follower_id=follower_id,
@@ -344,7 +344,7 @@ class BlockView(APIView):
         )
 
         dto = RelationshipActionResponse(success=True, status=relationship.status)
-        return IronResponse(RelationshipActionResponseSerializer(dto))
+        return StapelResponse(RelationshipActionResponseSerializer(dto))
 
 
 @extend_schema(tags=["Relationships"])
@@ -381,7 +381,7 @@ class UnblockView(APIView):
         )
 
         dto = RelationshipActionResponse(success=True, status=relationship.status)
-        return IronResponse(RelationshipActionResponseSerializer(dto))
+        return StapelResponse(RelationshipActionResponseSerializer(dto))
 
 
 @extend_schema(tags=["Relationships"])
@@ -416,12 +416,12 @@ class RelationshipStatusView(APIView):
                 follower_id=follower_id, following_id=user_id
             )
             dto = RelationshipResponse(user_id=user_id, status=relationship.status)
-            return IronResponse(RelationshipResponseSerializer(dto))
+            return StapelResponse(RelationshipResponseSerializer(dto))
         except UserRelationship.DoesNotExist:
             dto = RelationshipResponse(
                 user_id=user_id, status=RelationshipStatus.NEUTRAL
             )
-            return IronResponse(RelationshipResponseSerializer(dto))
+            return StapelResponse(RelationshipResponseSerializer(dto))
 
 
 @extend_schema(tags=["Relationships"])
@@ -449,7 +449,7 @@ class MyFollowersView(APIView):
 
         followers_list = list(followers)
         dto = FollowersResponse(followers=followers_list, count=len(followers_list))
-        return IronResponse(FollowersResponseSerializer(dto))
+        return StapelResponse(FollowersResponseSerializer(dto))
 
 
 @extend_schema(tags=["Relationships"])
@@ -477,7 +477,7 @@ class MyFollowingView(APIView):
 
         following_list = list(following)
         dto = FollowingResponse(following=following_list, count=len(following_list))
-        return IronResponse(FollowingResponseSerializer(dto))
+        return StapelResponse(FollowingResponseSerializer(dto))
 
 
 @extend_schema(tags=["Relationships"])
@@ -507,7 +507,7 @@ class MyBlockedView(APIView):
         serializer = ProfileSerializer(
             profiles, many=True, context={"request": request}
         )
-        return IronResponse(serializer)
+        return StapelResponse(serializer)
 
 
 # =============================================================================
@@ -537,7 +537,7 @@ class UnsubscribeView(APIView):
         token = request.query_params.get("token", "") or request.data.get("token", "")
         result = verify_unsubscribe_token(token)
         if not result:
-            return IronResponse(
+            return StapelResponse(
                 {"error": "Invalid or expired token"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -554,20 +554,20 @@ class UnsubscribeView(APIView):
             "push_messages",
             "push_system",
         ):
-            return IronResponse(
+            return StapelResponse(
                 {"error": "Invalid preference"}, status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
             profile = Profile.objects.get(user_id=user_id)
         except Profile.DoesNotExist:
-            return IronResponse(
+            return StapelResponse(
                 {"error": "Profile not found"}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # Skip if already unsubscribed (idempotent)
         if getattr(profile, field_name) is False:
-            return IronResponse({"success": True, "unsubscribed": field_name})
+            return StapelResponse({"success": True, "unsubscribed": field_name})
 
         setattr(profile, field_name, False)
         profile.save(update_fields=[field_name])
@@ -576,4 +576,4 @@ class UnsubscribeView(APIView):
 
         publish_profile_changed(profile)
 
-        return IronResponse({"success": True, "unsubscribed": field_name})
+        return StapelResponse({"success": True, "unsubscribed": field_name})
