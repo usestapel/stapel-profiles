@@ -5,7 +5,7 @@ Serializers for stapel-profiles service.
 import logging
 
 from rest_framework import serializers
-from stapel_core.django.api.errors import IronValidationError
+from stapel_core.django.api.errors import StapelValidationError
 from stapel_core.django.api.serializers import IronDataclassSerializer
 
 from .errors import (
@@ -247,14 +247,14 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
         if not value:
             return value
         if "/" not in value:
-            raise IronValidationError(ERR_400_INVALID_AVATAR_FORMAT)
+            raise StapelValidationError(ERR_400_INVALID_AVATAR_FORMAT)
         # Check avatar exists on CDN (read-only — no refs created)
         try:
             from stapel_core.django.cdn.ref_sync import check_cdn_media_exists
 
             if not check_cdn_media_exists(value):
-                raise IronValidationError(ERR_400_AVATAR_NOT_FOUND)
-        except IronValidationError:
+                raise StapelValidationError(ERR_400_AVATAR_NOT_FOUND)
+        except StapelValidationError:
             raise
         except Exception:
             logger.warning("CDN avatar check failed for %s", value, exc_info=True)
