@@ -1,12 +1,12 @@
 """
-Serializers for iron-profiles service.
+Serializers for stapel-profiles service.
 """
 
 import logging
 
-from stapel_core.django.errors import IronValidationError
-from stapel_core.django.serializers import IronDataclassSerializer
 from rest_framework import serializers
+from stapel_core.django.api.errors import IronValidationError
+from stapel_core.django.api.serializers import IronDataclassSerializer
 
 from .errors import (
     ERR_400_AVATAR_NOT_FOUND,
@@ -250,7 +250,7 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
             raise IronValidationError(ERR_400_INVALID_AVATAR_FORMAT)
         # Check avatar exists on CDN (read-only — no refs created)
         try:
-            from stapel_core.django.cdn_ref_sync import check_cdn_media_exists
+            from stapel_core.django.cdn.ref_sync import check_cdn_media_exists
 
             if not check_cdn_media_exists(value):
                 raise IronValidationError(ERR_400_AVATAR_NOT_FOUND)
@@ -270,7 +270,7 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
         new_avatar = instance.avatar or ""
         if "avatar" in validated_data and old_avatar != new_avatar:
             try:
-                from stapel_core.django.cdn_ref_sync import sync_cdn_refs
+                from stapel_core.django.cdn.ref_sync import sync_cdn_refs
 
                 old_refs = [old_avatar] if old_avatar else []
                 new_refs = [new_avatar] if new_avatar else []

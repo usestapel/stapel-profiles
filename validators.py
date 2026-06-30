@@ -2,7 +2,7 @@
 Validators for profile fields.
 """
 import re
-from stapel_core.django.errors import IronValidationError
+from stapel_core.django.api.errors import IronValidationError
 
 
 # Matches control chars, HTML-dangerous chars
