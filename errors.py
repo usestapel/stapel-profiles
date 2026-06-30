@@ -1,6 +1,6 @@
 """Custom error keys for the profiles service."""
 
-from stapel_core.django.errors import ErrorKeysView, register_service_errors
+from stapel_core.django.api.errors import ErrorKeysView, register_service_errors
 
 ERR_404_PROFILE_NOT_FOUND = 'error.404.profile_not_found'
 ERR_400_CANNOT_FOLLOW_SELF = 'error.400.cannot_follow_self'

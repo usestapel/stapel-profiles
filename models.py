@@ -1,9 +1,9 @@
 """
-Models for iron-profiles service.
+Models for stapel-profiles service.
 """
 
-from stapel_core.django.fields import CdnImageField
 from django.db import models
+from stapel_core.django.cdn.fields import CdnImageField
 
 
 class Language(models.Model):

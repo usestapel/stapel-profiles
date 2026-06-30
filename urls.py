@@ -2,7 +2,7 @@
 URL configuration for profiles app.
 """
 from django.urls import path, include
-from stapel_core.django.routers import OptionalSlashRouter
+from stapel_core.django.api.routers import OptionalSlashRouter
 
 from .views import (
     LanguageViewSet,
