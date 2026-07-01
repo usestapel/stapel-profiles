@@ -34,8 +34,8 @@ class Migration(migrations.Migration):
                 ('theme', models.CharField(choices=[('light', 'Light'), ('dark', 'Dark'), ('system', 'System')], default='system', help_text='UI theme preference', max_length=10)),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('app_language', models.ForeignKey(blank=True, help_text='Primary app language (default: English)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='users_with_app_language', to='stapel_profiles.language')),
-                ('understands', models.ManyToManyField(blank=True, help_text='Languages the user understands', related_name='users_who_understand', to='stapel_profiles.language')),
+                ('app_language', models.ForeignKey(blank=True, help_text='Primary app language (default: English)', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='users_with_app_language', to='profiles.language')),
+                ('understands', models.ManyToManyField(blank=True, help_text='Languages the user understands', related_name='users_who_understand', to='profiles.language')),
             ],
             options={
                 'verbose_name': 'Profile',
