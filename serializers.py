@@ -6,7 +6,7 @@ import logging
 
 from rest_framework import serializers
 from stapel_core.django.api.errors import StapelValidationError
-from stapel_core.django.api.serializers import IronDataclassSerializer
+from stapel_core.django.api.serializers import StapelDataclassSerializer
 
 from .errors import (
     ERR_400_AVATAR_NOT_FOUND,
@@ -316,56 +316,56 @@ class UserRelationshipSerializer(serializers.ModelSerializer):
 # =============================================================================
 
 
-class LanguageResponseSerializer(IronDataclassSerializer):
+class LanguageResponseSerializer(StapelDataclassSerializer):
     """Response serializer for language."""
 
     class Meta:
         dataclass = LanguageResponse
 
 
-class ProfileResponseSerializer(IronDataclassSerializer):
+class ProfileResponseSerializer(StapelDataclassSerializer):
     """Response serializer for profile."""
 
     class Meta:
         dataclass = ProfileResponse
 
 
-class ProfilePublicResponseSerializer(IronDataclassSerializer):
+class ProfilePublicResponseSerializer(StapelDataclassSerializer):
     """Response serializer for public profile view."""
 
     class Meta:
         dataclass = ProfilePublicResponse
 
 
-class ProfileUpdateRequestSerializer(IronDataclassSerializer):
+class ProfileUpdateRequestSerializer(StapelDataclassSerializer):
     """Request serializer for profile update."""
 
     class Meta:
         dataclass = ProfileUpdateRequest
 
 
-class RelationshipResponseSerializer(IronDataclassSerializer):
+class RelationshipResponseSerializer(StapelDataclassSerializer):
     """Response serializer for relationship."""
 
     class Meta:
         dataclass = RelationshipResponse
 
 
-class RelationshipActionResponseSerializer(IronDataclassSerializer):
+class RelationshipActionResponseSerializer(StapelDataclassSerializer):
     """Response serializer for relationship action."""
 
     class Meta:
         dataclass = RelationshipActionResponse
 
 
-class FollowersResponseSerializer(IronDataclassSerializer):
+class FollowersResponseSerializer(StapelDataclassSerializer):
     """Response serializer for followers list."""
 
     class Meta:
         dataclass = FollowersResponse
 
 
-class FollowingResponseSerializer(IronDataclassSerializer):
+class FollowingResponseSerializer(StapelDataclassSerializer):
     """Response serializer for following list."""
 
     class Meta:
