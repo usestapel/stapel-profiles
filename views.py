@@ -51,6 +51,26 @@ from .serializers import (
     RelationshipResponseSerializer,
 )
 
+class SerializerSeamsMixin:
+    """Overridable serializer seams for API views.
+
+    Subclasses (or downstream projects) can swap the request/response
+    serializers without copying method bodies:
+
+        class MyProfileViewV2(MyProfileView):
+            response_serializer_class = MyProfileSerializer
+    """
+
+    request_serializer_class = None
+    response_serializer_class = None
+
+    def get_request_serializer_class(self):
+        return self.request_serializer_class
+
+    def get_response_serializer_class(self):
+        return self.response_serializer_class
+
+
 # =============================================================================
 # Language Views
 # =============================================================================
@@ -132,10 +152,12 @@ def _update_auto_detected_language(request, profile):
 
 
 @extend_schema(tags=["Profile"])
-class MyProfileView(APIView):
+class MyProfileView(SerializerSeamsMixin, APIView):
     """Current user's profile management."""
 
     permission_classes = [IsAuthenticated]
+    request_serializer_class = ProfileCreateUpdateSerializer
+    response_serializer_class = ProfileSerializer
 
     @extend_schema(
         operation_id="get_my_profile",
@@ -150,7 +172,9 @@ class MyProfileView(APIView):
         """Get or create current user's profile."""
         profile, created = Profile.objects.get_or_create(user_id=request.user.id)
         _update_auto_detected_language(request, profile)
-        serializer = ProfileSerializer(profile, context={"request": request})
+        serializer = self.get_response_serializer_class()(
+            profile, context={"request": request}
+        )
         response = Response(serializer.data)
         _set_language_cookies(response, profile)
         return response
@@ -169,7 +193,7 @@ class MyProfileView(APIView):
     def patch(self, request):
         """Update current user's profile."""
         profile, created = Profile.objects.get_or_create(user_id=request.user.id)
-        serializer = ProfileCreateUpdateSerializer(
+        serializer = self.get_request_serializer_class()(
             profile, data=request.data, partial=True
         )
         serializer.is_valid(raise_exception=True)
@@ -178,17 +202,20 @@ class MyProfileView(APIView):
         _update_auto_detected_language(request, profile)
 
         # Return full profile with nested data
-        response_serializer = ProfileSerializer(profile, context={"request": request})
+        response_serializer = self.get_response_serializer_class()(
+            profile, context={"request": request}
+        )
         response = Response(response_serializer.data)
         _set_language_cookies(response, profile)
         return response
 
 
 @extend_schema(tags=["Profile"])
-class ProfileDetailView(APIView):
+class ProfileDetailView(SerializerSeamsMixin, APIView):
     """View other user's profile (compact public view)."""
 
     permission_classes = [AllowAny]
+    response_serializer_class = ProfilePublicSerializer
 
     @extend_schema(
         operation_id="get_profile",
@@ -213,7 +240,9 @@ class ProfileDetailView(APIView):
             profile = Profile.objects.get(user_id=user_id)
         except Profile.DoesNotExist:
             return StapelErrorResponse(404, ERR_404_PROFILE_NOT_FOUND)
-        serializer = ProfilePublicSerializer(profile, context={"request": request})
+        serializer = self.get_response_serializer_class()(
+            profile, context={"request": request}
+        )
         return StapelResponse(serializer)
 
 
@@ -223,10 +252,11 @@ class ProfileDetailView(APIView):
 
 
 @extend_schema(tags=["Relationships"])
-class FollowView(APIView):
+class FollowView(SerializerSeamsMixin, APIView):
     """Follow a user."""
 
     permission_classes = [IsAuthenticated]
+    response_serializer_class = RelationshipActionResponseSerializer
 
     @extend_schema(
         operation_id="follow_user",
@@ -264,14 +294,15 @@ class FollowView(APIView):
         )
 
         dto = RelationshipActionResponse(success=True, status=relationship.status)
-        return StapelResponse(RelationshipActionResponseSerializer(dto))
+        return StapelResponse(self.get_response_serializer_class()(dto))
 
 
 @extend_schema(tags=["Relationships"])
-class UnfollowView(APIView):
+class UnfollowView(SerializerSeamsMixin, APIView):
     """Unfollow a user."""
 
     permission_classes = [IsAuthenticated]
+    response_serializer_class = RelationshipActionResponseSerializer
 
     @extend_schema(
         operation_id="unfollow_user",
@@ -311,14 +342,15 @@ class UnfollowView(APIView):
         ) or RelationshipStatus.NEUTRAL
 
         dto = RelationshipActionResponse(success=True, status=current)
-        return StapelResponse(RelationshipActionResponseSerializer(dto))
+        return StapelResponse(self.get_response_serializer_class()(dto))
 
 
 @extend_schema(tags=["Relationships"])
-class BlockView(APIView):
+class BlockView(SerializerSeamsMixin, APIView):
     """Block a user."""
 
     permission_classes = [IsAuthenticated]
+    response_serializer_class = RelationshipActionResponseSerializer
 
     @extend_schema(
         operation_id="block_user",
@@ -352,14 +384,15 @@ class BlockView(APIView):
         )
 
         dto = RelationshipActionResponse(success=True, status=relationship.status)
-        return StapelResponse(RelationshipActionResponseSerializer(dto))
+        return StapelResponse(self.get_response_serializer_class()(dto))
 
 
 @extend_schema(tags=["Relationships"])
-class UnblockView(APIView):
+class UnblockView(SerializerSeamsMixin, APIView):
     """Unblock a user."""
 
     permission_classes = [IsAuthenticated]
+    response_serializer_class = RelationshipActionResponseSerializer
 
     @extend_schema(
         operation_id="unblock_user",
@@ -399,14 +432,15 @@ class UnblockView(APIView):
         ) or RelationshipStatus.NEUTRAL
 
         dto = RelationshipActionResponse(success=True, status=current)
-        return StapelResponse(RelationshipActionResponseSerializer(dto))
+        return StapelResponse(self.get_response_serializer_class()(dto))
 
 
 @extend_schema(tags=["Relationships"])
-class RelationshipStatusView(APIView):
+class RelationshipStatusView(SerializerSeamsMixin, APIView):
     """Get relationship status with a user."""
 
     permission_classes = [IsAuthenticated]
+    response_serializer_class = RelationshipResponseSerializer
 
     @extend_schema(
         operation_id="get_relationship",
@@ -434,19 +468,20 @@ class RelationshipStatusView(APIView):
                 follower_id=follower_id, following_id=user_id
             )
             dto = RelationshipResponse(user_id=user_id, status=relationship.status)
-            return StapelResponse(RelationshipResponseSerializer(dto))
+            return StapelResponse(self.get_response_serializer_class()(dto))
         except UserRelationship.DoesNotExist:
             dto = RelationshipResponse(
                 user_id=user_id, status=RelationshipStatus.NEUTRAL
             )
-            return StapelResponse(RelationshipResponseSerializer(dto))
+            return StapelResponse(self.get_response_serializer_class()(dto))
 
 
 @extend_schema(tags=["Relationships"])
-class MyFollowersView(APIView):
+class MyFollowersView(SerializerSeamsMixin, APIView):
     """List current user's followers."""
 
     permission_classes = [IsAuthenticated]
+    response_serializer_class = FollowersResponseSerializer
 
     @extend_schema(
         operation_id="get_my_followers",
@@ -467,14 +502,15 @@ class MyFollowersView(APIView):
 
         followers_list = list(followers)
         dto = FollowersResponse(followers=followers_list, count=len(followers_list))
-        return StapelResponse(FollowersResponseSerializer(dto))
+        return StapelResponse(self.get_response_serializer_class()(dto))
 
 
 @extend_schema(tags=["Relationships"])
-class MyFollowingView(APIView):
+class MyFollowingView(SerializerSeamsMixin, APIView):
     """List users the current user is following."""
 
     permission_classes = [IsAuthenticated]
+    response_serializer_class = FollowingResponseSerializer
 
     @extend_schema(
         operation_id="get_my_following",
@@ -495,14 +531,15 @@ class MyFollowingView(APIView):
 
         following_list = list(following)
         dto = FollowingResponse(following=following_list, count=len(following_list))
-        return StapelResponse(FollowingResponseSerializer(dto))
+        return StapelResponse(self.get_response_serializer_class()(dto))
 
 
 @extend_schema(tags=["Relationships"])
-class MyBlockedView(APIView):
+class MyBlockedView(SerializerSeamsMixin, APIView):
     """List profiles of users the current user has blocked."""
 
     permission_classes = [IsAuthenticated]
+    response_serializer_class = ProfilePublicSerializer
 
     @extend_schema(
         operation_id="get_my_blocked",
@@ -524,7 +561,7 @@ class MyBlockedView(APIView):
         profiles = Profile.objects.filter(user_id__in=blocked_ids)
         # Public serializer only: these are other users' profiles — the
         # private ProfileSerializer would leak their settings and consents.
-        serializer = ProfilePublicSerializer(
+        serializer = self.get_response_serializer_class()(
             profiles, many=True, context={"request": request}
         )
         return StapelResponse(serializer)

@@ -41,3 +41,11 @@ stapel_profiles = [
 [tool.pytest.ini_options]
 django_find_project = false
 addopts = "--tb=short -q"
+
+[tool.coverage.run]
+# Exclude test scaffolding and generated migrations from coverage metrics.
+omit = [
+    "*/migrations/*",
+    "*/tests/*",
+    "*/conftest.py",
+]
