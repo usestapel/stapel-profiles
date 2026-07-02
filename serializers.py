@@ -259,13 +259,38 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
 
         # Check avatar exists on CDN (read-only — no refs created).
         # Fail closed: an unverifiable reference is rejected, not accepted.
-        try:
-            from stapel_core.django.cdn.ref_sync import check_cdn_media_exists
+        from .conf import profiles_settings
 
-            exists = check_cdn_media_exists(value)
-        except Exception:
-            logger.warning("CDN avatar check failed for %s", value, exc_info=True)
-            exists = False
+        mode = profiles_settings.PROFILES_AVATAR_CHECK
+        if mode == "off":
+            # Escape hatch: skip the existence check (format already validated).
+            return value
+
+        if mode == "http":
+            # Legacy behavior: direct HTTP call to the CDN service.
+            try:
+                from stapel_core.django.cdn.ref_sync import check_cdn_media_exists
+
+                exists = check_cdn_media_exists(value)
+            except Exception:
+                logger.warning("CDN avatar check failed for %s", value, exc_info=True)
+                exists = False
+        else:
+            # Default ("comm"): name-addressed function call — no direct
+            # dependency on the CDN service's HTTP API.
+            from stapel_core.comm import (
+                FunctionCallError,
+                FunctionNotRegistered,
+                call,
+            )
+
+            try:
+                result = call("cdn.media_exists", {"ref": value}, timeout=2.0)
+                exists = bool(result.get("exists")) if isinstance(result, dict) else False
+            except (FunctionCallError, FunctionNotRegistered):
+                logger.warning("CDN avatar check failed for %s", value, exc_info=True)
+                exists = False
+
         if not exists:
             raise StapelValidationError(ERR_400_AVATAR_NOT_FOUND)
         return value
@@ -273,6 +298,7 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         # Capture old avatar for ref sync
         old_avatar = instance.avatar or ""
+        fields_changed = sorted(validated_data.keys())
 
         result = super().update(instance, validated_data)
 
@@ -295,19 +321,30 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
                 )
 
         # Publish profile-changed event for SellerProfile sync
+        from stapel_core.signals import profile_updated
+
         from .events import publish_profile_changed
 
         publish_profile_changed(instance)
+        profile_updated.send(
+            sender=Profile, profile=instance, fields_changed=fields_changed
+        )
 
         return result
 
     def create(self, validated_data):
+        fields_changed = sorted(validated_data.keys())
         result = super().create(validated_data)
 
         # Publish profile-changed event for SellerProfile sync
+        from stapel_core.signals import profile_updated
+
         from .events import publish_profile_changed
 
         publish_profile_changed(result)
+        profile_updated.send(
+            sender=Profile, profile=result, fields_changed=fields_changed
+        )
 
         return result
 

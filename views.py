@@ -592,8 +592,13 @@ class UnsubscribeView(APIView):
         setattr(profile, field_name, False)
         profile.save(update_fields=[field_name])
 
+        from stapel_core.signals import profile_updated
+
         from .events import publish_profile_changed
 
         publish_profile_changed(profile)
+        profile_updated.send(
+            sender=Profile, profile=profile, fields_changed=[field_name]
+        )
 
         return StapelResponse({"success": True, "unsubscribed": field_name})

@@ -29,7 +29,14 @@ package-dir = {"stapel_profiles" = "."}
 packages = ["stapel_profiles", "stapel_profiles.management", "stapel_profiles.management.commands", "stapel_profiles.migrations", "stapel_profiles.tests"]
 
 [tool.setuptools.package-data]
-stapel_profiles = ["migrations/*.py", "schemas/**/*.json", "fixtures/*.json", "migrations/**/*.py"]
+stapel_profiles = [
+    "py.typed",
+    "migrations/*.py",
+    "migrations/**/*.py",
+    "schemas/**/*.json",
+    "fixtures/*.json",
+    "fixtures/flags/*.svg",
+]
 
 [tool.pytest.ini_options]
 django_find_project = false
