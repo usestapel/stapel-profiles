@@ -11,10 +11,11 @@ class ProfilesGDPRProvider(GDPRProvider):
             profile = Profile.objects.get(user_id=user_id)
             profile_data = {
                 'display_name':               profile.display_name,
-                'avatar_url':                 profile.avatar.url if profile.avatar else None,
+                # avatar is a CdnImageField (CharField storing "avatar/<hash>")
+                'avatar_ref':                 profile.avatar or None,
                 'currency_code':              profile.currency_code,
                 'measurement_units':          profile.measurement_units,
-                'app_language':               profile.app_language,
+                'app_language':               profile.app_language.code if profile.app_language else None,
                 'auto_translate_content':     profile.auto_translate_content,
                 'location_display_name':      profile.location_display_name_broad,
                 'email_notifications':        profile.email_messages,
@@ -44,13 +45,9 @@ class ProfilesGDPRProvider(GDPRProvider):
 
         UserRelationship.objects.filter(follower_id=user_id).delete()
         UserRelationship.objects.filter(following_id=user_id).delete()
-        try:
-            profile = Profile.objects.get(user_id=user_id)
-            if profile.avatar:
-                profile.avatar.delete(save=False)
-            profile.delete()
-        except Profile.DoesNotExist:
-            pass
+        # avatar is a CDN reference string; the binary lives in the CDN
+        # service and is erased by its own GDPR provider/consumer.
+        Profile.objects.filter(user_id=user_id).delete()
 
     def anonymize(self, user_id: int) -> None:
         # Profile is hard-deleted; public-facing references (reviews etc.)

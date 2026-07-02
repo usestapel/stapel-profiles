@@ -240,24 +240,34 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
             validate_display_name(value)
         return value
 
-        return value.upper() if value else value
-
     def validate_avatar(self, value):
         """Validate avatar format and existence on CDN."""
         if not value:
             return value
-        if "/" not in value:
+
+        # Enforce the full reference contract ("avatar/<64-hex>"), not just
+        # the presence of a slash — otherwise cross-type refs and path-like
+        # strings slip through.
+        from django.core.exceptions import ValidationError as DjangoValidationError
+
+        from stapel_core.django.cdn.fields import validate_cdn_reference
+
+        try:
+            validate_cdn_reference(value, "avatar")
+        except DjangoValidationError:
             raise StapelValidationError(ERR_400_INVALID_AVATAR_FORMAT)
-        # Check avatar exists on CDN (read-only — no refs created)
+
+        # Check avatar exists on CDN (read-only — no refs created).
+        # Fail closed: an unverifiable reference is rejected, not accepted.
         try:
             from stapel_core.django.cdn.ref_sync import check_cdn_media_exists
 
-            if not check_cdn_media_exists(value):
-                raise StapelValidationError(ERR_400_AVATAR_NOT_FOUND)
-        except StapelValidationError:
-            raise
+            exists = check_cdn_media_exists(value)
         except Exception:
             logger.warning("CDN avatar check failed for %s", value, exc_info=True)
+            exists = False
+        if not exists:
+            raise StapelValidationError(ERR_400_AVATAR_NOT_FOUND)
         return value
 
     def update(self, instance, validated_data):

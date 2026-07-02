@@ -26,8 +26,19 @@ _EMOJI_PATTERN = re.compile(
     "\U0001fa70-\U0001faff"  # symbols extended-A
     "\U00002600-\U000026ff"  # misc symbols
     "\U0000200d"  # ZWJ
-    "\U00002b50"  # star
-    "\U0000203c-\U00003299"  # misc
+    # Scattered emoji in U+2000–U+3300. Listed individually: a blanket
+    # U+203C–U+3299 range would also reject CJK punctuation and kana.
+    "\U0000203c\U00002049"  # double bang, interrobang
+    "\U00002122\U00002139"  # trade mark, information
+    "\U00002194-\U000021aa"  # arrows
+    "\U0000231a\U0000231b\U00002328"  # watch, hourglass, keyboard
+    "\U000023e9-\U000023fa"  # av control symbols
+    "\U000024c2"  # circled M
+    "\U000025aa-\U000025fe"  # geometric shapes
+    "\U00002934\U00002935"  # arrow-curving
+    "\U00002b05-\U00002b07"  # heavy arrows
+    "\U00002b1b\U00002b1c\U00002b50\U00002b55"  # squares, star, circle
+    "\U00003030\U0000303d\U00003297\U00003299"  # wavy dash, part alt, ㊗ ㊙
     "]"
 )
 

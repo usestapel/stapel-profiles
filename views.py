@@ -16,7 +16,6 @@ from stapel_core.core.language import (
     parse_accept_language,
 )
 from stapel_core.django.api.errors import (
-    ERR_401_UNAUTHORIZED,
     StapelErrorResponse,
     StapelErrorSerializer,
     StapelResponse,
@@ -136,12 +135,12 @@ def _update_auto_detected_language(request, profile):
 class MyProfileView(APIView):
     """Current user's profile management."""
 
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     @extend_schema(
         operation_id="get_my_profile",
         summary="Get my profile",
-        description="Get current user's profile. Creates profile with defaults if not exists. Works for both authenticated and anonymous users.",
+        description="Get current user's profile. Creates profile with defaults if not exists.",
         responses={
             200: ProfileResponseSerializer,
             401: OpenApiTypes.OBJECT,
@@ -149,8 +148,6 @@ class MyProfileView(APIView):
     )
     def get(self, request):
         """Get or create current user's profile."""
-        if not request.user or not request.user.is_authenticated:
-            return StapelErrorResponse(401, ERR_401_UNAUTHORIZED)
         profile, created = Profile.objects.get_or_create(user_id=request.user.id)
         _update_auto_detected_language(request, profile)
         serializer = ProfileSerializer(profile, context={"request": request})
@@ -161,7 +158,7 @@ class MyProfileView(APIView):
     @extend_schema(
         operation_id="update_my_profile",
         summary="Update my profile",
-        description="Update current user's profile. All fields are optional (PATCH semantics). Works for both authenticated and anonymous users.",
+        description="Update current user's profile. All fields are optional (PATCH semantics).",
         request=ProfileUpdateRequestSerializer,
         responses={
             200: ProfileResponseSerializer,
@@ -171,9 +168,6 @@ class MyProfileView(APIView):
     )
     def patch(self, request):
         """Update current user's profile."""
-        if not request.user or not request.user.is_authenticated:
-            return StapelErrorResponse(401, ERR_401_UNAUTHORIZED)
-
         profile, created = Profile.objects.get_or_create(user_id=request.user.id)
         serializer = ProfileCreateUpdateSerializer(
             profile, data=request.data, partial=True
@@ -250,6 +244,7 @@ class FollowView(APIView):
             200: RelationshipActionResponseSerializer,
             400: StapelErrorSerializer,
             401: OpenApiTypes.OBJECT,
+            404: StapelErrorSerializer,
         },
     )
     def post(self, request, user_id):
@@ -258,6 +253,9 @@ class FollowView(APIView):
 
         if str(follower_id) == str(user_id):
             return StapelErrorResponse(400, ERR_400_CANNOT_FOLLOW_SELF)
+
+        if not Profile.objects.filter(user_id=user_id).exists():
+            return StapelErrorResponse(404, ERR_404_PROFILE_NOT_FOUND)
 
         relationship, created = UserRelationship.objects.update_or_create(
             follower_id=follower_id,
@@ -296,13 +294,23 @@ class UnfollowView(APIView):
         """Unfollow a user."""
         follower_id = request.user.id
 
-        relationship, created = UserRelationship.objects.update_or_create(
+        # Only clear a FOLLOWING relationship: unfollow must not silently
+        # unblock, and it must not create rows for users never followed.
+        UserRelationship.objects.filter(
             follower_id=follower_id,
             following_id=user_id,
-            defaults={"status": RelationshipStatus.NEUTRAL},
-        )
+            status=RelationshipStatus.FOLLOWING,
+        ).delete()
 
-        dto = RelationshipActionResponse(success=True, status=relationship.status)
+        current = (
+            UserRelationship.objects.filter(
+                follower_id=follower_id, following_id=user_id
+            )
+            .values_list("status", flat=True)
+            .first()
+        ) or RelationshipStatus.NEUTRAL
+
+        dto = RelationshipActionResponse(success=True, status=current)
         return StapelResponse(RelationshipActionResponseSerializer(dto))
 
 
@@ -374,13 +382,23 @@ class UnblockView(APIView):
         """Unblock a user."""
         follower_id = request.user.id
 
-        relationship, created = UserRelationship.objects.update_or_create(
+        # Only clear a BLOCKED relationship; do not create rows for users
+        # who were never blocked.
+        UserRelationship.objects.filter(
             follower_id=follower_id,
             following_id=user_id,
-            defaults={"status": RelationshipStatus.NEUTRAL},
-        )
+            status=RelationshipStatus.BLOCKED,
+        ).delete()
 
-        dto = RelationshipActionResponse(success=True, status=relationship.status)
+        current = (
+            UserRelationship.objects.filter(
+                follower_id=follower_id, following_id=user_id
+            )
+            .values_list("status", flat=True)
+            .first()
+        ) or RelationshipStatus.NEUTRAL
+
+        dto = RelationshipActionResponse(success=True, status=current)
         return StapelResponse(RelationshipActionResponseSerializer(dto))
 
 
@@ -491,7 +509,7 @@ class MyBlockedView(APIView):
         summary="Get my blocked users",
         description="Get list of profiles of users the current user has blocked.",
         responses={
-            200: ProfileSerializer(many=True),
+            200: ProfilePublicSerializer(many=True),
             401: OpenApiTypes.OBJECT,
         },
     )
@@ -504,7 +522,9 @@ class MyBlockedView(APIView):
         ).values_list("following_id", flat=True)
 
         profiles = Profile.objects.filter(user_id__in=blocked_ids)
-        serializer = ProfileSerializer(
+        # Public serializer only: these are other users' profiles — the
+        # private ProfileSerializer would leak their settings and consents.
+        serializer = ProfilePublicSerializer(
             profiles, many=True, context={"request": request}
         )
         return StapelResponse(serializer)
