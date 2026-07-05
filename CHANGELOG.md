@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.5 — 2026-07-05
+
+### Fixed — `profile.changed` emit is now truly best-effort under ATOMIC_REQUESTS
+- `events.publish_profile_changed` now emits inside its own
+  `transaction.atomic()` block. The prior "best-effort, swallow never fails the
+  request" claim held only in autocommit mode: under `ATOMIC_REQUESTS=True` the
+  helper ran inside the request transaction, and a failing emit marked it
+  rollback-only (`stapel-core comm/actions.py`), so the swallow did not save the
+  request — the next DB query raised `TransactionManagementError` and rolled the
+  profile mutation back. The nested atomic isolates an emit failure to a
+  savepoint (Django clears `needs_rollback`), so the mutation survives in **both**
+  request modes; it also silences the emit-outside-atomic guard's WARNING spam.
+  New regression tests cover both modes. No behaviour change on the success path.
+
 ## 0.3.4 — 2026-07-05
 
 ### Changed
