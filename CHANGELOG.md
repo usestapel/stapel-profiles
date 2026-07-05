@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.4 — 2026-07-05
+
+### Changed
+- CI/pre-commit/pre-push now run `stapel_core.lint.emit_check` (outbox-atomicity
+  gate, stapel-core 0.3.3+). Hooks guard-fall back to a skip when core is older.
+- `events.publish_profile_changed`: annotated the `profile.changed` emit with an
+  `emit-check: ok` pragma (EMIT002). It is a best-effort post-commit publisher —
+  the helper holds no ORM write of its own, the caller saves+commits the profile
+  independently, and the swallow is intentional so a broker/listener outage never
+  fails the request. No behaviour change.
+
 ## 0.3.3 — 2026-07-05
 
 ### Fixed

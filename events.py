@@ -14,7 +14,7 @@ def publish_profile_changed(instance):
     try:
         from stapel_core.comm import emit
 
-        emit(
+        emit(  # emit-check: ok — best-effort post-commit publisher, not a mutation+emit unit: this helper has no local ORM write, the caller saves+commits the profile independently (autocommit) before calling it, and the swallow is intentional so a broker/listener outage never fails the request
             "profile.changed",
             {
                 "user_id": str(instance.user_id),
