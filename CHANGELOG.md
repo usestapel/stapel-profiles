@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.3 — 2026-07-05
+
+### Fixed
+- Migration drift under Django 6: `Profile.email_messages`, `email_system`,
+  `push_messages` and `push_system` gained `help_text` after migration `0010`
+  without a follow-up migration. `0014` regenerates the `help_text`-only
+  `AlterField`s (no DB/schema change). `makemigrations --check` is now clean.
+
 ## 0.3.2 — 2026-07-05
 
 ### Fixed
