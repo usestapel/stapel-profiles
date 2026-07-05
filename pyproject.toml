@@ -4,21 +4,35 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stapel-profiles"
-version = "0.3.6"
+version = "0.3.7"
 description = "User profiles Django app for the Stapel framework"
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
 keywords = ["django", "stapel", "profiles", "users", "social"]
 classifiers = [
+    "Development Status :: 4 - Beta",
     "Framework :: Django",
     "Framework :: Django :: 5.2",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3 :: Only",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Typing :: Typed",
 ]
 dependencies = [
     "stapel-core>=0.3.0,<0.4",
 ]
+
+[project.urls]
+Homepage = "https://github.com/usestapel/stapel-profiles"
+Repository = "https://github.com/usestapel/stapel-profiles"
+Documentation = "https://github.com/usestapel/stapel-profiles#readme"
+Changelog = "https://github.com/usestapel/stapel-profiles/blob/main/CHANGELOG.md"
+Issues = "https://github.com/usestapel/stapel-profiles/issues"
 
 [project.optional-dependencies]
 kafka = ["confluent-kafka>=2.3"]
@@ -26,7 +40,7 @@ all = ["stapel-profiles[kafka]"]
 
 [tool.setuptools]
 package-dir = {"stapel_profiles" = "."}
-packages = ["stapel_profiles", "stapel_profiles.management", "stapel_profiles.management.commands", "stapel_profiles.migrations", "stapel_profiles.tests"]
+packages = ["stapel_profiles", "stapel_profiles.management", "stapel_profiles.management.commands", "stapel_profiles.migrations"]
 
 [tool.setuptools.package-data]
 stapel_profiles = [
@@ -37,6 +51,14 @@ stapel_profiles = [
     "fixtures/*.json",
     "fixtures/flags/*.svg",
 ]
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+# Single source for the git hooks and CI (they pass the same flags on the CLI).
+select = ["E", "F", "W"]
+ignore = ["E501"]
 
 [tool.pytest.ini_options]
 django_find_project = false
