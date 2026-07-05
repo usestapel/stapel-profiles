@@ -270,6 +270,7 @@ class FollowView(SerializerSeamsMixin, APIView):
                 description="User UUID to follow",
             )
         ],
+        request=None,
         responses={
             200: RelationshipActionResponseSerializer,
             400: StapelErrorSerializer,
@@ -316,6 +317,7 @@ class UnfollowView(SerializerSeamsMixin, APIView):
                 description="User UUID to unfollow",
             )
         ],
+        request=None,
         responses={
             200: RelationshipActionResponseSerializer,
             401: OpenApiTypes.OBJECT,
@@ -364,6 +366,7 @@ class BlockView(SerializerSeamsMixin, APIView):
                 description="User UUID to block",
             )
         ],
+        request=None,
         responses={
             200: RelationshipActionResponseSerializer,
             400: StapelErrorSerializer,
@@ -406,6 +409,7 @@ class UnblockView(SerializerSeamsMixin, APIView):
                 description="User UUID to unblock",
             )
         ],
+        request=None,
         responses={
             200: RelationshipActionResponseSerializer,
             401: OpenApiTypes.OBJECT,
@@ -588,7 +592,8 @@ class UnsubscribeView(APIView):
                 name="token", type=str, location=OpenApiParameter.QUERY, required=True
             ),
         ],
-        responses={200: dict, 400: dict},
+        request=None,
+        responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT},
     )
     def post(self, request):
         token = request.query_params.get("token", "") or request.data.get("token", "")

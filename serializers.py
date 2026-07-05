@@ -140,19 +140,19 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
             "relationship_status",
         ]
 
-    def get_followers_count(self, obj):
+    def get_followers_count(self, obj) -> int:
         """Get count of users following this profile."""
         return UserRelationship.objects.filter(
             following_id=obj.user_id, status="following"
         ).count()
 
-    def get_following_count(self, obj):
+    def get_following_count(self, obj) -> int:
         """Get count of users this profile is following."""
         return UserRelationship.objects.filter(
             follower_id=obj.user_id, status="following"
         ).count()
 
-    def get_relationship_status(self, obj):
+    def get_relationship_status(self, obj) -> str | None:
         """Get relationship status with current user."""
         request = self.context.get("request")
         if not request or not request.user or not request.user.is_authenticated:

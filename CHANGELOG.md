@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.6 — 2026-07-05
+
+### Fixed — OpenAPI schema warnings
+- OpenAPI: `@extend_schema(request=None)` for Follow/Unfollow/Block/Unblock/Unsubscribe
+  (bodyless POST endpoints — target is the URL/query param) so drf-spectacular no
+  longer errors with "unable to guess serializer". `UnsubscribeView` responses now
+  use `OpenApiTypes.OBJECT` instead of bare `dict`.
+- Added return type hints on `ProfilePublicSerializer` method fields
+  (`get_followers_count -> int`, `get_following_count -> int`,
+  `get_relationship_status -> str | None`) so drf-spectacular resolves their types.
+  Documentation-only; no runtime behaviour change.
+
 ## 0.3.5 — 2026-07-05
 
 ### Fixed — `profile.changed` emit is now truly best-effort under ATOMIC_REQUESTS
