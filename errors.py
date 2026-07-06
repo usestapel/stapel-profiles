@@ -26,7 +26,32 @@ PROFILES_ERRORS = {
     ERR_400_AVATAR_NOT_FOUND: 'Avatar not found on CDN',
 }
 
-register_service_errors(PROFILES_ERRORS)
+# Machine-readable recovery hints (remediation) — the canonical "what to do"
+# for each key, emitted into the errors.json codegen artifact and consumed by the
+# frontend/LLM (frontend-core-architecture §2.5). Vocabulary: retry |
+# wait_and_retry | reauthenticate | verify | fix_input | contact_support | bug.
+# Declared here (backend = canon) rather than left to the status+name heuristic.
+# Every profiles key is caused by a bad request argument (a self-referential
+# follow/block, a display name that violates a rule, an unknown currency, a
+# malformed or dangling avatar reference, a profile handle/id that matches no
+# profile), so the honest recovery is "correct the input" — `fix_input`. This
+# overrides the heuristic for `error.404.profile_not_found`, which the heuristic
+# would resolve to `retry` (its default for a 404 `not_found`); retrying the same
+# lookup would just loop the same failing request.
+PROFILES_REMEDIATION = {
+    ERR_404_PROFILE_NOT_FOUND: 'fix_input',
+    ERR_400_CANNOT_FOLLOW_SELF: 'fix_input',
+    ERR_400_CANNOT_BLOCK_SELF: 'fix_input',
+    ERR_400_DISPLAY_NAME_TOO_SHORT: 'fix_input',
+    ERR_400_DISPLAY_NAME_FORBIDDEN_CHARS: 'fix_input',
+    ERR_400_DISPLAY_NAME_EMOJI: 'fix_input',
+    ERR_400_DISPLAY_NAME_INVISIBLE_CHARS: 'fix_input',
+    ERR_400_INVALID_CURRENCY: 'fix_input',
+    ERR_400_INVALID_AVATAR_FORMAT: 'fix_input',
+    ERR_400_AVATAR_NOT_FOUND: 'fix_input',
+}
+
+register_service_errors(PROFILES_ERRORS, remediation=PROFILES_REMEDIATION)
 
 
 class ProfilesErrorKeysView(ErrorKeysView):

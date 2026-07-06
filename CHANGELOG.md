@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.9 — 2026-07-06
+
+### Added
+- **Declarative error registry + `docs/errors.json` codegen artifact.** All ten
+  service error keys now declare a machine-readable `remediation` hint via
+  `register_service_errors(..., remediation=...)`. Every profiles key is a
+  bad-input error, so each declares `fix_input`. This makes the backend canon:
+  it overrides the status+name heuristic for `error.404.profile_not_found`,
+  which the heuristic would otherwise resolve to `retry` (its default for a 404
+  `not_found`) — retrying the same lookup would just loop the failing request.
+- `docs/errors.json` — the language-agnostic error-key registry (51 entries:
+  core `COMMON_ERRORS` + cross-cutting keys + the ten service keys), emitted by
+  `generate_error_keys` and consumed by the frontend (`stapel-react` profiles
+  pair) as the errors-bundle source.
+- `tests/test_error_keys.py` — byte-stable drift gate (regenerate-and-diff, same
+  discipline as schema.json/flow docs) plus artifact-shape and
+  declared-remediation assertions. Regenerate with
+  `STAPEL_REGEN_ERROR_KEYS=1 pytest tests/test_error_keys.py`.
+
+### Changed
+- Test settings (`conftest.py`) install `stapel_core.django.apps.CommonDjangoConfig`
+  so the `generate_error_keys` management command is discoverable for the drift
+  gate. No `@flow_step` flows exist in this module (0 flows is valid).
+
+
 ## 0.3.8 — 2026-07-06
 
 ### Changed
