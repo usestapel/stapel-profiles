@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.3.10 — 2026-07-06
+
+### Added
+- **`@on_action("user.registered")` handler** (`actions.py`) — re-hosts an
+  OAuth provider avatar onto the CDN. When the event carries a usable
+  `avatar_url` (only OAuth registrations populate it today) it calls
+  `cdn.import_from_url` and stores the returned `<type>/<hash>` ref on
+  `Profile.avatar` via `update_or_create`. Design:
+  - **no-op** when `avatar_url` is absent/null/empty (the common
+    email/phone/password case) or when `user_id` is missing;
+  - **respect-user-choice + idempotency in one guard** — if the profile
+    already has a non-empty avatar the handler no-ops *before* fetching, so a
+    manually uploaded avatar is never clobbered and an at-least-once
+    redelivery never re-imports (nor re-hits the provider);
+  - **best-effort, swallow-not-retry** — any fetch/call/save failure is logged
+    and swallowed; letting it propagate would make the outbox relay redeliver
+    the whole `user.registered` event and re-run every other subscriber in a
+    retry storm over a cosmetic, non-critical avatar of an attacker-influenced
+    URL. The account simply exists without an avatar.
+- `tests/test_user_registered_action.py` — no-op cases, happy path (mocked
+  comm call), respect-user-choice, idempotency under redelivery, and the
+  swallowed-failure modes.
+
+
 ## 0.3.9 — 2026-07-06
 
 ### Added
