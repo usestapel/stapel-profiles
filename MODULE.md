@@ -151,6 +151,32 @@ missing/stale/params/byte-instability); regenerate with
 commit `translations/errors.ru.json`, `translations/.state.json`,
 `docs/errors.{en,ru}.md`.
 
+### Admin categories — `@access` declarations (admin-suite AS-5)
+
+Every model in `models.py` carries (or implicitly defaults to) a
+`stapel_core.access.access` category — one declaration, consumed by admin
+visibility, default staff rights, and the audit report (admin-suite §0).
+Undecorated = `business` (visible, staff-manageable) and is the correct,
+zero-effort default for domain tables.
+
+All three models here are `business` and stay undecorated — none fit `ops`
+(outbox/dedup/audit-log/TTL-junk machinery) or `secret` (token/key/credential
+carriers):
+
+- `Profile` — the module's core domain table (preferences, settings,
+  onboarding state, cached location display names). It is the doc's own
+  canonical `business` example. It holds no secrets: `avatar` is a CDN
+  reference (`avatar/<hash>`, no bytes), not a credential.
+- `Language` — reference/config data (codes, flags, active flag), analogous
+  to `Category` in the admin-suite table — not a journal or credential store.
+- `UserRelationship` — user-facing follow/block state. It is durable domain
+  data staff may need to inspect for abuse/dispute handling, not a
+  delivery/audit log or TTL-expiring record, so it does not fit `ops`.
+
+No decorator changes were made and `admin.py` (`LanguageAdmin`,
+`ProfileAdmin`, `UserRelationshipAdmin`) is untouched — there is no
+ops/secret model here to route through `StapelModelAdmin`.
+
 ## Anti-patterns
 
 | Don't | Do instead |
