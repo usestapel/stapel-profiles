@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/usestapel/stapel-profiles/actions/workflows/ci.yml/badge.svg)](https://github.com/usestapel/stapel-profiles/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/usestapel/stapel-profiles/graph/badge.svg)](https://codecov.io/gh/usestapel/stapel-profiles)
+[![PyPI](https://img.shields.io/pypi/v/stapel-profiles.svg)](https://pypi.org/project/stapel-profiles/)
 
 > User profiles — avatars, social graph (follow/block), privacy settings, language preferences
 
