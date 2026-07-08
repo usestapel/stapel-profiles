@@ -1,0 +1,1422 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "",
+    "version": "0.0.0"
+  },
+  "paths": {
+    "/profiles/api/{user_id}": {
+      "get": {
+        "operationId": "get_profile",
+        "description": "Get compact profile of a specific user by UUID. Includes relationship status with current user if authenticated.\n\n**Permissions:** `AllowAny`",
+        "summary": "Get user profile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User UUID",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Profile"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfilePublicResponse"
+                },
+                "examples": {
+                  "ProfilePublicResponse": {
+                    "value": {
+                      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "display_name": "Jane Smith",
+                      "avatar": "avatar/def456",
+                      "location_id": 42,
+                      "location_display_name_narrow": "LU - Mamer",
+                      "location_display_name_broad": "LU - Differdange",
+                      "followers_count": 120,
+                      "following_count": 30,
+                      "rating": 4.5,
+                      "relationship_status": "following"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/{user_id}/block": {
+      "post": {
+        "operationId": "block_user",
+        "description": "Block a user. Creates or updates relationship to \"blocked\" status.\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Block user",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User UUID to block",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipActionResponse"
+                },
+                "examples": {
+                  "RelationshipActionResponse": {
+                    "value": {
+                      "success": true,
+                      "status": "following"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/{user_id}/follow": {
+      "post": {
+        "operationId": "follow_user",
+        "description": "Follow a user. Creates or updates relationship to \"following\" status.\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Follow user",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User UUID to follow",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipActionResponse"
+                },
+                "examples": {
+                  "RelationshipActionResponse": {
+                    "value": {
+                      "success": true,
+                      "status": "following"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/{user_id}/relationship": {
+      "get": {
+        "operationId": "get_relationship",
+        "description": "Get current relationship status with a user.\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Get relationship status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User UUID",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipResponse"
+                },
+                "examples": {
+                  "RelationshipResponse": {
+                    "value": {
+                      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "status": "following"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/{user_id}/unblock": {
+      "post": {
+        "operationId": "unblock_user",
+        "description": "Unblock a user. Sets relationship to \"neutral\" status.\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Unblock user",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User UUID to unblock",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipActionResponse"
+                },
+                "examples": {
+                  "RelationshipActionResponse": {
+                    "value": {
+                      "success": true,
+                      "status": "following"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/{user_id}/unfollow": {
+      "post": {
+        "operationId": "unfollow_user",
+        "description": "Unfollow a user. Sets relationship to \"neutral\" status.\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Unfollow user",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User UUID to unfollow",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipActionResponse"
+                },
+                "examples": {
+                  "RelationshipActionResponse": {
+                    "value": {
+                      "success": true,
+                      "status": "following"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/languages/": {
+      "get": {
+        "operationId": "list_languages",
+        "description": "Get list of all available languages.\n\n**Permissions:** `AllowAny`",
+        "summary": "List all languages",
+        "tags": [
+          "Languages"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LanguageResponse"
+                  }
+                },
+                "examples": {
+                  "LanguageResponse": {
+                    "value": [
+                      {
+                        "code": "en",
+                        "name": "English",
+                        "flag": "/flags/en.svg"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/languages/{code}/": {
+      "get": {
+        "operationId": "get_language",
+        "description": "Get language details by code.\n\n**Permissions:** `AllowAny`",
+        "summary": "Get language by code",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "schema": {
+              "type": "string",
+              "description": "Language code (e.g., 'en', 'ru', 'de')"
+            },
+            "required": true
+          }
+        ],
+        "tags": [
+          "Languages"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LanguageResponse"
+                },
+                "examples": {
+                  "LanguageResponse": {
+                    "value": {
+                      "code": "en",
+                      "name": "English",
+                      "flag": "/flags/en.svg"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/me": {
+      "get": {
+        "operationId": "get_my_profile",
+        "description": "Get current user's profile. Creates profile with defaults if not exists.\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Get my profile",
+        "tags": [
+          "Profile"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                },
+                "examples": {
+                  "ProfileResponse": {
+                    "value": {
+                      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "display_name": "John Doe",
+                      "avatar": "avatar/abc123",
+                      "location_id": 42,
+                      "location_display_name_narrow": "LU - Mamer",
+                      "location_display_name_broad": "LU - Differdange",
+                      "currency_code": "EUR",
+                      "measurement_units": "metric",
+                      "theme": "system",
+                      "understands": [
+                        "en",
+                        "fr"
+                      ],
+                      "use_device_language": true,
+                      "auto_detected_language": "de",
+                      "email_messages": true,
+                      "email_system": true,
+                      "push_messages": true,
+                      "push_system": true,
+                      "essential_cookies_accepted": true,
+                      "initial_setup_passed": true,
+                      "followers_count": 42,
+                      "following_count": 15,
+                      "rating": 4.8,
+                      "created_at": "2025-01-15T12:00:00Z",
+                      "updated_at": "2025-01-20T14:30:00Z"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      },
+      "patch": {
+        "operationId": "update_my_profile",
+        "description": "Update current user's profile. All fields are optional (PATCH semantics).\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Update my profile",
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedProfileUpdateRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedProfileUpdateRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedProfileUpdateRequest"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                },
+                "examples": {
+                  "ProfileResponse": {
+                    "value": {
+                      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "display_name": "John Doe",
+                      "avatar": "avatar/abc123",
+                      "location_id": 42,
+                      "location_display_name_narrow": "LU - Mamer",
+                      "location_display_name_broad": "LU - Differdange",
+                      "currency_code": "EUR",
+                      "measurement_units": "metric",
+                      "theme": "system",
+                      "understands": [
+                        "en",
+                        "fr"
+                      ],
+                      "use_device_language": true,
+                      "auto_detected_language": "de",
+                      "email_messages": true,
+                      "email_system": true,
+                      "push_messages": true,
+                      "push_system": true,
+                      "essential_cookies_accepted": true,
+                      "initial_setup_passed": true,
+                      "followers_count": 42,
+                      "following_count": 15,
+                      "rating": 4.8,
+                      "created_at": "2025-01-15T12:00:00Z",
+                      "updated_at": "2025-01-20T14:30:00Z"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/me/blocked": {
+      "get": {
+        "operationId": "get_my_blocked",
+        "description": "Get list of profiles of users the current user has blocked.\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Get my blocked users",
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProfilePublic"
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/me/followers": {
+      "get": {
+        "operationId": "get_my_followers",
+        "description": "Get list of users following the current user.\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Get my followers",
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowersResponse"
+                },
+                "examples": {
+                  "FollowersResponse": {
+                    "value": {
+                      "followers": [
+                        "550e8400-e29b-41d4-a716-446655440000"
+                      ],
+                      "count": 42
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/me/following": {
+      "get": {
+        "operationId": "get_my_following",
+        "description": "Get list of users the current user is following.\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Get my following",
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowingResponse"
+                },
+                "examples": {
+                  "FollowingResponse": {
+                    "value": {
+                      "following": [
+                        "550e8400-e29b-41d4-a716-446655440000"
+                      ],
+                      "count": 15
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/notifications/unsubscribe": {
+      "post": {
+        "operationId": "unsubscribe_notifications",
+        "description": "Verify HMAC token and toggle the corresponding notification preference off. Uses POST per RFC 8058 (List-Unsubscribe-Post).\n\n**Permissions:** `AllowAny`",
+        "summary": "Unsubscribe from notifications",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "tags": [
+          "Notifications"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "FollowersResponse": {
+        "type": "object",
+        "description": "User's followers list.",
+        "properties": {
+          "followers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "List of follower user UUIDs",
+            "example": [
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "description": "Total follower count",
+            "example": 42
+          }
+        },
+        "required": [
+          "count",
+          "followers"
+        ]
+      },
+      "FollowingResponse": {
+        "type": "object",
+        "description": "Users followed by this user.",
+        "properties": {
+          "following": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "List of followed user UUIDs",
+            "example": [
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "description": "Total following count",
+            "example": 15
+          }
+        },
+        "required": [
+          "count",
+          "following"
+        ]
+      },
+      "LanguageResponse": {
+        "type": "object",
+        "description": "Language info.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "ISO 639-1 language code",
+            "example": "en"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable language name",
+            "example": "English"
+          },
+          "flag": {
+            "type": "string",
+            "nullable": true,
+            "description": "URL to flag image",
+            "example": "/flags/en.svg"
+          }
+        },
+        "required": [
+          "code",
+          "flag",
+          "name"
+        ]
+      },
+      "PatchedProfileUpdateRequest": {
+        "type": "object",
+        "description": "Update profile fields (PATCH, all optional).",
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "New display name",
+            "example": "John Doe"
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true,
+            "description": "CDN avatar reference",
+            "example": "avatar/abc123"
+          },
+          "location_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Geo service location ID",
+            "example": 42
+          },
+          "currency_code": {
+            "type": "string",
+            "nullable": true,
+            "description": "ISO 4217 currency code",
+            "example": "EUR"
+          },
+          "measurement_units": {
+            "type": "string",
+            "nullable": true,
+            "description": "Measurement system (metric or imperial)",
+            "example": "metric"
+          },
+          "theme": {
+            "type": "string",
+            "nullable": true,
+            "description": "UI theme (light, dark, system)",
+            "example": "dark"
+          },
+          "app_language": {
+            "type": "string",
+            "nullable": true,
+            "description": "ISO 639-1 language code",
+            "example": "en"
+          },
+          "understands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "description": "List of understood language codes",
+            "example": [
+              "en",
+              "fr"
+            ]
+          },
+          "use_device_language": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Use device language for UI",
+            "example": true
+          },
+          "auto_translate_content": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Auto-translate ad content"
+          },
+          "email_messages": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Toggle message email notifications",
+            "example": true
+          },
+          "email_system": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Toggle system email notifications",
+            "example": true
+          },
+          "push_messages": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Toggle message push notifications",
+            "example": true
+          },
+          "push_system": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Toggle system push notifications",
+            "example": true
+          },
+          "essential_cookies_accepted": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Essential cookies consent",
+            "example": true
+          },
+          "initial_setup_passed": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Mark onboarding as complete",
+            "example": true
+          }
+        }
+      },
+      "ProfilePublic": {
+        "type": "object",
+        "description": "Compact serializer for viewing other user's profile.",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User UUID from auth service"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "User's display name",
+            "maxLength": 35
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true,
+            "description": "CDN avatar image reference (avatar/hash)",
+            "maxLength": 150
+          },
+          "location_id": {
+            "type": "integer",
+            "maximum": 9223372036854775807,
+            "minimum": -9223372036854775808,
+            "format": "int64",
+            "nullable": true,
+            "description": "User's location ID from geo service"
+          },
+          "location_display_name_narrow": {
+            "type": "string",
+            "description": "Cached narrow location display name from geo service",
+            "maxLength": 255
+          },
+          "location_display_name_broad": {
+            "type": "string",
+            "description": "Cached broad location display name from geo service",
+            "maxLength": 255
+          },
+          "followers_count": {
+            "type": "integer",
+            "description": "Get count of users following this profile.",
+            "readOnly": true
+          },
+          "following_count": {
+            "type": "integer",
+            "description": "Get count of users this profile is following.",
+            "readOnly": true
+          },
+          "relationship_status": {
+            "type": "string",
+            "nullable": true,
+            "description": "Get relationship status with current user.",
+            "readOnly": true
+          }
+        },
+        "required": [
+          "followers_count",
+          "following_count",
+          "relationship_status",
+          "user_id"
+        ]
+      },
+      "ProfilePublicResponse": {
+        "type": "object",
+        "description": "Public profile for viewing other users.",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User UUID",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "Display name",
+            "example": "Jane Smith"
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true,
+            "description": "CDN avatar reference",
+            "example": "avatar/def456"
+          },
+          "location_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Geo service location ID",
+            "example": 42
+          },
+          "location_display_name_narrow": {
+            "type": "string",
+            "description": "Short location",
+            "example": "LU - Mamer"
+          },
+          "location_display_name_broad": {
+            "type": "string",
+            "description": "Broad location",
+            "example": "LU - Differdange"
+          },
+          "followers_count": {
+            "type": "integer",
+            "description": "Number of followers",
+            "example": 120
+          },
+          "following_count": {
+            "type": "integer",
+            "description": "Number of users followed",
+            "example": 30
+          },
+          "rating": {
+            "type": "number",
+            "format": "double",
+            "description": "User rating",
+            "example": 4.5
+          },
+          "relationship_status": {
+            "type": "string",
+            "nullable": true,
+            "description": "Relationship to current user",
+            "example": "following"
+          }
+        },
+        "required": [
+          "avatar",
+          "display_name",
+          "followers_count",
+          "following_count",
+          "location_display_name_broad",
+          "location_display_name_narrow",
+          "location_id",
+          "rating",
+          "relationship_status",
+          "user_id"
+        ]
+      },
+      "ProfileResponse": {
+        "type": "object",
+        "description": "Full user profile (for /me endpoint).",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User UUID",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "Display name",
+            "example": "John Doe"
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true,
+            "description": "CDN avatar reference",
+            "example": "avatar/abc123"
+          },
+          "location_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Geo service location ID",
+            "example": 42
+          },
+          "location_display_name_narrow": {
+            "type": "string",
+            "description": "Short location",
+            "example": "LU - Mamer"
+          },
+          "location_display_name_broad": {
+            "type": "string",
+            "description": "Broad location",
+            "example": "LU - Differdange"
+          },
+          "currency_code": {
+            "type": "string",
+            "description": "ISO 4217 currency code",
+            "example": "EUR"
+          },
+          "measurement_units": {
+            "type": "string",
+            "description": "Measurement system",
+            "example": "metric"
+          },
+          "theme": {
+            "type": "string",
+            "description": "UI theme",
+            "example": "system"
+          },
+          "app_language": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LanguageResponse"
+              }
+            ],
+            "nullable": true,
+            "description": "Selected app language"
+          },
+          "understands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of language codes the user understands",
+            "example": [
+              "en",
+              "fr"
+            ]
+          },
+          "use_device_language": {
+            "type": "boolean",
+            "description": "Use device language for UI",
+            "example": true
+          },
+          "auto_detected_language": {
+            "type": "string",
+            "description": "Last detected language from Accept-Language header",
+            "example": "de"
+          },
+          "auto_translate_content": {
+            "type": "boolean",
+            "description": "Auto-translate ad content"
+          },
+          "email_messages": {
+            "type": "boolean",
+            "description": "Receive message notifications via email",
+            "example": true
+          },
+          "email_system": {
+            "type": "boolean",
+            "description": "Receive system notifications via email",
+            "example": true
+          },
+          "push_messages": {
+            "type": "boolean",
+            "description": "Receive message notifications via push",
+            "example": true
+          },
+          "push_system": {
+            "type": "boolean",
+            "description": "Receive system notifications via push",
+            "example": true
+          },
+          "essential_cookies_accepted": {
+            "type": "boolean",
+            "description": "Essential cookies consent",
+            "example": true
+          },
+          "initial_setup_passed": {
+            "type": "boolean",
+            "description": "Whether onboarding is complete",
+            "example": true
+          },
+          "followers_count": {
+            "type": "integer",
+            "description": "Number of followers",
+            "example": 42
+          },
+          "following_count": {
+            "type": "integer",
+            "description": "Number of users followed",
+            "example": 15
+          },
+          "rating": {
+            "type": "number",
+            "format": "double",
+            "description": "User rating",
+            "example": 4.8
+          },
+          "created_at": {
+            "type": "string",
+            "description": "ISO 8601 creation time",
+            "example": "2025-01-15T12:00:00Z"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "ISO 8601 last update time",
+            "example": "2025-01-20T14:30:00Z"
+          }
+        },
+        "required": [
+          "app_language",
+          "auto_detected_language",
+          "auto_translate_content",
+          "avatar",
+          "created_at",
+          "currency_code",
+          "display_name",
+          "email_messages",
+          "email_system",
+          "essential_cookies_accepted",
+          "followers_count",
+          "following_count",
+          "initial_setup_passed",
+          "location_display_name_broad",
+          "location_display_name_narrow",
+          "location_id",
+          "measurement_units",
+          "push_messages",
+          "push_system",
+          "rating",
+          "theme",
+          "understands",
+          "updated_at",
+          "use_device_language",
+          "user_id"
+        ]
+      },
+      "RelationshipActionResponse": {
+        "type": "object",
+        "description": "Result of a relationship action.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the action succeeded",
+            "example": true
+          },
+          "status": {
+            "type": "string",
+            "description": "New relationship status",
+            "example": "following"
+          }
+        },
+        "required": [
+          "status",
+          "success"
+        ]
+      },
+      "RelationshipResponse": {
+        "type": "object",
+        "description": "User relationship status.",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Target user UUID",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "status": {
+            "type": "string",
+            "description": "Relationship status",
+            "example": "following"
+          }
+        },
+        "required": [
+          "status",
+          "user_id"
+        ]
+      },
+      "StapelError": {
+        "type": "object",
+        "description": "Structured error returned by all Stapel API endpoints.",
+        "properties": {
+          "localizable_error": {
+            "type": "string",
+            "description": "Translation key for client-side localization",
+            "example": "error.404.not_found"
+          },
+          "error": {
+            "type": "string",
+            "description": "Human-readable message in English",
+            "example": "Requested resource not found"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "Context values for template placeholders",
+            "example": {
+              "retry_after": 30
+            }
+          }
+        },
+        "required": [
+          "error",
+          "localizable_error"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "JWTCookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "stapel_jwt",
+        "description": "JWT token stored in cookie. Login via /auth/admin/ to get the cookie."
+      }
+    }
+  }
+}

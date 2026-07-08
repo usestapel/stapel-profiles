@@ -151,6 +151,50 @@ missing/stale/params/byte-instability); regenerate with
 commit `translations/errors.ru.json`, `translations/.state.json`,
 `docs/errors.{en,ru}.md`.
 
+### Contract emission — the `schema` + `flows` + `errors` triad
+
+This module emits its **own** machine-readable API contract, per-module, so
+the frontend codegen reads a committed, version-pinned artifact instead of
+checking out the monolith aggregate at floating `main`
+(contract-pipeline.md §2, verdict **A**). Copied from stapel-auth's reference
+implementation (contract-pipeline.md §2-3, ETALON). The triad lives in
+`docs/`:
+
+```
+docs/schema.json   drf-spectacular OpenAPI, this module only, canonical /profiles/api/ prefix
+docs/flows.json    generate_flow_docs machine artifact — [] (no @flow_step here)
+docs/errors.json   generate_error_keys registry (unchanged by this addition)
+```
+
+`docs/schema.json` is **byte-identical to the monolith aggregate's profiles
+slice** (paths under `/profiles/api/` + the transitive `$ref` component
+closure): 13 paths, a 10-component closure. No cross-module `$ref` — the
+model layer links to auth's `User` via a bare `user_id` UUID field, not a
+Django FK, so the schema is self-contained and **no sibling module had to be
+co-mounted** for closure (contract-pipeline.md §9 Q2 does not apply here).
+`tests/test_contract.py::test_matches_monolith_profiles_slice` asserts it in
+the workspace (skipped in module CI, where the monolith isn't checked out).
+
+**Harness** (`_codegen_settings.py` / `codegen_urls.py` / `_codegen.py`,
+`make contract` / `make contract-check`): same shape as stapel-auth's, with
+one addition specific to profiles — `_codegen.py` explicitly calls
+`stapel_core.django.openapi.swagger._register_jwt_auth_extension()` before
+emitting. The monolith registers this drf-spectacular extension (the
+`JWTCookieAuth` security scheme) as a side effect of its own dev-only Swagger
+URLs (`codegen/generate.sh` sets `DJANGO_ENV=local`); that registration is
+*global* process state, not tied to any one module's urls.py. stapel-auth's
+harness gets it for free only because its co-mounted sibling
+(`stapel_gdpr.urls`) happens to call `get_app_swagger_urls()` unconditionally
+— profiles has no such sibling, so without the explicit call, protected
+endpoints would emit without their monolith `security: [{"JWTCookieAuth":
+[]}]` entry.
+
+Regenerate after any serializer/view/url/error change:
+
+    make contract        # or: python -m stapel_profiles._codegen --out docs
+
+then commit `docs/{schema,flows,errors}.json`.
+
 ### Admin categories — `@access` declarations (admin-suite AS-5)
 
 Every model in `models.py` carries (or implicitly defaults to) a

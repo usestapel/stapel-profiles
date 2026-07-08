@@ -5,6 +5,49 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added — per-module contract emission: `schema` + `flows` triad (contract-pipeline.md Wave 1)
+
+stapel-profiles now emits its **own** API contract per-module, completing the
+triad `docs/{schema,flows,errors}.json` (`errors.json` already existed). The
+frontend codegen can now read profiles' committed artifacts instead of the
+monolith aggregate at floating `main` — contract-pipeline.md verdict **A**
+(contract = a reviewable, version-pinned commit). Copied from stapel-auth's
+reference implementation (contract-pipeline.md §2-3, ETALON).
+
+- **Harness** (reuses `stapel_tools.codegen`, adds ~90 lines of per-module config):
+  - `_codegen_settings.py` — single source of truth for the `settings.configure`
+    block, shared with `conftest.py` (extracted, no test-behavior change); a
+    `contract=True` mode swaps in the production `REST_FRAMEWORK`.
+  - `codegen_urls.py` — mounts `stapel_profiles.urls` alone at the canonical
+    `profiles/api/` prefix (no co-mounted sibling — the monolith mounts
+    profiles by itself), so emitted paths are `/profiles/api/...` not bare
+    `/me`.
+  - `_codegen.py` — the `python -m stapel_profiles._codegen --out docs`
+    entrypoint. Also explicitly registers drf-spectacular's
+    `JWTCookieAuthenticationExtension` (`stapel_core...swagger._register_jwt_auth_extension`)
+    — the monolith performs this registration as a side effect of its own
+    dev-only Swagger URLs (`DJANGO_ENV=local` in `codegen/generate.sh`), which
+    is *global* process state, not tied to any one module's urls.py. Without
+    it, protected endpoints would emit without their `security:
+    [{"JWTCookieAuth": []}]` entry and diverge from the monolith slice.
+- **`docs/schema.json`** (new) — drf-spectacular OpenAPI for profiles only,
+  canonical prefix; **`docs/flows.json`** (new) — empty array, profiles has no
+  `@flow_step` annotations (confirmed zero profiles-tagged flows in the
+  monolith aggregate too).
+- **Byte-identity** with the monolith aggregate's profiles slice (paths under
+  `/profiles/api/` + their component closure) is **exact**: 13 paths, a
+  10-component closure (`StapelError` + 9 profiles-owned schemas), zero diff.
+  No cross-module `$ref` — profiles' schema does not reference any
+  `stapel_auth`-owned component (the model layer already links to auth's User
+  via a bare `user_id` UUID field, not a Django FK), so **no sibling co-mount
+  was needed** for closure (contract-pipeline.md §9 Q2 does not apply to this
+  module).
+- **Gate:** `make contract` / `make contract-check`; `tests/test_contract.py`
+  (drift + determinism + canonical-prefix + monolith-slice identity) is the
+  CI-enforced gate.
+
 ## 0.3.11 — 2026-07-06
 
 ### Added — ru error catalog + bilingual error reference (i18n-shipping волна 2)
