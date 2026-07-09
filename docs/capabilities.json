@@ -18,7 +18,23 @@
       }
     }
   ],
-  "extension_points": [],
+  "extension_points": [
+    {
+      "name": "serializer_seams",
+      "kind": "class_override",
+      "summary": "Every profile/relationship view declares request/response serializer seams (SerializerSeamsMixin) — subclass the view, override the attribute, remount the URL; keep calling super() in serializer overrides so profile.changed keeps publishing."
+    },
+    {
+      "name": "profile_extras_relation",
+      "kind": "app_layer_model",
+      "summary": "Extend the profile without a fork: an app-layer model with a OneToOne to profiles.Profile (or keyed by the same user_id UUID), exposed through the serializer seams — models here are deliberately not swappable."
+    },
+    {
+      "name": "profile.changed",
+      "kind": "comm_event",
+      "summary": "The primary hook for syncing derived data: emitted on every profile mutation (keyed by user_id) — subscribe with @on_action from any module or the host app, no import of this package."
+    }
+  ],
   "operations_total": 14,
   "requires": [
     {
