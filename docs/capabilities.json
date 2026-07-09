@@ -1,0 +1,45 @@
+{
+  "module": "stapel-profiles",
+  "version": "0.3.11",
+  "provides": "User profiles and social graph: display name, avatar, locale/currency/measurement preferences, notification opt-outs, and follow/unfollow/block relationships between users, with a relationship-status lookup.",
+  "axes": [
+    {
+      "key": "PROFILES_AVATAR_CHECK",
+      "kind": "enum",
+      "default": "comm",
+      "group": "profiles.avatar",
+      "gates": {
+        "operations": [],
+        "co_gates": []
+      },
+      "curated": {
+        "summary": "Controls how the profile service confirms an uploaded avatar reference actually exists on the CDN before saving it: through the internal comm bus (default), a legacy direct HTTP check, or skipped entirely (only the reference format is still validated).",
+        "business_label": "Avatar existence verification method"
+      }
+    }
+  ],
+  "extension_points": [],
+  "operations_total": 14,
+  "requires": [
+    {
+      "module": "stapel-core",
+      "optional": false,
+      "reason": "comm bus (events/functions), JWT authentication, GDPR provider registry, AppSettings config layer"
+    },
+    {
+      "module": "stapel-auth",
+      "optional": true,
+      "reason": "consumes the user.registered / user.deleted comm events (OAuth avatar import, GDPR erasure on account deletion) that stapel-auth emits; decoupled via the comm bus, not a hard import dependency"
+    },
+    {
+      "module": "stapel-cdn",
+      "optional": true,
+      "reason": "avatar storage/existence checks (PROFILES_AVATAR_CHECK=comm calls cdn.media_exists) and OAuth avatar import (cdn.import_from_url) go through stapel_core.comm to a CDN provider"
+    },
+    {
+      "module": "stapel-gdpr",
+      "optional": true,
+      "reason": "surfaces this module's registered GDPR provider (profile section export/erase) through DSR endpoints; the registration itself only needs stapel-core.gdpr"
+    }
+  ]
+}

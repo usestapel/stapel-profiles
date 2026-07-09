@@ -18,9 +18,14 @@ PROFILES_AVATAR_CHECK — how validate_avatar verifies the CDN reference:
 """
 from stapel_core.conf import AppSettings
 
+#: AppSettings-shaped literal dict (capability-config.md §2): a top-level
+#: DEFAULTS lets the capabilities.json emitter introspect axis keys/kinds
+#: without re-parsing the AppSettings() call.
+DEFAULTS = {
+    "PROFILES_AVATAR_CHECK": "comm",
+}
+
 profiles_settings = AppSettings(
     "STAPEL_PROFILES",
-    defaults={
-        "PROFILES_AVATAR_CHECK": "comm",
-    },
+    defaults=DEFAULTS,
 )
