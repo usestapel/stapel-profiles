@@ -25,6 +25,10 @@ classifiers = [
 ]
 dependencies = [
     "stapel-core>=0.10,<0.11",
+    # _codegen.py boots an eager Celery app before Django setup (contract
+    # emission harness, exercised by test_contract.py's drift gate) — needs
+    # celery installed as a real dependency, not just pulled in transitively.
+    "celery>=5.3",
 ]
 
 [project.urls]
