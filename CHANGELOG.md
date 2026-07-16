@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.14] — 2026-07-17
+
+### Changed
+- `stapel-core` ceiling raised `>=0.10,<0.11` → `>=0.10,<0.12` (core 0.11
+  fleet re-pin: default bus, nav, config-checks, error params/language —
+  additive for modules).
+- `docs/schema.json` regenerated against core 0.11.2 — error object gained
+  `error_language` field and a reworded `error` description; no drift
+  otherwise.
+
 ## [0.3.13] — 2026-07-16
 
 ### Changed
