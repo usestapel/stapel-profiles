@@ -168,7 +168,7 @@ class MyProfileView(SerializerSeamsMixin, APIView):
             401: OpenApiTypes.OBJECT,
         },
     )
-    def get(self, request):
+    def get(self, request):  # noqa: R007
         """Get or create current user's profile."""
         profile, created = Profile.objects.get_or_create(user_id=request.user.id)
         _update_auto_detected_language(request, profile)
@@ -190,7 +190,7 @@ class MyProfileView(SerializerSeamsMixin, APIView):
             401: OpenApiTypes.OBJECT,
         },
     )
-    def patch(self, request):
+    def patch(self, request):  # noqa: R007
         """Update current user's profile."""
         profile, created = Profile.objects.get_or_create(user_id=request.user.id)
         serializer = self.get_request_serializer_class()(
@@ -234,7 +234,7 @@ class ProfileDetailView(SerializerSeamsMixin, APIView):
             404: StapelErrorSerializer,
         },
     )
-    def get(self, request, user_id):
+    def get(self, request, user_id):  # noqa: R007
         """Get user profile by UUID."""
         try:
             profile = Profile.objects.get(user_id=user_id)
@@ -278,7 +278,7 @@ class FollowView(SerializerSeamsMixin, APIView):
             404: StapelErrorSerializer,
         },
     )
-    def post(self, request, user_id):
+    def post(self, request, user_id):  # noqa: R007
         """Follow a user."""
         follower_id = request.user.id
 
@@ -323,7 +323,7 @@ class UnfollowView(SerializerSeamsMixin, APIView):
             401: OpenApiTypes.OBJECT,
         },
     )
-    def post(self, request, user_id):
+    def post(self, request, user_id):  # noqa: R007
         """Unfollow a user."""
         follower_id = request.user.id
 
@@ -373,7 +373,7 @@ class BlockView(SerializerSeamsMixin, APIView):
             401: OpenApiTypes.OBJECT,
         },
     )
-    def post(self, request, user_id):
+    def post(self, request, user_id):  # noqa: R007
         """Block a user."""
         follower_id = request.user.id
 
@@ -415,7 +415,7 @@ class UnblockView(SerializerSeamsMixin, APIView):
             401: OpenApiTypes.OBJECT,
         },
     )
-    def post(self, request, user_id):
+    def post(self, request, user_id):  # noqa: R007
         """Unblock a user."""
         follower_id = request.user.id
 
@@ -463,7 +463,7 @@ class RelationshipStatusView(SerializerSeamsMixin, APIView):
             401: OpenApiTypes.OBJECT,
         },
     )
-    def get(self, request, user_id):
+    def get(self, request, user_id):  # noqa: R007
         """Get relationship status with a user."""
         follower_id = request.user.id
 
@@ -496,7 +496,7 @@ class MyFollowersView(SerializerSeamsMixin, APIView):
             401: OpenApiTypes.OBJECT,
         },
     )
-    def get(self, request):
+    def get(self, request):  # noqa: R007
         """Get followers of current user."""
         user_id = request.user.id
 
@@ -525,7 +525,7 @@ class MyFollowingView(SerializerSeamsMixin, APIView):
             401: OpenApiTypes.OBJECT,
         },
     )
-    def get(self, request):
+    def get(self, request):  # noqa: R007
         """Get users current user is following."""
         user_id = request.user.id
 
@@ -554,7 +554,7 @@ class MyBlockedView(SerializerSeamsMixin, APIView):
             401: OpenApiTypes.OBJECT,
         },
     )
-    def get(self, request):
+    def get(self, request):  # noqa: R007
         """Get profiles of blocked users."""
         user_id = request.user.id
 
@@ -595,11 +595,11 @@ class UnsubscribeView(APIView):
         request=None,
         responses={200: OpenApiTypes.OBJECT, 400: OpenApiTypes.OBJECT},
     )
-    def post(self, request):
+    def post(self, request):  # noqa: R007
         token = request.query_params.get("token", "") or request.data.get("token", "")
         result = verify_unsubscribe_token(token)
         if not result:
-            return StapelResponse(
+            return StapelResponse(  # noqa: R006
                 {"error": "Invalid or expired token"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -616,20 +616,20 @@ class UnsubscribeView(APIView):
             "push_messages",
             "push_system",
         ):
-            return StapelResponse(
+            return StapelResponse(  # noqa: R006
                 {"error": "Invalid preference"}, status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
             profile = Profile.objects.get(user_id=user_id)
         except Profile.DoesNotExist:
-            return StapelResponse(
+            return StapelResponse(  # noqa: R006
                 {"error": "Profile not found"}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # Skip if already unsubscribed (idempotent)
         if getattr(profile, field_name) is False:
-            return StapelResponse({"success": True, "unsubscribed": field_name})
+            return StapelResponse({"success": True, "unsubscribed": field_name})  # noqa: R006
 
         setattr(profile, field_name, False)
         profile.save(update_fields=[field_name])
@@ -643,4 +643,4 @@ class UnsubscribeView(APIView):
             sender=Profile, profile=profile, fields_changed=[field_name]
         )
 
-        return StapelResponse({"success": True, "unsubscribed": field_name})
+        return StapelResponse({"success": True, "unsubscribed": field_name})  # noqa: R006

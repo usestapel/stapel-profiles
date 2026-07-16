@@ -14,7 +14,7 @@ def main(argv=None):
     return run_capabilities_cli(
         argv,
         repo=Path(__file__).resolve().parent,
-        canonical_prefix="/profiles/api",
+        canonical_prefix="/profiles/api/v1",
         defaults=DEFAULTS,
         registry=GATE_REGISTRY,
         is_axis=lambda k: k == "PROFILES_AVATAR_CHECK",

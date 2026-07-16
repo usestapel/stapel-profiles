@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.13] — 2026-07-16
+
+### Changed
+- **v1 canon sweep §60** (api-versioning.md §2, §6): `urls.py` renamed to
+  `urls_v1.py` (paths inside unchanged); the new root `urls.py` mounts it
+  under `v1/` and re-exports `GATE_REGISTRY`. Hosts including
+  `stapel_profiles.urls` under `profiles/api/` now serve
+  `/profiles/api/v1/...`; bare paths no longer exist (sweep lands before the
+  §3 API00x gates are enabled).
+- Contract artifacts regenerated (`make contract`): `/v1/` in schema paths —
+  the single expected diff.
+- `_capabilities.py` canonical_prefix → `/profiles/api/v1`.
+- Lint hygiene to a clean `stapel-verify`: explicit `# noqa: R006/R007` on
+  pre-existing findings.
+
 ### Added — per-module contract emission: `schema` + `flows` triad (contract-pipeline.md Wave 1)
 
 stapel-profiles now emits its **own** API contract per-module, completing the

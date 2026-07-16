@@ -5,7 +5,7 @@
     "version": "0.0.0"
   },
   "paths": {
-    "/profiles/api/{user_id}": {
+    "/profiles/api/v1/{user_id}": {
       "get": {
         "operationId": "get_profile",
         "description": "Get compact profile of a specific user by UUID. Includes relationship status with current user if authenticated.\n\n**Permissions:** `AllowAny`",
@@ -71,7 +71,7 @@
         }
       }
     },
-    "/profiles/api/{user_id}/block": {
+    "/profiles/api/v1/{user_id}/block": {
       "post": {
         "operationId": "block_user",
         "description": "Block a user. Creates or updates relationship to \"blocked\" status.\n\n**Permissions:** `IsAuthenticated`",
@@ -139,7 +139,7 @@
         }
       }
     },
-    "/profiles/api/{user_id}/follow": {
+    "/profiles/api/v1/{user_id}/follow": {
       "post": {
         "operationId": "follow_user",
         "description": "Follow a user. Creates or updates relationship to \"following\" status.\n\n**Permissions:** `IsAuthenticated`",
@@ -217,7 +217,7 @@
         }
       }
     },
-    "/profiles/api/{user_id}/relationship": {
+    "/profiles/api/v1/{user_id}/relationship": {
       "get": {
         "operationId": "get_relationship",
         "description": "Get current relationship status with a user.\n\n**Permissions:** `IsAuthenticated`",
@@ -275,7 +275,7 @@
         }
       }
     },
-    "/profiles/api/{user_id}/unblock": {
+    "/profiles/api/v1/{user_id}/unblock": {
       "post": {
         "operationId": "unblock_user",
         "description": "Unblock a user. Sets relationship to \"neutral\" status.\n\n**Permissions:** `IsAuthenticated`",
@@ -333,7 +333,7 @@
         }
       }
     },
-    "/profiles/api/{user_id}/unfollow": {
+    "/profiles/api/v1/{user_id}/unfollow": {
       "post": {
         "operationId": "unfollow_user",
         "description": "Unfollow a user. Sets relationship to \"neutral\" status.\n\n**Permissions:** `IsAuthenticated`",
@@ -391,7 +391,7 @@
         }
       }
     },
-    "/profiles/api/languages/": {
+    "/profiles/api/v1/languages/": {
       "get": {
         "operationId": "list_languages",
         "description": "Get list of all available languages.\n\n**Permissions:** `AllowAny`",
@@ -433,7 +433,7 @@
         }
       }
     },
-    "/profiles/api/languages/{code}/": {
+    "/profiles/api/v1/languages/{code}/": {
       "get": {
         "operationId": "get_language",
         "description": "Get language details by code.\n\n**Permissions:** `AllowAny`",
@@ -491,7 +491,7 @@
         }
       }
     },
-    "/profiles/api/me": {
+    "/profiles/api/v1/me": {
       "get": {
         "operationId": "get_my_profile",
         "description": "Get current user's profile. Creates profile with defaults if not exists.\n\n**Permissions:** `IsAuthenticated`",
@@ -658,7 +658,7 @@
         }
       }
     },
-    "/profiles/api/me/blocked": {
+    "/profiles/api/v1/me/blocked": {
       "get": {
         "operationId": "get_my_blocked",
         "description": "Get list of profiles of users the current user has blocked.\n\n**Permissions:** `IsAuthenticated`",
@@ -699,7 +699,7 @@
         }
       }
     },
-    "/profiles/api/me/followers": {
+    "/profiles/api/v1/me/followers": {
       "get": {
         "operationId": "get_my_followers",
         "description": "Get list of users following the current user.\n\n**Permissions:** `IsAuthenticated`",
@@ -747,7 +747,7 @@
         }
       }
     },
-    "/profiles/api/me/following": {
+    "/profiles/api/v1/me/following": {
       "get": {
         "operationId": "get_my_following",
         "description": "Get list of users the current user is following.\n\n**Permissions:** `IsAuthenticated`",
@@ -795,7 +795,7 @@
         }
       }
     },
-    "/profiles/api/notifications/unsubscribe": {
+    "/profiles/api/v1/notifications/unsubscribe": {
       "post": {
         "operationId": "unsubscribe_notifications",
         "description": "Verify HMAC token and toggle the corresponding notification preference off. Uses POST per RFC 8058 (List-Unsubscribe-Post).\n\n**Permissions:** `AllowAny`",

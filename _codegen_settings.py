@@ -23,7 +23,7 @@ from __future__ import annotations
 
 def settings_kwargs(
     *,
-    root_urlconf: str = "stapel_profiles.urls",
+    root_urlconf: str = "stapel_profiles.urls_v1",
     contract: bool = False,
 ) -> dict:
     """Return the ``settings.configure(**kwargs)`` for a single-module
