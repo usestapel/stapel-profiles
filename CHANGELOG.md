@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.15] — 2026-07-17
+
+### Fixed
+- `docs/capabilities.json` regenerated again — 0.3.14's release commit ran
+  `make contract` before the version bump landed, so the committed file
+  still baked in `0.3.13` (caught by `test_capabilities_envelope` in the
+  0.3.14 publish retry, which also failed CI on py3.12 for this reason).
+
 ## [0.3.14] — 2026-07-17
 
 ### Changed

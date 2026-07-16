@@ -1,6 +1,6 @@
 {
   "module": "stapel-profiles",
-  "version": "0.3.14",
+  "version": "0.3.15",
   "provides": "User profiles and social graph: display name, avatar, locale/currency/measurement preferences, notification opt-outs, and follow/unfollow/block relationships between users, with a relationship-status lookup.",
   "axes": [
     {
