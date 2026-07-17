@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-07-17
+
+Fleet follow-up to stapel-core 0.12.0 (legacy shim sweep). No source
+changes needed — the one `stapel_core.kafka` import
+(`management/commands/publish_all_profiles.py`) uses `EventType`/`TOPIC_*`,
+which core 0.12.0 keeps. Full suite green against core 0.12.0.
+
+### Changed
+- `stapel-core` dependency ceiling `<0.12` → `<0.13`.
+
 ## [0.4.0] — 2026-07-17
 
 ### Removed
