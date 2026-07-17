@@ -22,9 +22,17 @@ def clean_function_registry():
     function_registry.clear()
 
 
-def _validate(avatar):
-    """Run serializer validation for the avatar field, return the serializer."""
-    serializer = ProfileCreateUpdateSerializer(data={"avatar": avatar})
+def _validate(avatar, source="cdn"):
+    """Run serializer validation for the avatar field, return the serializer.
+
+    §66: avatar format/existence checks only apply when avatar_source=cdn
+    (the historical, still-default-tested-here, "cdn" behavior) — file/url/
+    gravatar sources are free-form and skip both checks entirely.
+    """
+    data = {"avatar": avatar}
+    if source is not None:
+        data["avatar_source"] = source
+    serializer = ProfileCreateUpdateSerializer(data=data)
     serializer.is_valid()
     return serializer
 
@@ -85,6 +93,18 @@ class TestAvatarValidationViaComm:
 
     def test_empty_avatar_skips_check(self):
         serializer = _validate("")
+        assert serializer.errors == {}
+
+    def test_url_source_skips_cdn_checks(self):
+        """A non-cdn source is a free-form string — no format/existence check."""
+        serializer = _validate("https://example.com/me.png", source="url")
+        assert serializer.errors == {}
+        assert serializer.validated_data["avatar"] == "https://example.com/me.png"
+
+    def test_file_source_is_default_and_skips_cdn_checks(self):
+        """No avatar_source in the payload + no existing instance -> defaults
+        to `file`, which never triggers the cdn-only format/existence check."""
+        serializer = _validate(VALID_REF, source=None)
         assert serializer.errors == {}
 
 

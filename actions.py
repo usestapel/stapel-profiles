@@ -34,12 +34,12 @@ def handle_user_registered(event):
     (email/phone/password OTP) carry no avatar and that is normal, not an
     error.
 
-    Why re-host instead of storing the provider URL: ``Profile.avatar`` is a
-    strict ``<type>/<hash>`` CDN ref (fail-closed ``cdn.media_exists``); a raw
-    external URL cannot be stored, provider hotlinks rot, and rendering one
-    would leak every viewer's IP to Google/Facebook. So we pull the image
-    once, through the SSRF-hardened ``cdn.import_from_url`` fetcher, and keep
-    the ref.
+    Why re-host instead of storing the provider URL directly: even though
+    ``avatar_source`` can now be ``url`` (§66), a raw external URL cannot be
+    trusted long-term — provider hotlinks rot, and rendering one would leak
+    every viewer's IP to Google/Facebook. So we pull the image once, through
+    the SSRF-hardened ``cdn.import_from_url`` fetcher, and keep the CDN ref
+    (``avatar_source="cdn"``).
 
     Idempotency + respect-user-choice (one guard serves both): if the profile
     already has a non-empty avatar we no-op *before* fetching. Delivery is
@@ -67,7 +67,9 @@ def handle_user_registered(event):
         # No provider avatar (the common case) — nothing to do.
         return
 
-    from .models import Profile
+    from .models import get_profile_model
+
+    Profile = get_profile_model()
 
     existing = Profile.objects.filter(user_id=user_id).first()
     if existing is not None and existing.avatar:
@@ -90,7 +92,12 @@ def handle_user_registered(event):
                 result,
             )
             return
-        Profile.objects.update_or_create(user_id=user_id, defaults={"avatar": ref})
+        from .models import AvatarSource
+
+        Profile.objects.update_or_create(
+            user_id=user_id,
+            defaults={"avatar": ref, "avatar_source": AvatarSource.CDN},
+        )
         logger.info("imported provider avatar %s for user %s", ref, user_id)
     except Exception:
         # Best-effort: registration is done; the avatar is optional cosmetic.

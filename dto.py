@@ -22,16 +22,19 @@ class LanguageResponse:
 class ProfileResponse:
     """Full user profile (for /me endpoint).
 
+    §66 alpha-cut: only the hard core (docs/pending/profile-fields.md) is
+    listed here — display_name/currency_code/measurement_units/theme moved
+    to the standard-field registry (`field_defs.py`); a project that swapped
+    in an extended Profile model exposes those through its own DTO/presenter,
+    not this one.
+
     Attributes:
         user_id: User UUID. Example: 550e8400-e29b-41d4-a716-446655440000
-        display_name: Display name. Example: John Doe
-        avatar: CDN avatar reference. Example: avatar/abc123
+        avatar_source: Where avatar points (file, url, gravatar, cdn). Example: file
+        avatar: Avatar reference matching avatar_source. Example: avatar/abc123
         location_id: Geo service location ID. Example: 42
         location_display_name_narrow: Short location. Example: LU - Mamer
         location_display_name_broad: Broad location. Example: LU - Differdange
-        currency_code: ISO 4217 currency code. Example: USD
-        measurement_units: Measurement system. Example: metric
-        theme: UI theme. Example: system
         app_language: Selected app language.
         understands: List of language codes the user understands. Example: ["en", "fr"]
         use_device_language: Use device language for UI. Example: true
@@ -50,14 +53,11 @@ class ProfileResponse:
         updated_at: ISO 8601 last update time. Example: 2025-01-20T14:30:00Z
     """
     user_id: UUID
-    display_name: str
+    avatar_source: str
     avatar: Optional[str]
     location_id: Optional[int]
     location_display_name_narrow: str
     location_display_name_broad: str
-    currency_code: str
-    measurement_units: str
-    theme: str
     app_language: Optional[LanguageResponse]
     understands: List[str]
     use_device_language: bool
@@ -82,8 +82,8 @@ class ProfilePublicResponse:
 
     Attributes:
         user_id: User UUID. Example: 550e8400-e29b-41d4-a716-446655440000
-        display_name: Display name. Example: Jane Smith
-        avatar: CDN avatar reference. Example: avatar/def456
+        avatar_source: Where avatar points (file, url, gravatar, cdn). Example: file
+        avatar: Avatar reference matching avatar_source. Example: avatar/def456
         location_id: Geo service location ID. Example: 42
         location_display_name_narrow: Short location. Example: LU - Mamer
         location_display_name_broad: Broad location. Example: LU - Differdange
@@ -93,7 +93,7 @@ class ProfilePublicResponse:
         relationship_status: Relationship to current user. Example: following
     """
     user_id: UUID
-    display_name: str
+    avatar_source: str
     avatar: Optional[str]
     location_id: Optional[int]
     location_display_name_narrow: str
@@ -109,12 +109,9 @@ class ProfileUpdateRequest:
     """Update profile fields (PATCH, all optional).
 
     Attributes:
-        display_name: New display name. Example: John Doe
-        avatar: CDN avatar reference. Example: avatar/abc123
+        avatar_source: Where avatar points (file, url, gravatar, cdn). Example: file
+        avatar: Avatar reference matching avatar_source. Example: avatar/abc123
         location_id: Geo service location ID. Example: 42
-        currency_code: ISO 4217 currency code. Example: USD
-        measurement_units: Measurement system (metric or imperial). Example: metric
-        theme: UI theme (light, dark, system). Example: dark
         app_language: ISO 639-1 language code. Example: en
         understands: List of understood language codes. Example: ["en", "fr"]
         use_device_language: Use device language for UI. Example: true
@@ -126,12 +123,9 @@ class ProfileUpdateRequest:
         essential_cookies_accepted: Essential cookies consent. Example: true
         initial_setup_passed: Mark onboarding as complete. Example: true
     """
-    display_name: Optional[str] = None
+    avatar_source: Optional[str] = None
     avatar: Optional[str] = None
     location_id: Optional[int] = None
-    currency_code: Optional[str] = None
-    measurement_units: Optional[str] = None
-    theme: Optional[str] = None
     app_language: Optional[str] = None
     understands: Optional[List[str]] = None
     use_device_language: Optional[bool] = None
@@ -142,6 +136,31 @@ class ProfileUpdateRequest:
     push_system: Optional[bool] = None
     essential_cookies_accepted: Optional[bool] = None
     initial_setup_passed: Optional[bool] = None
+
+
+@dataclass
+class ProfileFieldManifestEntry:
+    """One active profile field, as the frontend skin needs it to render
+    itself without hardcoding field names (docs/pending/profile-fields.md,
+    "Дополнение владельца" §1 — data-driven skin, tier 1 of the two-tier
+    front-pair answer). GET /profiles/api/v1/field-manifest/ returns a list
+    of these for whatever the project's STAPEL_PROFILES["FIELDS"] manifest
+    (identity preset + standard_fields + custom_fields) actually selected.
+
+    Attributes:
+        name: Field name. Example: theme
+        kind: Storage/presentation kind (text, bool, enum, model_ref, geohash). Example: enum
+        docstring: Human-readable field description, feeds help text. Example: UI theme preference.
+        required: Whether the field is required (not blank). Example: false
+        order: Manifest declaration order — identity first, then standard_fields in listed order, then custom_fields. Example: 0
+        enum_values: Choice values, only present when kind is enum. Example: ["light", "dark", "system"]
+    """
+    name: str
+    kind: str
+    docstring: str
+    required: bool
+    order: int
+    enum_values: Optional[List[str]] = None
 
 
 @dataclass

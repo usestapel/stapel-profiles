@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-07-17
+
+### Changed — BREAKING: Profile = constructor (§66, docs/pending/profile-fields.md)
+
+Owner GO (2026-07-17): the hard `Profile` model shrinks to a core every
+project needs regardless of domain — `user_id`, avatar (now `avatar_source`
++ `avatar`, prep for §67's source+ref cdn/gravatar/url/file model), the
+whole language block, notifications, location, consent, onboarding,
+timestamps. `theme`, `currency_code`, `measurement_units` and identity
+(`display_name` / `first_name`+`last_name`) leave the hard model —
+deletion-driven, one alpha-cut migration, no compat shim (pre-1.0 policy).
+
+- **`field_defs.py`** (new): `STANDARD_FIELDS` / `IDENTITY_PRESETS` registry
+  — `ProfileFieldDef` (mandatory docstring), `ProfileFieldKind`,
+  `StapelProfileEnum`, `Theme`, `MeasurementUnit`; `assemble_profile_fields()`
+  and `build_profile_model()` let a project assemble its own extended
+  `Profile` subclass (standard fields + an identity preset + its own custom
+  `ProfileFieldDef`s) in its OWN app.
+- **`STAPEL_SWAP["PROFILES_PROFILE_MODEL"]`** (new): the first real
+  `get_model()` case in the framework — `models.get_profile_model()` is now
+  the only sanctioned way any internal code (views/serializers/admin/gdpr/
+  events/actions/management commands) reaches the Profile DAO; a project's
+  extended model is swapped in by dotted path, no fork required.
+- **`GET /profiles/api/v1/field-manifest/`** (new): the active field
+  manifest (`STAPEL_PROFILES["FIELDS"]` / `PROFILES_FIELDS`) as
+  `[{name, kind, enum_values?, docstring, required, order}]` — the canon
+  source for a data-driven frontend skin (owner addendum 17.07, tier 1 of
+  the two-tier front-pair answer).
+- `avatar` is now source+ref: `avatar_source` (`file` default | `url` |
+  `gravatar` | `cdn`) + `avatar` (free-form string, format/existence
+  validation applies only when `avatar_source=cdn`). The §67 system check
+  for "source=cdn but no cdn service configured" is out of scope here.
+- Migration `0016_field_constructor_alpha_cut` (marked `# stapel:
+  contract-phase`): removes `display_name`/`currency_code`/
+  `measurement_units`/`theme`, adds `avatar_source`, converts `avatar` to a
+  plain `CharField`, and detaches the language FK/M2M `related_name`s (now
+  `"+"`, since two concrete Profile models may coexist across an app).
+
 ## [0.4.5] — 2026-07-17
 
 ### Fixed — `GET /languages/` now reflects the project's own configured languages

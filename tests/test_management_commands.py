@@ -43,8 +43,8 @@ class TestSyncLanguages:
 @pytest.mark.django_db
 class TestPublishAllProfiles:
     def test_publishes_event_per_profile(self):
-        Profile.objects.create(user_id=uuid.uuid4(), display_name="A")
-        Profile.objects.create(user_id=uuid.uuid4(), display_name="B")
+        Profile.objects.create(user_id=uuid.uuid4())
+        Profile.objects.create(user_id=uuid.uuid4())
 
         out = StringIO()
         call_command("publish_all_profiles", stdout=out)

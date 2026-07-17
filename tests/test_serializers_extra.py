@@ -43,7 +43,7 @@ class TestAvatarRefSync:
         monkeypatch.setattr(ref_sync, "sync_cdn_refs", fake_sync)
         profile = Profile.objects.create(user_id=uuid.uuid4())
         ser = ProfileCreateUpdateSerializer(
-            profile, data={"avatar": VALID_REF}, partial=True
+            profile, data={"avatar_source": "cdn", "avatar": VALID_REF}, partial=True
         )
         assert ser.is_valid(), ser.errors
         ser.save()
@@ -62,7 +62,7 @@ class TestAvatarRefSync:
         monkeypatch.setattr(ref_sync, "sync_cdn_refs", boom)
         profile = Profile.objects.create(user_id=uuid.uuid4())
         ser = ProfileCreateUpdateSerializer(
-            profile, data={"avatar": VALID_REF}, partial=True
+            profile, data={"avatar_source": "cdn", "avatar": VALID_REF}, partial=True
         )
         assert ser.is_valid(), ser.errors
         ser.save()
@@ -82,7 +82,7 @@ class TestCreatePath:
 
         profile_updated.connect(receiver)
         try:
-            ser = ProfileCreateUpdateSerializer(data={"display_name": "Fresh"})
+            ser = ProfileCreateUpdateSerializer(data={"avatar_source": "url"})
             assert ser.is_valid(), ser.errors
             created = ser.save(user_id=uuid.uuid4())
         finally:
@@ -90,4 +90,4 @@ class TestCreatePath:
 
         assert Profile.objects.filter(user_id=created.user_id).exists()
         # save(user_id=...) merges the kwarg into validated_data
-        assert received == [["display_name", "user_id"]]
+        assert received == [["avatar_source", "user_id"]]

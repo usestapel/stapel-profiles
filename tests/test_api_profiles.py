@@ -5,11 +5,7 @@ import uuid
 import pytest
 from stapel_core.core.language import COOKIE_APP_LANGUAGE, COOKIE_USE_DEVICE_LANGUAGE
 
-from stapel_profiles.errors import (
-    ERR_400_DISPLAY_NAME_EMOJI,
-    ERR_400_DISPLAY_NAME_TOO_SHORT,
-    ERR_404_PROFILE_NOT_FOUND,
-)
+from stapel_profiles.errors import ERR_404_PROFILE_NOT_FOUND
 from stapel_profiles.models import Language, Profile
 
 
@@ -25,7 +21,7 @@ class TestMyProfileGet:
         assert resp.status_code == 200, resp.content
         data = resp.json()
         assert data["user_id"] == str(user.id)
-        assert data["currency_code"] == "USD"
+        assert data["avatar_source"] == "file"
         assert data["followers_count"] == 0
         assert data["following_count"] == 0
         assert Profile.objects.filter(user_id=user.id).exists()
@@ -47,22 +43,22 @@ class TestMyProfileGet:
 @pytest.mark.django_db
 class TestMyProfilePatch:
     def test_requires_auth(self, api_client):
-        resp = api_client.patch("/me", {"display_name": "Nope"}, format="json")
+        resp = api_client.patch("/me", {"avatar_source": "url"}, format="json")
         assert resp.status_code in (401, 403)
 
     def test_patch_updates_fields(self, authed_client, user):
         resp = authed_client.patch(
             "/me",
-            {"display_name": "  New Name  ", "theme": "dark"},
+            {"avatar_source": "url", "avatar": "https://example.com/me.png"},
             format="json",
         )
         assert resp.status_code == 200, resp.content
         data = resp.json()
-        assert data["display_name"] == "New Name"
-        assert data["theme"] == "dark"
+        assert data["avatar_source"] == "url"
+        assert data["avatar"] == "https://example.com/me.png"
         profile = Profile.objects.get(user_id=user.id)
-        assert profile.display_name == "New Name"
-        assert profile.theme == "dark"
+        assert profile.avatar_source == "url"
+        assert profile.avatar == "https://example.com/me.png"
 
     def test_patch_app_language_sets_cookie(self, authed_client, user):
         Language.objects.create(code="de", name="German")
@@ -77,30 +73,19 @@ class TestMyProfilePatch:
         assert resp.cookies[COOKIE_USE_DEVICE_LANGUAGE].value == "0"
         assert Profile.objects.get(user_id=user.id).app_language_id == "de"
 
-    def test_patch_display_name_too_short_rejected(self, authed_client, user):
-        resp = authed_client.patch("/me", {"display_name": "x"}, format="json")
-        assert resp.status_code == 400
-        assert ERR_400_DISPLAY_NAME_TOO_SHORT in str(resp.json())
-        assert Profile.objects.get(user_id=user.id).display_name == ""
-
-    def test_patch_display_name_emoji_rejected(self, authed_client):
-        resp = authed_client.patch("/me", {"display_name": "Hi 😀"}, format="json")
-        assert resp.status_code == 400
-        assert ERR_400_DISPLAY_NAME_EMOJI in str(resp.json())
-
-    def test_patch_invalid_theme_rejected(self, authed_client):
-        resp = authed_client.patch("/me", {"theme": "neon"}, format="json")
+    def test_patch_invalid_avatar_source_rejected(self, authed_client):
+        resp = authed_client.patch("/me", {"avatar_source": "dropbox"}, format="json")
         assert resp.status_code == 400
 
 
 @pytest.mark.django_db
 class TestProfileDetail:
     def test_get_public_profile_anonymous(self, api_client, user):
-        Profile.objects.create(user_id=user.id, display_name="Someone")
+        Profile.objects.create(user_id=user.id, avatar_source="url", avatar="https://example.com/me.png")
         resp = api_client.get(f"/{user.id}")
         assert resp.status_code == 200, resp.content
         data = resp.json()
-        assert data["display_name"] == "Someone"
+        assert data["avatar"] == "https://example.com/me.png"
         assert data["relationship_status"] is None
         # Private fields must not leak through the public serializer
         assert "email_messages" not in data

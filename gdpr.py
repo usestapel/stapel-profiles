@@ -5,16 +5,25 @@ class ProfilesGDPRProvider(GDPRProvider):
     section = 'profile'
 
     def export(self, user_id: int) -> dict:
-        from .models import Profile, UserRelationship
+        from .models import UserRelationship, get_profile_model
+
+        Profile = get_profile_model()
 
         try:
             profile = Profile.objects.get(user_id=user_id)
+            # `getattr(..., None)` on the standard/identity fields — those
+            # moved out of the hard core (§66); a swapped-in extended model
+            # may or may not have picked them back up, so export whatever is
+            # actually present instead of assuming a fixed shape.
             profile_data = {
-                'display_name':               profile.display_name,
-                # avatar is a CdnImageField (CharField storing "avatar/<hash>")
+                'display_name':               getattr(profile, 'display_name', None),
+                'first_name':                 getattr(profile, 'first_name', None),
+                'last_name':                  getattr(profile, 'last_name', None),
+                'avatar_source':              profile.avatar_source,
                 'avatar_ref':                 profile.avatar or None,
-                'currency_code':              profile.currency_code,
-                'measurement_units':          profile.measurement_units,
+                'currency_code':              getattr(profile, 'currency_code', None),
+                'measurement_units':          getattr(profile, 'measurement_units', None),
+                'theme':                      getattr(profile, 'theme', None),
                 'app_language':               profile.app_language.code if profile.app_language else None,
                 'auto_translate_content':     profile.auto_translate_content,
                 'location_display_name':      profile.location_display_name_broad,
@@ -41,12 +50,15 @@ class ProfilesGDPRProvider(GDPRProvider):
         }
 
     def delete(self, user_id: int) -> None:
-        from .models import Profile, UserRelationship
+        from .models import UserRelationship, get_profile_model
+
+        Profile = get_profile_model()
 
         UserRelationship.objects.filter(follower_id=user_id).delete()
         UserRelationship.objects.filter(following_id=user_id).delete()
-        # avatar is a CDN reference string; the binary lives in the CDN
-        # service and is erased by its own GDPR provider/consumer.
+        # avatar is a reference string (source-dependent); any CDN-hosted
+        # binary lives in the CDN service and is erased by its own GDPR
+        # provider/consumer.
         Profile.objects.filter(user_id=user_id).delete()
 
     def anonymize(self, user_id: int) -> None:

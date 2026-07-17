@@ -33,7 +33,11 @@ def publish_profile_changed(instance):
                 "profile.changed",
                 {
                     "user_id": str(instance.user_id),
-                    "display_name": instance.display_name,
+                    # display_name moved out of the hard core (§66) — a
+                    # project without the identity preset has none; keep the
+                    # wire key stable for existing consumers (SellerProfile
+                    # sync etc.), just empty when absent.
+                    "display_name": getattr(instance, "display_name", "") or "",
                     "avatar": instance.avatar or "",
                     "location_id": instance.location_id,
                     "location_display_name_narrow": instance.location_display_name_narrow,

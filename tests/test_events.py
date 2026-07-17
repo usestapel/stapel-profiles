@@ -48,16 +48,18 @@ def _update_profile(**data):
 @pytest.mark.django_db
 class TestProfileChangedEvent:
     def test_emitted_on_update(self, captured_events):
-        profile = _update_profile(display_name="New Name")
+        profile = _update_profile(avatar_source="url", avatar="https://example.com/me.png")
 
         assert len(captured_events) == 1
         event = captured_events[0]
         assert event.event_type == "profile.changed"
         assert event.payload["user_id"] == str(profile.user_id)
-        assert event.payload["display_name"] == "New Name"
+        # display_name moved out of the hard core (§66) — the event payload
+        # keeps the wire key for existing consumers, just empty when absent.
+        assert event.payload["display_name"] == ""
 
     def test_payload_matches_schema(self, captured_events):
-        _update_profile(display_name="Schema Guy", theme="dark")
+        _update_profile(avatar_source="url", avatar="https://example.com/me.png")
 
         schema = json.loads(SCHEMA_PATH.read_text())
         # additionalProperties is false and all fields are required —
@@ -127,7 +129,7 @@ class TestProfileUpdatedSignal:
 
         profile_updated.connect(receiver)
         try:
-            profile = _update_profile(display_name="Signal Guy", theme="dark")
+            profile = _update_profile(avatar_source="url", avatar="https://example.com/me.png")
         finally:
             profile_updated.disconnect(receiver)
 
@@ -135,4 +137,4 @@ class TestProfileUpdatedSignal:
         sender, received_profile, fields_changed = received[0]
         assert sender is Profile
         assert received_profile.user_id == profile.user_id
-        assert fields_changed == ["display_name", "theme"]
+        assert fields_changed == ["avatar", "avatar_source"]

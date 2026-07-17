@@ -85,16 +85,17 @@ class TestHappyPath:
 
         profile = Profile.objects.get(user_id=user_id)
         assert profile.avatar == ref
+        assert profile.avatar_source == "cdn"
 
     def test_updates_existing_profile_without_avatar(self, mock_import):
         user_id = uuid.uuid4()
-        Profile.objects.create(user_id=user_id, display_name="Newbie")
+        Profile.objects.create(user_id=user_id)
         handle_user_registered(
             _event({"user_id": str(user_id), "avatar_url": "https://p/a.png"})
         )
         profile = Profile.objects.get(user_id=user_id)
         assert profile.avatar == "avatar/" + "a" * 64
-        assert profile.display_name == "Newbie"  # untouched
+        assert profile.avatar_source == "cdn"
 
 
 @pytest.mark.django_db

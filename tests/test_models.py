@@ -5,8 +5,7 @@ import uuid
 import pytest
 from django.db import IntegrityError
 from stapel_profiles.models import (
-    Language, Profile, UserRelationship,
-    MeasurementUnit, Theme, RelationshipStatus
+    AvatarSource, Language, Profile, UserRelationship, RelationshipStatus
 )
 
 
@@ -38,7 +37,9 @@ class TestLanguageModel:
 
 @pytest.mark.django_db
 class TestProfileModel:
-    """Tests for Profile model."""
+    """Tests for Profile model (hard core §66 — theme/currency_code/
+    measurement_units/display_name moved to field_defs.py, covered in
+    test_field_defs.py / test_swap_profile.py instead)."""
 
     def test_create_profile_defaults(self):
         """Test creating profile with defaults."""
@@ -46,9 +47,8 @@ class TestProfileModel:
         profile = Profile.objects.create(user_id=user_id)
 
         assert profile.user_id == user_id
-        assert profile.currency_code == 'USD'
-        assert profile.measurement_units == MeasurementUnit.METRIC
-        assert profile.theme == Theme.SYSTEM
+        assert profile.avatar_source == AvatarSource.FILE
+        assert profile.avatar is None
         assert profile.app_language is None
 
     def test_create_profile_custom(self):
@@ -58,15 +58,13 @@ class TestProfileModel:
 
         profile = Profile.objects.create(
             user_id=user_id,
-            currency_code='USD',
-            measurement_units=MeasurementUnit.IMPERIAL,
-            theme=Theme.DARK,
-            app_language=lang
+            avatar_source=AvatarSource.URL,
+            avatar="https://example.com/me.png",
+            app_language=lang,
         )
 
-        assert profile.currency_code == 'USD'
-        assert profile.measurement_units == MeasurementUnit.IMPERIAL
-        assert profile.theme == Theme.DARK
+        assert profile.avatar_source == AvatarSource.URL
+        assert profile.avatar == "https://example.com/me.png"
         assert profile.app_language == lang
 
     def test_profile_understands_languages(self):

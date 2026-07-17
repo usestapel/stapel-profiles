@@ -26,7 +26,8 @@ class TestGDPRExport:
         user_id = uuid.uuid4()
         lang = Language.objects.create(code="de", name="German")
         Profile.objects.create(
-            user_id=user_id, display_name="Exportee", app_language=lang
+            user_id=user_id, avatar_source="url",
+            avatar="https://example.com/me.png", app_language=lang,
         )
         followed = uuid.uuid4()
         blocked = uuid.uuid4()
@@ -43,7 +44,10 @@ class TestGDPRExport:
 
         data = ProfilesGDPRProvider().export(user_id)
 
-        assert data["profile"]["display_name"] == "Exportee"
+        # display_name moved out of the hard core (§66) — absent here (no
+        # identity preset selected), exported as None, not KeyError.
+        assert data["profile"]["display_name"] is None
+        assert data["profile"]["avatar_ref"] == "https://example.com/me.png"
         assert data["profile"]["app_language"] == "de"
         assert data["following"] == [followed]
         assert data["blocked"] == [blocked]

@@ -14,7 +14,7 @@ from django.core.management.base import BaseCommand
 from stapel_core.bus import publish, Event
 from stapel_core.kafka.events import EventType
 from stapel_core.kafka.topics import TOPIC_PROFILE_CHANGED
-from stapel_profiles.models import Profile
+from stapel_profiles.models import get_profile_model
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +23,7 @@ class Command(BaseCommand):
     help = "Publish Kafka profile-changed events for all existing profiles"
 
     def handle(self, *args, **options):
+        Profile = get_profile_model()
         profiles = Profile.objects.all()
         total = profiles.count()
         self.stdout.write(f"Publishing events for {total} profiles")
@@ -39,7 +40,7 @@ class Command(BaseCommand):
                         service="profiles",
                         payload={
                             "user_id": str(profile.user_id),
-                            "display_name": profile.display_name,
+                            "display_name": getattr(profile, "display_name", "") or "",
                             "avatar": profile.avatar or '',
                             "location_display_name_narrow": profile.location_display_name_narrow,
                             "location_display_name_broad": profile.location_display_name_broad,

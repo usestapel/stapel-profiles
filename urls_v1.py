@@ -19,6 +19,7 @@ from .views import (
     MyFollowingView,
     MyBlockedView,
     UnsubscribeView,
+    FieldManifestView,
 )
 
 router = OptionalSlashRouter()
@@ -33,6 +34,7 @@ urlpatterns = [
     path('me/followers', MyFollowersView.as_view(), name='my-followers'),
     path('me/following', MyFollowingView.as_view(), name='my-following'),
     path('me/blocked', MyBlockedView.as_view(), name='my-blocked'),
+    path('field-manifest', FieldManifestView.as_view(), name='field-manifest'),
     path('<uuid:user_id>', ProfileDetailView.as_view(), name='profile-detail'),
 
     # Relationship actions

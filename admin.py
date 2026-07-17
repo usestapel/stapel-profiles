@@ -2,7 +2,9 @@
 Admin configuration for profiles app.
 """
 from django.contrib import admin
-from .models import Language, Profile, UserRelationship
+from .models import Language, UserRelationship, get_profile_model
+
+Profile = get_profile_model()
 
 
 @admin.register(Language)
@@ -16,12 +18,12 @@ class LanguageAdmin(admin.ModelAdmin):
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
-    """Admin for Profile model."""
+    """Admin for Profile model (hard core §66 columns only — a swapped-in
+    extended model's extra standard/custom fields aren't guessed at here)."""
     list_display = [
-        'user_id', 'currency_code', 'measurement_units',
-        'theme', 'app_language', 'created_at'
+        'user_id', 'avatar_source', 'app_language', 'created_at'
     ]
-    list_filter = ['currency_code', 'measurement_units', 'theme', 'app_language']
+    list_filter = ['avatar_source', 'app_language']
     search_fields = ['user_id']
     filter_horizontal = ['understands']
     readonly_fields = ['created_at', 'updated_at']

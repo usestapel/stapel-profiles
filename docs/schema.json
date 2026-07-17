@@ -42,7 +42,7 @@
                   "ProfilePublicResponse": {
                     "value": {
                       "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                      "display_name": "Jane Smith",
+                      "avatar_source": "file",
                       "avatar": "avatar/def456",
                       "location_id": 42,
                       "location_display_name_narrow": "LU - Mamer",
@@ -391,6 +391,53 @@
         }
       }
     },
+    "/profiles/api/v1/field-manifest": {
+      "get": {
+        "operationId": "get_field_manifest",
+        "description": "List the profile fields the project's manifest activated (identity preset + standard_fields + custom_fields), in declaration order.\n\n**Permissions:** `AllowAny`",
+        "summary": "Get active profile field manifest",
+        "tags": [
+          "Profile"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProfileFieldManifestEntry"
+                  }
+                },
+                "examples": {
+                  "ProfileFieldManifestEntry": {
+                    "value": [
+                      {
+                        "name": "theme",
+                        "kind": "enum",
+                        "docstring": "UI theme preference.",
+                        "enum_values": [
+                          "light",
+                          "dark",
+                          "system"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
     "/profiles/api/v1/languages/": {
       "get": {
         "operationId": "list_languages",
@@ -515,14 +562,11 @@
                   "ProfileResponse": {
                     "value": {
                       "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                      "display_name": "John Doe",
+                      "avatar_source": "file",
                       "avatar": "avatar/abc123",
                       "location_id": 42,
                       "location_display_name_narrow": "LU - Mamer",
                       "location_display_name_broad": "LU - Differdange",
-                      "currency_code": "USD",
-                      "measurement_units": "metric",
-                      "theme": "system",
                       "understands": [
                         "en",
                         "fr"
@@ -602,14 +646,11 @@
                   "ProfileResponse": {
                     "value": {
                       "user_id": "550e8400-e29b-41d4-a716-446655440000",
-                      "display_name": "John Doe",
+                      "avatar_source": "file",
                       "avatar": "avatar/abc123",
                       "location_id": 42,
                       "location_display_name_narrow": "LU - Mamer",
                       "location_display_name_broad": "LU - Differdange",
-                      "currency_code": "USD",
-                      "measurement_units": "metric",
-                      "theme": "system",
                       "understands": [
                         "en",
                         "fr"
@@ -848,6 +889,16 @@
   },
   "components": {
     "schemas": {
+      "AvatarSourceEnum": {
+        "enum": [
+          "file",
+          "url",
+          "gravatar",
+          "cdn"
+        ],
+        "type": "string",
+        "description": "* `file` - File\n* `url` - URL\n* `gravatar` - Gravatar\n* `cdn` - CDN"
+      },
       "FollowersResponse": {
         "type": "object",
         "description": "User's followers list.",
@@ -931,16 +982,16 @@
         "type": "object",
         "description": "Update profile fields (PATCH, all optional).",
         "properties": {
-          "display_name": {
+          "avatar_source": {
             "type": "string",
             "nullable": true,
-            "description": "New display name",
-            "example": "John Doe"
+            "description": "Where avatar points (file, url, gravatar, cdn)",
+            "example": "file"
           },
           "avatar": {
             "type": "string",
             "nullable": true,
-            "description": "CDN avatar reference",
+            "description": "Avatar reference matching avatar_source",
             "example": "avatar/abc123"
           },
           "location_id": {
@@ -948,24 +999,6 @@
             "nullable": true,
             "description": "Geo service location ID",
             "example": 42
-          },
-          "currency_code": {
-            "type": "string",
-            "nullable": true,
-            "description": "ISO 4217 currency code",
-            "example": "USD"
-          },
-          "measurement_units": {
-            "type": "string",
-            "nullable": true,
-            "description": "Measurement system (metric or imperial)",
-            "example": "metric"
-          },
-          "theme": {
-            "type": "string",
-            "nullable": true,
-            "description": "UI theme (light, dark, system)",
-            "example": "dark"
           },
           "app_language": {
             "type": "string",
@@ -1034,6 +1067,55 @@
           }
         }
       },
+      "ProfileFieldManifestEntry": {
+        "type": "object",
+        "description": "One active profile field, as the frontend skin needs it to render\nitself without hardcoding field names (docs/pending/profile-fields.md,\n\"Дополнение владельца\" §1 — data-driven skin, tier 1 of the two-tier\nfront-pair answer). GET /profiles/api/v1/field-manifest/ returns a list\nof these for whatever the project's STAPEL_PROFILES[\"FIELDS\"] manifest\n(identity preset + standard_fields + custom_fields) actually selected.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Field name",
+            "example": "theme"
+          },
+          "kind": {
+            "type": "string",
+            "description": "Storage/presentation kind (text, bool, enum, model_ref, geohash)",
+            "example": "enum"
+          },
+          "docstring": {
+            "type": "string",
+            "description": "Human-readable field description, feeds help text",
+            "example": "UI theme preference."
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether the field is required (not blank)"
+          },
+          "order": {
+            "type": "integer",
+            "description": "Manifest declaration order — identity first, then standard_fields in listed order, then custom_fields"
+          },
+          "enum_values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "description": "Choice values, only present when kind is enum",
+            "example": [
+              "light",
+              "dark",
+              "system"
+            ]
+          }
+        },
+        "required": [
+          "docstring",
+          "kind",
+          "name",
+          "order",
+          "required"
+        ]
+      },
       "ProfilePublic": {
         "type": "object",
         "description": "Compact serializer for viewing other user's profile.",
@@ -1043,16 +1125,19 @@
             "format": "uuid",
             "description": "User UUID from auth service"
           },
-          "display_name": {
-            "type": "string",
-            "description": "User's display name",
-            "maxLength": 35
+          "avatar_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AvatarSourceEnum"
+              }
+            ],
+            "description": "Where `avatar` points: uploaded file key, arbitrary URL, Gravatar email-hash, or a CDN ref. Defaults to file/url — cdn is opt-in, not the default.\n\n* `file` - File\n* `url` - URL\n* `gravatar` - Gravatar\n* `cdn` - CDN"
           },
           "avatar": {
             "type": "string",
             "nullable": true,
-            "description": "CDN avatar image reference (avatar/hash)",
-            "maxLength": 150
+            "description": "Avatar reference matching avatar_source: CDN 'avatar/<hash>' ref, a Gravatar email-hash, a plain URL, or an uploaded file key.",
+            "maxLength": 500
           },
           "location_id": {
             "type": "integer",
@@ -1106,15 +1191,15 @@
             "description": "User UUID",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
-          "display_name": {
+          "avatar_source": {
             "type": "string",
-            "description": "Display name",
-            "example": "Jane Smith"
+            "description": "Where avatar points (file, url, gravatar, cdn)",
+            "example": "file"
           },
           "avatar": {
             "type": "string",
             "nullable": true,
-            "description": "CDN avatar reference",
+            "description": "Avatar reference matching avatar_source",
             "example": "avatar/def456"
           },
           "location_id": {
@@ -1158,7 +1243,7 @@
         },
         "required": [
           "avatar",
-          "display_name",
+          "avatar_source",
           "followers_count",
           "following_count",
           "location_display_name_broad",
@@ -1171,7 +1256,7 @@
       },
       "ProfileResponse": {
         "type": "object",
-        "description": "Full user profile (for /me endpoint).",
+        "description": "Full user profile (for /me endpoint).\n\n§66 alpha-cut: only the hard core (docs/pending/profile-fields.md) is\nlisted here — display_name/currency_code/measurement_units/theme moved\nto the standard-field registry (`field_defs.py`); a project that swapped\nin an extended Profile model exposes those through its own DTO/presenter,\nnot this one.",
         "properties": {
           "user_id": {
             "type": "string",
@@ -1179,15 +1264,15 @@
             "description": "User UUID",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
-          "display_name": {
+          "avatar_source": {
             "type": "string",
-            "description": "Display name",
-            "example": "John Doe"
+            "description": "Where avatar points (file, url, gravatar, cdn)",
+            "example": "file"
           },
           "avatar": {
             "type": "string",
             "nullable": true,
-            "description": "CDN avatar reference",
+            "description": "Avatar reference matching avatar_source",
             "example": "avatar/abc123"
           },
           "location_id": {
@@ -1205,21 +1290,6 @@
             "type": "string",
             "description": "Broad location",
             "example": "LU - Differdange"
-          },
-          "currency_code": {
-            "type": "string",
-            "description": "ISO 4217 currency code",
-            "example": "USD"
-          },
-          "measurement_units": {
-            "type": "string",
-            "description": "Measurement system",
-            "example": "metric"
-          },
-          "theme": {
-            "type": "string",
-            "description": "UI theme",
-            "example": "system"
           },
           "app_language": {
             "allOf": [
@@ -1317,9 +1387,8 @@
           "auto_detected_language",
           "auto_translate_content",
           "avatar",
+          "avatar_source",
           "created_at",
-          "currency_code",
-          "display_name",
           "email_messages",
           "email_system",
           "essential_cookies_accepted",
@@ -1329,11 +1398,9 @@
           "location_display_name_broad",
           "location_display_name_narrow",
           "location_id",
-          "measurement_units",
           "push_messages",
           "push_system",
           "rating",
-          "theme",
           "understands",
           "updated_at",
           "use_device_language",

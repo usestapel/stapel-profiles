@@ -1,6 +1,6 @@
 {
   "module": "stapel-profiles",
-  "version": "0.4.5",
+  "version": "0.5.0",
   "provides": "User profiles and social graph: display name, avatar, locale/currency/measurement preferences, notification opt-outs, and follow/unfollow/block relationships between users, with a relationship-status lookup.",
   "axes": [
     {
@@ -35,7 +35,7 @@
       "summary": "The primary hook for syncing derived data: emitted on every profile mutation (keyed by user_id) — subscribe with @on_action from any module or the host app, no import of this package."
     }
   ],
-  "operations_total": 14,
+  "operations_total": 15,
   "requires": [
     {
       "module": "stapel-core",

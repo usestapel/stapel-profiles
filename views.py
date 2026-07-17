@@ -35,13 +35,15 @@ from .dto import (
     RelationshipActionResponse,
     RelationshipResponse,
 )
-from .models import Language, Profile, RelationshipStatus, UserRelationship
+from .field_defs import IDENTITY_PRESETS, STANDARD_FIELDS
+from .models import Language, RelationshipStatus, UserRelationship, get_profile_model
 from .serializers import (
     FollowersResponseSerializer,
     FollowingResponseSerializer,
     LanguageResponseSerializer,
     LanguageSerializer,
     ProfileCreateUpdateSerializer,
+    ProfileFieldManifestEntrySerializer,
     ProfilePublicResponseSerializer,
     ProfilePublicSerializer,
     ProfileResponseSerializer,
@@ -50,6 +52,14 @@ from .serializers import (
     RelationshipActionResponseSerializer,
     RelationshipResponseSerializer,
 )
+
+#: Resolved once at import time — the active (possibly host-swapped) Profile
+#: DAO model (§66; same swap-at-import-time convention already used by
+#: serializers.py's Meta.model and stapel_core's User-presenter pilot).
+#: Views must never `from .models import Profile` directly — that is exactly
+#: what SWAP001 (stapel_tools.swap_lint) flags.
+Profile = get_profile_model()
+
 
 class SerializerSeamsMixin:
     """Overridable serializer seams for API views.
@@ -674,3 +684,83 @@ class UnsubscribeView(APIView):
         )
 
         return StapelResponse({"success": True, "unsubscribed": field_name})  # noqa: R006
+
+
+# =============================================================================
+# Field manifest (§66 — data-driven skin, tier 1)
+# =============================================================================
+
+
+def _active_field_manifest():
+    """Build the ordered list of `ProfileFieldManifestEntry` for the
+    project's configured manifest (`STAPEL_PROFILES["FIELDS"]` /
+    `PROFILES_FIELDS`) — identity preset first, then standard_fields in
+    listed order, then custom_fields (already `ProfileFieldDef` instances,
+    since a project's own occupation/camera_on/... enums aren't stapel's to
+    import). An empty/unset manifest yields an empty list — the hard core
+    (avatar/language/timestamps/onboarding/consent) is not "a field" in this
+    sense, it's never absent, so it has no manifest entry.
+    """
+    from .conf import profiles_settings
+    from .dto import ProfileFieldManifestEntry
+
+    def _entry(field_def, order):
+        # SWAP002 exemption (deliberate, not an oversight): the lint's whole
+        # point is "a DAO->DTO mapping a host presenter swap could not
+        # intercept" — there is no DAO row here at all, this DTO is built
+        # straight from the field-def *registry* (config, not data), which
+        # is exactly what a host customizes by changing STAPEL_PROFILES
+        # instead of by swapping a presenter.
+        return ProfileFieldManifestEntry(  # noqa: SWAP002
+            name=field_def.name, kind=field_def.kind.value,
+            docstring=field_def.doc, required=not field_def.blank,
+            order=order, enum_values=field_def.enum_values,
+        )
+
+    manifest = profiles_settings.PROFILES_FIELDS or {}
+    entries = []
+    order = 0
+
+    identity = manifest.get("identity")
+    if identity:
+        for field_def in IDENTITY_PRESETS.get(identity, ()):
+            entries.append(_entry(field_def, order))
+            order += 1
+
+    for key in manifest.get("standard_fields", ()):
+        field_def = STANDARD_FIELDS.get(key)
+        if field_def is None:
+            continue
+        entries.append(_entry(field_def, order))
+        order += 1
+
+    for field_def in manifest.get("custom_fields", ()):
+        entries.append(_entry(field_def, order))
+        order += 1
+
+    return entries
+
+
+@extend_schema(tags=["Profile"])
+class FieldManifestView(APIView):
+    """Active profile field manifest — canon for the frontend's data-driven
+    skin (docs/pending/profile-fields.md, "Дополнение владельца" §1): the
+    default skin renders identity/standard/custom fields from this response
+    instead of a hardcoded field list, so a host's STAPEL_PROFILES["FIELDS"]
+    selection is reflected in the UI with zero frontend code changes.
+    """
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        operation_id="get_field_manifest",
+        summary="Get active profile field manifest",
+        description="List the profile fields the project's manifest activated "
+        "(identity preset + standard_fields + custom_fields), in declaration order.",
+        responses={200: ProfileFieldManifestEntrySerializer(many=True)},
+    )
+    def get(self, request):  # noqa: R007
+        """List active profile fields for the data-driven skin."""
+        entries = _active_field_manifest()
+        serializer = ProfileFieldManifestEntrySerializer(entries, many=True)
+        return StapelResponse(serializer)

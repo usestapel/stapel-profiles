@@ -19,6 +19,7 @@ from .dto import (
     FollowersResponse,
     FollowingResponse,
     LanguageResponse,
+    ProfileFieldManifestEntry,
     ProfilePublicResponse,
     ProfileResponse,
     ProfileUpdateRequest,
@@ -26,12 +27,16 @@ from .dto import (
     RelationshipResponse,
 )
 from .models import (
+    AvatarSource,
     Language,
-    MeasurementUnit,
-    Profile,
-    Theme,
     UserRelationship,
+    get_profile_model,
+    validate_avatar_reference,
 )
+
+#: Resolved once at import time — see the identical note in views.py; used
+#: as `sender=` for the `profile_updated` signal below.
+Profile = get_profile_model()
 
 # =============================================================================
 # Model Serializers
@@ -60,7 +65,15 @@ class LanguageSerializer(serializers.ModelSerializer):
 
 
 class ProfileSerializer(serializers.ModelSerializer):
-    """Serializer for Profile model (full profile for /me endpoint)."""
+    """Serializer for Profile model (full profile for /me endpoint).
+
+    Only the hard core (§66) is listed here as-is. A project that swapped in
+    an extended Profile (STAPEL_SWAP["PROFILES_PROFILE_MODEL"]) with extra
+    standard/custom fields gets those through its OWN generated/hand-written
+    serializer — this base serializer is the zero-customization contract,
+    kept deliberately narrow so it never has to guess at fields that may not
+    exist on a swapped-in model.
+    """
 
     app_language = LanguageSerializer(read_only=True)
     understands = serializers.SlugRelatedField(
@@ -70,17 +83,14 @@ class ProfileSerializer(serializers.ModelSerializer):
     following_count = serializers.SerializerMethodField()
 
     class Meta:
-        model = Profile
+        model = get_profile_model()
         fields = [
             "user_id",
-            "display_name",
+            "avatar_source",
             "avatar",
             "location_id",
             "location_display_name_narrow",
             "location_display_name_broad",
-            "currency_code",
-            "measurement_units",
-            "theme",
             "app_language",
             "understands",
             "use_device_language",
@@ -127,10 +137,10 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
     relationship_status = serializers.SerializerMethodField()
 
     class Meta:
-        model = Profile
+        model = get_profile_model()
         fields = [
             "user_id",
-            "display_name",
+            "avatar_source",
             "avatar",
             "location_id",
             "location_display_name_narrow",
@@ -172,16 +182,17 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
 
 
 class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
-    """Serializer for creating/updating Profile."""
+    """Serializer for creating/updating Profile (hard-core §66 fields only —
+    see the ProfileSerializer docstring for why a swapped-in extended model's
+    extra fields aren't listed here)."""
 
-    display_name = serializers.CharField(
-        required=False, max_length=35, allow_blank=True
-    )
+    avatar_source = serializers.ChoiceField(choices=AvatarSource.choices, required=False)
     avatar = serializers.CharField(
         required=False,
         allow_null=True,
         allow_blank=True,
-        help_text="CDN avatar reference (avatar/hash)",
+        help_text="Avatar reference matching avatar_source (CDN ref / URL / "
+                   "Gravatar hash / file key).",
     )
     location_id = serializers.IntegerField(
         required=False, allow_null=True, help_text="Location ID"
@@ -195,11 +206,6 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
     understands = serializers.SlugRelatedField(
         many=True, slug_field="code", queryset=Language.objects.all(), required=False
     )
-    currency_code = serializers.CharField(required=False, max_length=3)
-    measurement_units = serializers.ChoiceField(
-        choices=MeasurementUnit.choices, required=False
-    )
-    theme = serializers.ChoiceField(choices=Theme.choices, required=False)
     use_device_language = serializers.BooleanField(required=False)
     auto_translate_content = serializers.BooleanField(required=False)
     email_messages = serializers.BooleanField(required=False)
@@ -210,14 +216,11 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
     initial_setup_passed = serializers.BooleanField(required=False)
 
     class Meta:
-        model = Profile
+        model = get_profile_model()
         fields = [
-            "display_name",
+            "avatar_source",
             "avatar",
             "location_id",
-            "currency_code",
-            "measurement_units",
-            "theme",
             "app_language",
             "understands",
             "use_device_language",
@@ -230,19 +233,22 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
             "initial_setup_passed",
         ]
 
-    def validate_display_name(self, value):
-        """Trim and validate display_name."""
-        if isinstance(value, str):
-            value = value.strip()
-        if value:
-            from .validators import validate_display_name
-
-            validate_display_name(value)
-        return value
-
     def validate_avatar(self, value):
-        """Validate avatar format and existence on CDN."""
+        """Validate avatar format and existence — only for avatar_source=cdn.
+
+        `file`/`url`/`gravatar` are free-form strings this serializer does
+        not police the shape of; only `cdn` keeps the historical fixed
+        `avatar/<64-hex>` wire format + existence check, and only when the
+        effective source (this request's `avatar_source`, or the existing
+        instance's, when not being changed) actually is `cdn`.
+        """
         if not value:
+            return value
+
+        source = self.initial_data.get("avatar_source") or (
+            self.instance.avatar_source if self.instance is not None else AvatarSource.FILE
+        )
+        if source != AvatarSource.CDN:
             return value
 
         # Enforce the full reference contract ("avatar/<64-hex>"), not just
@@ -250,10 +256,8 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
         # strings slip through.
         from django.core.exceptions import ValidationError as DjangoValidationError
 
-        from stapel_core.django.cdn.fields import validate_cdn_reference
-
         try:
-            validate_cdn_reference(value, "avatar")
+            validate_avatar_reference(AvatarSource.CDN, value)
         except DjangoValidationError:
             raise StapelValidationError(ERR_400_INVALID_AVATAR_FORMAT)
 
@@ -407,3 +411,10 @@ class FollowingResponseSerializer(StapelDataclassSerializer):
 
     class Meta:
         dataclass = FollowingResponse
+
+
+class ProfileFieldManifestEntrySerializer(StapelDataclassSerializer):
+    """Response serializer for one field-manifest entry (§66 data-driven skin)."""
+
+    class Meta:
+        dataclass = ProfileFieldManifestEntry

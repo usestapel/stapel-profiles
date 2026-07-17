@@ -14,7 +14,7 @@ from stapel_profiles.models import Profile, RelationshipStatus, UserRelationship
 
 @pytest.fixture
 def other_profile(other_user):
-    return Profile.objects.create(user_id=other_user.id, display_name="Other One")
+    return Profile.objects.create(user_id=other_user.id, avatar_source="url", avatar="https://example.com/other.png")
 
 
 @pytest.mark.django_db
@@ -185,7 +185,7 @@ class TestRelationshipLists:
         data = resp.json()
         assert len(data) == 1
         assert data[0]["user_id"] == str(other_user.id)
-        assert data[0]["display_name"] == "Other One"
+        assert data[0]["avatar"] == "https://example.com/other.png"
         # Public serializer: no private settings in the payload.
         assert "email_messages" not in data[0]
 
