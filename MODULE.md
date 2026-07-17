@@ -35,7 +35,7 @@ environment variable → default.
 
 | Key | Default | Values | Effect |
 |---|---|---|---|
-| `PROFILES_AVATAR_CHECK` | `"comm"` | `"comm"` \| `"http"` \| `"off"` | How `validate_avatar` verifies the CDN reference: `"comm"` = name-addressed function call `stapel_core.comm.call("cdn.media_exists", {"ref": ...})`; `"http"` = legacy direct HTTP via `check_cdn_media_exists`; `"off"` = skip existence check (format still validated). Fail-closed: an unverifiable reference is rejected. |
+| `PROFILES_AVATAR_CHECK` | `"comm"` | `"comm"` \| `"off"` | How `validate_avatar` verifies the CDN reference: `"comm"` = name-addressed function call `stapel_core.comm.call("cdn.media_exists", {"ref": ...})`; `"off"` = skip existence check (format still validated). Fail-closed: an unverifiable reference is rejected. |
 
 This module currently declares **no `import_strings` keys** (no dotted-path
 settings that swap in app-layer classes). `stapel_core.conf.AppSettings`
@@ -229,7 +229,7 @@ ops/secret model here to route through `StapelModelAdmin`.
 | Copy a view's method body to change its payload | Subclass the view, override `request_serializer_class` / `response_serializer_class`, remount the URL |
 | Edit models/migrations inside site-packages, or add migrations to the installed app | Schema changes to this module's models are upstream contributions; project-specific data lives in project-owned models |
 | Import another `stapel-*` module (e.g. the CDN or auth app) from profiles code or your overrides of it | Use name-addressed comm: `emit`/`call`/`@on_action`; identity is `user_id: UUID`, never a cross-module FK |
-| Hardcode a direct HTTP call to the CDN service for avatar checks | Configure `PROFILES_AVATAR_CHECK` (`"comm"` / `"http"` / `"off"`) |
+| Hardcode a direct HTTP call to the CDN service for avatar checks | Configure `PROFILES_AVATAR_CHECK` (`"comm"` / `"off"`) |
 | Mutate `Profile` rows programmatically without notifying downstream | Go through `ProfileCreateUpdateSerializer`, or call `publish_profile_changed(profile)` and send `profile_updated` yourself |
 | Subscribe to broker topics / transport primitives directly | `@on_action("profile.changed")` — transport is `STAPEL_COMM` deployment config, not code |
 | Override `validate_avatar` to accept unverified references ("fail open") | Use `PROFILES_AVATAR_CHECK="off"` explicitly if you truly don't run a CDN; the check is fail-closed by design |

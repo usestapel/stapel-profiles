@@ -8,12 +8,11 @@ Keys are intentionally prefixed (``PROFILES_...``) so the flat Django
 setting / env var form is unambiguous:
 
     # settings.py — either form works
-    PROFILES_AVATAR_CHECK = "http"
+    PROFILES_AVATAR_CHECK = "off"
     STAPEL_PROFILES = {"PROFILES_AVATAR_CHECK": "off"}
 
 PROFILES_AVATAR_CHECK — how validate_avatar verifies the CDN reference:
     "comm" (default) — stapel_core.comm.call("cdn.media_exists", ...)
-    "http"           — legacy direct HTTP via check_cdn_media_exists
     "off"            — skip the existence check (format still validated)
 """
 from stapel_core.conf import AppSettings

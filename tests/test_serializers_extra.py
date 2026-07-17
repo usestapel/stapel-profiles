@@ -1,4 +1,4 @@
-"""Tests for serializer branches: flag URLs, avatar http mode, CDN ref sync,
+"""Tests for serializer branches: flag URLs, CDN ref sync,
 and the create() path of ProfileCreateUpdateSerializer."""
 
 import uuid
@@ -6,7 +6,6 @@ import uuid
 import pytest
 from django.test import override_settings
 
-from stapel_profiles.errors import ERR_400_AVATAR_NOT_FOUND
 from stapel_profiles.models import Language, Profile
 from stapel_profiles.serializers import (
     LanguageSerializer,
@@ -28,30 +27,6 @@ class TestLanguageFlagUrl:
         lang = Language.objects.create(code="eo", name="Esperanto")
         assert LanguageSerializer(lang).data["flag"] is None
 
-
-@pytest.mark.django_db
-class TestAvatarHttpMode:
-    """Legacy PROFILES_AVATAR_CHECK='http' path."""
-
-    @override_settings(PROFILES_AVATAR_CHECK="http")
-    def test_http_check_accepts_existing(self, monkeypatch):
-        import stapel_core.django.cdn.ref_sync as ref_sync
-
-        monkeypatch.setattr(ref_sync, "check_cdn_media_exists", lambda ref: True)
-        ser = ProfileCreateUpdateSerializer(data={"avatar": VALID_REF})
-        assert ser.is_valid(), ser.errors
-
-    @override_settings(PROFILES_AVATAR_CHECK="http")
-    def test_http_check_fails_closed_on_error(self, monkeypatch):
-        import stapel_core.django.cdn.ref_sync as ref_sync
-
-        def boom(ref):
-            raise RuntimeError("cdn down")
-
-        monkeypatch.setattr(ref_sync, "check_cdn_media_exists", boom)
-        ser = ProfileCreateUpdateSerializer(data={"avatar": VALID_REF})
-        assert not ser.is_valid()
-        assert ERR_400_AVATAR_NOT_FOUND in [str(e) for e in ser.errors["avatar"]]
 
 
 @pytest.mark.django_db

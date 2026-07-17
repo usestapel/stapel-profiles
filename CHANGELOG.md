@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-07-17
+
+### Removed
+- **Breaking:** legacy `PROFILES_AVATAR_CHECK = "http"` mode (direct HTTP
+  avatar-existence check via `check_cdn_media_exists`). Valid values are now
+  `"comm"` (default, name-addressed `cdn.media_exists` call) and `"off"`;
+  any other value falls through to `"comm"`. Hosts still setting `"http"`
+  should drop the setting (or set `"off"`). Docs (`conf.py`, `MODULE.md`,
+  `docs/capabilities*.json`) and the legacy-mode tests removed with it.
+
 ## [0.3.15] — 2026-07-17
 
 ### Fixed

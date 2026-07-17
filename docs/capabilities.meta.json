@@ -43,7 +43,7 @@
   "axes": {
     "PROFILES_AVATAR_CHECK": {
       "business_label": "Avatar existence verification method",
-      "summary": "Controls how the profile service confirms an uploaded avatar reference actually exists on the CDN before saving it: through the internal comm bus (default), a legacy direct HTTP check, or skipped entirely (only the reference format is still validated)."
+      "summary": "Controls how the profile service confirms an uploaded avatar reference actually exists on the CDN before saving it: through the internal comm bus (default) or skipped entirely (only the reference format is still validated)."
     }
   }
 }

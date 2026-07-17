@@ -266,30 +266,20 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
             # Escape hatch: skip the existence check (format already validated).
             return value
 
-        if mode == "http":
-            # Legacy behavior: direct HTTP call to the CDN service.
-            try:
-                from stapel_core.django.cdn.ref_sync import check_cdn_media_exists
+        # Default ("comm"): name-addressed function call — no direct
+        # dependency on the CDN service's HTTP API.
+        from stapel_core.comm import (
+            FunctionCallError,
+            FunctionNotRegistered,
+            call,
+        )
 
-                exists = check_cdn_media_exists(value)
-            except Exception:
-                logger.warning("CDN avatar check failed for %s", value, exc_info=True)
-                exists = False
-        else:
-            # Default ("comm"): name-addressed function call — no direct
-            # dependency on the CDN service's HTTP API.
-            from stapel_core.comm import (
-                FunctionCallError,
-                FunctionNotRegistered,
-                call,
-            )
-
-            try:
-                result = call("cdn.media_exists", {"ref": value}, timeout=2.0)
-                exists = bool(result.get("exists")) if isinstance(result, dict) else False
-            except (FunctionCallError, FunctionNotRegistered):
-                logger.warning("CDN avatar check failed for %s", value, exc_info=True)
-                exists = False
+        try:
+            result = call("cdn.media_exists", {"ref": value}, timeout=2.0)
+            exists = bool(result.get("exists")) if isinstance(result, dict) else False
+        except (FunctionCallError, FunctionNotRegistered):
+            logger.warning("CDN avatar check failed for %s", value, exc_info=True)
+            exists = False
 
         if not exists:
             raise StapelValidationError(ERR_400_AVATAR_NOT_FOUND)
