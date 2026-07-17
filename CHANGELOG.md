@@ -7,6 +7,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.5] — 2026-07-17
+
+### Fixed — `GET /languages/` now reflects the project's own configured languages
+
+Owner UX audit (miттудей settings screens, point 5): the endpoint returned
+every `Language` row with `is_active=True` regardless of what the PROJECT
+actually supports — since `is_active` defaults `True` and nothing seeds/syncs
+the table automatically (`sync_languages` is a manual management command),
+a deployment that never ran it got an EMPTY list (the frontend then fell
+back to showing just the current language, e.g. a single "EN" — the exact
+symptom reported), and one that did got the full global fixture (33
+languages) regardless of project scope.
+
+- `LanguageViewSet.get_queryset()` now additionally intersects
+  `is_active=True` with the project's own `django.conf.settings.LANGUAGES`
+  (the standard Django i18n axis) when configured — a project with
+  `LANGUAGES = [("en", …), ("ru", …)]` gets exactly those two. A project that
+  never touched `LANGUAGES` still gets Django's own large built-in default —
+  a permissive no-op, not a behavior change.
+- Kept a static `queryset` class attribute alongside `get_queryset()` solely
+  so drf-spectacular still introspects the PK field (`code`) correctly for
+  the `retrieve` path parameter — dropping it silently renamed the generated
+  `{code}` path param to a generic `{id}`.
+
 ## [0.4.4] — 2026-07-17
 
 ### Fixed — currency default drift: EUR → USD (docs + model)

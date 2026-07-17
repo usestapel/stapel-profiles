@@ -78,11 +78,41 @@ class SerializerSeamsMixin:
 
 @extend_schema(tags=["Languages"])
 class LanguageViewSet(viewsets.ReadOnlyModelViewSet):
-    """Read-only viewset for languages."""
+    """Read-only viewset for languages.
 
+    Owner UX audit 2026-07-17 (point 5): `GET /languages/` used to return
+    every `Language` row with `is_active=True` — which, since the model
+    defaults `is_active` to `True` and nothing seeds/syncs the table
+    automatically (`sync_languages` is a manual management command, see its
+    own docstring), meant either the FULL global fixture (33 languages,
+    whatever `sync_languages` was last run against) or, on a deployment that
+    never ran it at all, an EMPTY table — neither reflects which languages
+    THIS project actually supports. `get_queryset` now additionally
+    intersects with the project's own `django.conf.settings.LANGUAGES` (the
+    standard Django i18n axis a real project already configures for
+    translated UI strings) — a project that configured e.g. `[("en", …),
+    ("ru", …)]` gets exactly those two; a project that never touched
+    `LANGUAGES` still gets Django's own (large) built-in default, which is a
+    permissive no-op filter, not a behavior change.
+    """
+
+    # Kept (in addition to `get_queryset` below) SOLELY so drf-spectacular can
+    # still introspect the PK field (`code`, not `id`) for the `retrieve`
+    # path parameter's name/type/description — dropping it silently renamed
+    # the generated `{code}` path param to a generic `{id}` string. Runtime
+    # filtering always goes through `get_queryset`, never this attribute.
     queryset = Language.objects.filter(is_active=True)
     serializer_class = LanguageSerializer
     permission_classes = [AllowAny]
+
+    def get_queryset(self):
+        from django.conf import settings
+
+        qs = Language.objects.filter(is_active=True)
+        configured_codes = {code for code, _name in getattr(settings, "LANGUAGES", [])}
+        if configured_codes:
+            qs = qs.filter(code__in=configured_codes)
+        return qs
 
     @extend_schema(
         operation_id="list_languages",
