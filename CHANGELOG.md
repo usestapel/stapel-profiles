@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.4.4] — 2026-07-17
+
+### Fixed — currency default drift: EUR → USD (docs + model)
+
+`Profile.currency_code` still defaulted to `'EUR'` (and every doc/test
+example mirrored it), even though the workspace-wide currency default
+moved to USD (2026-07-08, `stapel-currencies`/`stapel-listings`
+`BASE_CURRENCY`). `test_matches_monolith_profiles_slice` caught the
+resulting drift against the monolith's own already-USD schema slice.
+
+- `Profile.currency_code` default `'EUR'` → `'USD'` (migration 0015;
+  `help_text` example order flipped to lead with USD).
+- `docs/schema.json` / `dto.py` docstrings / tests regenerated and updated
+  to match — `make contract` re-run after the version bump (0.4.2/0.4.3's
+  known gotcha: `docs/capabilities.json` embeds the package version, so
+  bump first or regenerate again).
+- `test_matches_monolith_profiles_slice` verified green with no skip hatch.
+
 ## [0.4.3] — 2026-07-17
 
 Fix-up #2: 0.4.2's regen still baked the old version into

@@ -79,8 +79,8 @@ class Profile(models.Model):
     # Preferences
     currency_code = models.CharField(
         max_length=3,
-        default="EUR",
-        help_text="Preferred currency code (e.g., 'EUR', 'USD')",
+        default="USD",
+        help_text="Preferred currency code (e.g., 'USD', 'EUR')",
     )
     measurement_units = models.CharField(
         max_length=10,

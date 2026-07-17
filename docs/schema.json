@@ -520,7 +520,7 @@
                       "location_id": 42,
                       "location_display_name_narrow": "LU - Mamer",
                       "location_display_name_broad": "LU - Differdange",
-                      "currency_code": "EUR",
+                      "currency_code": "USD",
                       "measurement_units": "metric",
                       "theme": "system",
                       "understands": [
@@ -607,7 +607,7 @@
                       "location_id": 42,
                       "location_display_name_narrow": "LU - Mamer",
                       "location_display_name_broad": "LU - Differdange",
-                      "currency_code": "EUR",
+                      "currency_code": "USD",
                       "measurement_units": "metric",
                       "theme": "system",
                       "understands": [
@@ -953,7 +953,7 @@
             "type": "string",
             "nullable": true,
             "description": "ISO 4217 currency code",
-            "example": "EUR"
+            "example": "USD"
           },
           "measurement_units": {
             "type": "string",
@@ -1209,7 +1209,7 @@
           "currency_code": {
             "type": "string",
             "description": "ISO 4217 currency code",
-            "example": "EUR"
+            "example": "USD"
           },
           "measurement_units": {
             "type": "string",

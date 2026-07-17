@@ -25,7 +25,7 @@ class TestMyProfileGet:
         assert resp.status_code == 200, resp.content
         data = resp.json()
         assert data["user_id"] == str(user.id)
-        assert data["currency_code"] == "EUR"
+        assert data["currency_code"] == "USD"
         assert data["followers_count"] == 0
         assert data["following_count"] == 0
         assert Profile.objects.filter(user_id=user.id).exists()

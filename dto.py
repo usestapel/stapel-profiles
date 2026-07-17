@@ -29,7 +29,7 @@ class ProfileResponse:
         location_id: Geo service location ID. Example: 42
         location_display_name_narrow: Short location. Example: LU - Mamer
         location_display_name_broad: Broad location. Example: LU - Differdange
-        currency_code: ISO 4217 currency code. Example: EUR
+        currency_code: ISO 4217 currency code. Example: USD
         measurement_units: Measurement system. Example: metric
         theme: UI theme. Example: system
         app_language: Selected app language.
@@ -112,7 +112,7 @@ class ProfileUpdateRequest:
         display_name: New display name. Example: John Doe
         avatar: CDN avatar reference. Example: avatar/abc123
         location_id: Geo service location ID. Example: 42
-        currency_code: ISO 4217 currency code. Example: EUR
+        currency_code: ISO 4217 currency code. Example: USD
         measurement_units: Measurement system (metric or imperial). Example: metric
         theme: UI theme (light, dark, system). Example: dark
         app_language: ISO 639-1 language code. Example: en

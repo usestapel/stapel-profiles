@@ -46,7 +46,7 @@ class TestProfileModel:
         profile = Profile.objects.create(user_id=user_id)
 
         assert profile.user_id == user_id
-        assert profile.currency_code == 'EUR'
+        assert profile.currency_code == 'USD'
         assert profile.measurement_units == MeasurementUnit.METRIC
         assert profile.theme == Theme.SYSTEM
         assert profile.app_language is None
