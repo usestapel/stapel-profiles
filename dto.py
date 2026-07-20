@@ -3,6 +3,8 @@ from dataclasses import dataclass
 from typing import Optional, List
 from uuid import UUID
 
+from stapel_core.media.dto import StapelImageDTO
+
 
 @dataclass
 class LanguageResponse:
@@ -55,6 +57,10 @@ class ProfileResponse:
     user_id: UUID
     avatar_source: str
     avatar: Optional[str]
+    #: Renderable descriptor denormalized from avatar+avatar_source (the raw
+    #: `avatar` ref above stays for the upload round-trip). A frontend `<Image>`
+    #: renders THIS — never the bare ref (THE DESIGN RULE, owner 2026-07-20).
+    avatar_image: Optional[StapelImageDTO]
     location_id: Optional[int]
     location_display_name_narrow: str
     location_display_name_broad: str
@@ -95,6 +101,8 @@ class ProfilePublicResponse:
     user_id: UUID
     avatar_source: str
     avatar: Optional[str]
+    #: Renderable descriptor denormalized from avatar+avatar_source (§ /me).
+    avatar_image: Optional[StapelImageDTO]
     location_id: Optional[int]
     location_display_name_narrow: str
     location_display_name_broad: str

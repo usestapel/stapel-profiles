@@ -1139,6 +1139,14 @@
             "description": "Avatar reference matching avatar_source: CDN 'avatar/<hash>' ref, a Gravatar email-hash, a plain URL, or an uploaded file key.",
             "maxLength": 500
           },
+          "avatar_image": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StapelImage"
+              }
+            ],
+            "readOnly": true
+          },
           "location_id": {
             "type": "integer",
             "maximum": 9223372036854775807,
@@ -1175,6 +1183,7 @@
           }
         },
         "required": [
+          "avatar_image",
           "followers_count",
           "following_count",
           "relationship_status",
@@ -1201,6 +1210,14 @@
             "nullable": true,
             "description": "Avatar reference matching avatar_source",
             "example": "avatar/def456"
+          },
+          "avatar_image": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StapelImageDTO"
+              }
+            ],
+            "nullable": true
           },
           "location_id": {
             "type": "integer",
@@ -1243,6 +1260,7 @@
         },
         "required": [
           "avatar",
+          "avatar_image",
           "avatar_source",
           "followers_count",
           "following_count",
@@ -1274,6 +1292,14 @@
             "nullable": true,
             "description": "Avatar reference matching avatar_source",
             "example": "avatar/abc123"
+          },
+          "avatar_image": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StapelImageDTO"
+              }
+            ],
+            "nullable": true
           },
           "location_id": {
             "type": "integer",
@@ -1387,6 +1413,7 @@
           "auto_detected_language",
           "auto_translate_content",
           "avatar",
+          "avatar_image",
           "avatar_source",
           "created_at",
           "email_messages",
@@ -1477,6 +1504,173 @@
         "required": [
           "error",
           "localizable_error"
+        ]
+      },
+      "StapelImage": {
+        "type": "object",
+        "description": "The source-agnostic image descriptor — mirrors ``StapelImage``.\n\n``variants`` is the CDN/PIL ladder, or ``[]`` for a ``\"link\"`` / unprocessed\nfile, in which case the renderer degrades to the single top-level ``url``.",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string",
+            "nullable": true
+          },
+          "width": {
+            "type": "integer",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "nullable": true
+          },
+          "aspect": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "square": {
+            "type": "boolean"
+          },
+          "preview_b64": {
+            "type": "string",
+            "nullable": true
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VariantMeta"
+            }
+          }
+        },
+        "required": [
+          "aspect",
+          "height",
+          "mime",
+          "preview_b64",
+          "source",
+          "square",
+          "url",
+          "variants",
+          "width"
+        ]
+      },
+      "StapelImageDTO": {
+        "type": "object",
+        "description": "Mirror of `types.StapelImage` — the source-agnostic image descriptor.",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string",
+            "nullable": true
+          },
+          "width": {
+            "type": "integer",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "nullable": true
+          },
+          "aspect": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "square": {
+            "type": "boolean"
+          },
+          "preview_b64": {
+            "type": "string",
+            "nullable": true
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VariantMetaDTO"
+            }
+          }
+        },
+        "required": [
+          "aspect",
+          "height",
+          "mime",
+          "preview_b64",
+          "source",
+          "square",
+          "url",
+          "width"
+        ]
+      },
+      "VariantMeta": {
+        "type": "object",
+        "description": "One generated variant file (or the original) — mirrors ``VariantMeta``.",
+        "properties": {
+          "tier": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "type": "integer",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "nullable": true
+          }
+        },
+        "required": [
+          "branch",
+          "height",
+          "tier",
+          "url",
+          "width"
+        ]
+      },
+      "VariantMetaDTO": {
+        "type": "object",
+        "description": "Mirror of `types.VariantMeta`. ``tier`` ON THE WIRE is always a string —\na numeric px value as its decimal string (``\"320\"``) or the literal\n``\"original\"`` — matching the runtime `_TierField` (`drf.py`). The\n`@stapel/image` hand-mirror parses the numeric ones for its tier math.",
+        "properties": {
+          "tier": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "type": "integer",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "nullable": true
+          }
+        },
+        "required": [
+          "branch",
+          "height",
+          "tier",
+          "url",
+          "width"
         ]
       }
     },

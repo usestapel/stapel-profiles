@@ -4,9 +4,12 @@ Serializers for stapel-profiles service.
 
 import logging
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from stapel_core.django.api.errors import StapelValidationError
 from stapel_core.django.api.serializers import StapelDataclassSerializer
+from stapel_core.media import image as build_image
+from stapel_core.media.drf import StapelImageSerializer
 
 from .errors import (
     ERR_400_AVATAR_NOT_FOUND,
@@ -37,6 +40,38 @@ from .models import (
 #: Resolved once at import time — see the identical note in views.py; used
 #: as `sender=` for the `profile_updated` signal below.
 Profile = get_profile_model()
+
+
+def avatar_image(profile):
+    """The renderable `StapelImage` for a profile's avatar, or ``None``.
+
+    Denormalizes the avatar NEXT TO the raw ref (which stays writable on the
+    serializer for the upload round-trip) so a frontend `<Image>` gets the
+    variant ladder + blur-up without a second round-trip — THE DESIGN RULE
+    (owner directive 2026-07-20). Maps this module's `AvatarSource` taxonomy
+    onto `stapel_core.media`'s source-agnostic builder:
+
+    - CDN → the cdn provider (its own variant naming — the fix for the empty
+      ladder meettoday hit when a pil-default deployment described cdn refs);
+    - FILE → the PIL provider over plain Django storage;
+    - URL → an external link, passed through untouched;
+    - GRAVATAR → the gravatar URL built from the stored email-hash (square).
+    """
+    value = profile.avatar
+    if not value:
+        return None
+    source = profile.avatar_source
+    if source == AvatarSource.CDN:
+        return build_image("cdn", value)
+    if source == AvatarSource.FILE:
+        return build_image("file", value)
+    if source == AvatarSource.URL:
+        return build_image("link", value)
+    if source == AvatarSource.GRAVATAR:
+        return build_image(
+            "link", f"https://www.gravatar.com/avatar/{value}", aspect=1.0
+        )
+    return None
 
 # =============================================================================
 # Model Serializers
@@ -81,6 +116,9 @@ class ProfileSerializer(serializers.ModelSerializer):
     )
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
+    #: Read-only renderable descriptor denormalized from `avatar`+`avatar_source`
+    #: (the raw `avatar` ref stays writable above for the upload round-trip).
+    avatar_image = serializers.SerializerMethodField()
 
     class Meta:
         model = get_profile_model()
@@ -88,6 +126,7 @@ class ProfileSerializer(serializers.ModelSerializer):
             "user_id",
             "avatar_source",
             "avatar",
+            "avatar_image",
             "location_id",
             "location_display_name_narrow",
             "location_display_name_broad",
@@ -128,6 +167,10 @@ class ProfileSerializer(serializers.ModelSerializer):
             follower_id=obj.user_id, status="following"
         ).count()
 
+    @extend_schema_field(StapelImageSerializer)
+    def get_avatar_image(self, obj):
+        return avatar_image(obj)
+
 
 class ProfilePublicSerializer(serializers.ModelSerializer):
     """Compact serializer for viewing other user's profile."""
@@ -135,6 +178,9 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
     relationship_status = serializers.SerializerMethodField()
+    #: Renderable descriptor for OTHER users' avatars (participant lists,
+    #: waiting rooms) — same denormalize-next-to-the-ref rule as /me.
+    avatar_image = serializers.SerializerMethodField()
 
     class Meta:
         model = get_profile_model()
@@ -142,6 +188,7 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
             "user_id",
             "avatar_source",
             "avatar",
+            "avatar_image",
             "location_id",
             "location_display_name_narrow",
             "location_display_name_broad",
@@ -161,6 +208,10 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
         return UserRelationship.objects.filter(
             follower_id=obj.user_id, status="following"
         ).count()
+
+    @extend_schema_field(StapelImageSerializer)
+    def get_avatar_image(self, obj):
+        return avatar_image(obj)
 
     def get_relationship_status(self, obj) -> str | None:
         """Get relationship status with current user."""
