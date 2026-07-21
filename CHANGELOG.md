@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] — 2026-07-22
+
+### Added — `avatar_image` (renderable descriptor next to the raw ref)
+
+`ProfileResponse` (`/me`) and the public profile now carry `avatar_image`: a
+source-agnostic `StapelImage` (`stapel_core.media.image`) denormalized from
+`avatar` + `avatar_source`, so a frontend `<Image>` renders the right ladder
+tier + blur-up without a second round-trip. The raw `avatar` ref stays writable
+for the upload round-trip. `AvatarSource` maps onto the core sources — CDN→cdn
+(routed to the CDN provider so its own variant naming is read, the fix for the
+empty-ladder avatar gap), FILE→file, URL→link, GRAVATAR→link.
+
+### Changed
+
+- Requires `stapel-core>=0.13` (the `StapelImage` descriptor lives there).
+
 ## [0.5.0] — 2026-07-17
 
 ### Changed — BREAKING: Profile = constructor (§66, docs/pending/profile-fields.md)
