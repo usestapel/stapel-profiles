@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stapel-profiles"
-version = "0.6.0"
+version = "0.6.1"
 description = "User profiles Django app for the Stapel framework"
 readme = "README.md"
 license = { text = "MIT" }
@@ -24,7 +24,7 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "stapel-core>=0.13,<0.14",
+    "stapel-core>=0.13,<1.0",
     # _codegen.py boots an eager Celery app before Django setup (contract
     # emission harness, exercised by test_contract.py's drift gate) — needs
     # celery installed as a real dependency, not just pulled in transitively.
