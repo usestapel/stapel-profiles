@@ -17,7 +17,7 @@ from django.db import models
 from stapel_core.django.cdn.fields import validate_cdn_reference
 from stapel_core.django.swappable import declare_swap, get_model
 
-from .field_defs import StapelProfileEnum
+from .field_defs import StapelProfileEnum, Theme
 
 
 class Language(models.Model):
@@ -114,6 +114,26 @@ class ProfileCore(models.Model):
         blank=True,
         help_text="Avatar reference matching avatar_source: CDN 'avatar/<hash>' "
                    "ref, a Gravatar email-hash, a plain URL, or an uploaded file key.",
+    )
+
+    # Display name + theme — back in the hard core (owner directive 2026-07-22,
+    # partial §66 reversal): every product wants a name to show and a
+    # light/dark toggle, and making agents/scaffolds opt into them via the
+    # field registry was friction with no upside. currency/measurement stay
+    # opt-in in the registry (they're genuinely product-specific). The frontend
+    # default skin can still hide either one per host (a prop), so "in the
+    # default" does not mean "forced on screen".
+    display_name = models.CharField(
+        max_length=35,
+        blank=True,
+        default="",
+        help_text="User's display name.",
+    )
+    theme = models.CharField(
+        max_length=10,
+        choices=Theme.choices,
+        default=Theme.SYSTEM,
+        help_text="UI theme preference (light/dark/system).",
     )
 
     # Language settings — hard in core (owner directive 2026-07-17):

@@ -55,6 +55,10 @@ class ProfileResponse:
         updated_at: ISO 8601 last update time. Example: 2025-01-20T14:30:00Z
     """
     user_id: UUID
+    #: Hard-core again (owner 2026-07-22): every profile carries a display name
+    #: and a theme preference by default.
+    display_name: str
+    theme: str
     avatar_source: str
     avatar: Optional[str]
     #: Renderable descriptor denormalized from avatar+avatar_source (the raw
@@ -99,6 +103,8 @@ class ProfilePublicResponse:
         relationship_status: Relationship to current user. Example: following
     """
     user_id: UUID
+    #: Hard-core again (owner 2026-07-22) — shown on other users' profiles too.
+    display_name: str
     avatar_source: str
     avatar: Optional[str]
     #: Renderable descriptor denormalized from avatar+avatar_source (§ /me).

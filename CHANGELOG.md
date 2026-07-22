@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-07-22
+
+### Changed — `display_name` + `theme` back in the hard core (partial §66 reversal)
+
+Owner directive 2026-07-22: every product wants a name to show and a
+light/dark toggle, and making agents/scaffolds opt into them through the field
+registry was friction with no upside. `display_name` (was an identity preset)
+and `theme` (was a standard field) are now plain `models.ProfileCore` fields —
+present on every profile (default and swapped), serialized on `/me` and the
+public profile. `currency_code`/`measurement_units`/`geohash` stay opt-in in
+the registry; `first_last_name` remains the one identity preset. Migration
+`0017` adds the two columns. Frontends can still hide either field in the
+default skin per host — "in the default" is not "forced on screen".
+
 ## [0.6.0] — 2026-07-22
 
 ### Added — `avatar_image` (renderable descriptor next to the raw ref)

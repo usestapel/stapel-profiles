@@ -19,19 +19,19 @@ from stapel_profiles.field_defs import (
     MeasurementUnit,
     ProfileFieldDef,
     ProfileFieldKind,
-    Theme,
     assemble_profile_fields,
     build_profile_model,
 )
 from stapel_profiles.models import ProfileCore, get_profile_model
 
 # The extended model a project would build in its OWN app's models.py after
-# picking identity="display_name" + standard_fields=["theme", "currency_code"]
-# from its STAPEL_PROFILES["FIELDS"] manifest. Reusing app_label="profiles"
-# here (test-only) so the table lands in the same already-migration-disabled
-# app as Profile itself.
+# picking identity="first_last_name" + standard_fields=["currency_code"] from
+# its STAPEL_PROFILES["FIELDS"] manifest. (display_name/theme are no longer
+# registry-selectable — they are hard core now, owner 2026-07-22.) Reusing
+# app_label="profiles" here (test-only) so the table lands in the same
+# already-migration-disabled app as Profile itself.
 SwapTestProfile = build_profile_model(
-    {"identity": "display_name", "standard_fields": ["theme", "currency_code"]},
+    {"identity": "first_last_name", "standard_fields": ["currency_code"]},
     app_label="profiles",
     model_name="SwapTestProfile",
     module=__name__,
@@ -50,11 +50,10 @@ class TestStandardFieldsRegistry:
             for field_def in field_defs:
                 assert field_def.doc, f"{key}.{field_def.name} has no docstring"
 
-    def test_theme_is_enum_kind(self):
-        field_def = STANDARD_FIELDS["theme"]
-        assert field_def.kind is ProfileFieldKind.ENUM
-        assert field_def.enum is Theme
-        assert field_def.enum_values == ["light", "dark", "system"]
+    def test_theme_left_the_registry_for_the_hard_core(self):
+        # owner 2026-07-22: theme is a models.ProfileCore field now, not a
+        # registry opt-in.
+        assert "theme" not in STANDARD_FIELDS
 
     def test_currency_code_is_model_ref_kind(self):
         field_def = STANDARD_FIELDS["currency_code"]
@@ -72,8 +71,9 @@ class TestStandardFieldsRegistry:
         assert field_def.kind is ProfileFieldKind.GEOHASH
 
     def test_identity_is_mutually_exclusive_presets(self):
-        assert set(IDENTITY_PRESETS) == {"display_name", "first_last_name"}
-        assert [f.name for f in IDENTITY_PRESETS["display_name"]] == ["display_name"]
+        # display_name left for the hard core (owner 2026-07-22); first/last
+        # stays as the one remaining opt-in identity preset.
+        assert set(IDENTITY_PRESETS) == {"first_last_name"}
         assert [f.name for f in IDENTITY_PRESETS["first_last_name"]] == [
             "first_name", "last_name",
         ]
@@ -81,10 +81,10 @@ class TestStandardFieldsRegistry:
     def test_to_model_field_builds_django_fields(self):
         from django.db import models as dj_models
 
-        theme_field = STANDARD_FIELDS["theme"].to_model_field()
-        assert isinstance(theme_field, dj_models.CharField)
-        assert theme_field.default == Theme.SYSTEM
-        assert dict(theme_field.choices) == dict(Theme.choices)
+        enum_field = STANDARD_FIELDS["measurement_units"].to_model_field()
+        assert isinstance(enum_field, dj_models.CharField)
+        assert enum_field.default == MeasurementUnit.METRIC
+        assert dict(enum_field.choices) == dict(MeasurementUnit.choices)
 
         bool_field = ProfileFieldDef(
             name="camera_on", kind=ProfileFieldKind.BOOL, doc="Default camera state.",
@@ -96,10 +96,10 @@ class TestStandardFieldsRegistry:
     def test_to_presenter_field_carries_help_text(self):
         from stapel_core.django.api.presenters import PresenterField
 
-        presenter_field = STANDARD_FIELDS["theme"].to_presenter_field()
+        presenter_field = STANDARD_FIELDS["measurement_units"].to_presenter_field()
         assert isinstance(presenter_field, PresenterField)
-        assert presenter_field.help_text == STANDARD_FIELDS["theme"].doc
-        assert presenter_field.source == "theme"
+        assert presenter_field.help_text == STANDARD_FIELDS["measurement_units"].doc
+        assert presenter_field.source == "measurement_units"
 
     def test_attribute_kind_none_without_stapel_attributes(self):
         # stapel-attributes isn't a dependency of this repo's test env —
@@ -116,9 +116,9 @@ class TestStandardFieldsRegistry:
 
     def test_assemble_profile_fields_combines_identity_and_standard(self):
         fields = assemble_profile_fields(
-            identity="first_last_name", standard_fields=["theme"],
+            identity="first_last_name", standard_fields=["currency_code"],
         )
-        assert set(fields) == {"first_name", "last_name", "theme"}
+        assert set(fields) == {"first_name", "last_name", "currency_code"}
 
 
 @pytest.mark.django_db
@@ -131,10 +131,12 @@ class TestSwapProfileModel:
 
     def test_has_core_and_selected_fields(self):
         field_names = {f.name for f in SwapTestProfile._meta.get_fields()}
-        # Hard core (never absent regardless of manifest):
-        assert {"user_id", "avatar_source", "avatar", "app_language"} <= field_names
-        # Manifest-selected:
-        assert {"display_name", "theme", "currency_code"} <= field_names
+        # Hard core (never absent regardless of manifest) — display_name/theme
+        # are core again (owner 2026-07-22), inherited even by a swapped model:
+        assert {"user_id", "avatar_source", "avatar", "app_language",
+                "display_name", "theme"} <= field_names
+        # Manifest-selected (identity="first_last_name" + currency_code):
+        assert {"first_name", "last_name", "currency_code"} <= field_names
 
     def test_create_and_read_extended_fields(self):
         user_id = uuid.uuid4()

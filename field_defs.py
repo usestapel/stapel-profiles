@@ -180,10 +180,9 @@ class ProfileFieldDef:
 
 #: Built-in standard fields — a project's manifest picks a subset by name.
 STANDARD_FIELDS: Dict[str, ProfileFieldDef] = {
-    "theme": ProfileFieldDef(
-        name="theme", kind=ProfileFieldKind.ENUM, enum=Theme,
-        doc="UI theme preference.", default=Theme.SYSTEM,
-    ),
+    # `theme` moved back to the hard core (models.ProfileCore, owner directive
+    # 2026-07-22) — every product wants a light/dark toggle; no longer a
+    # registry opt-in. currency/measurement stay here (genuinely opt-in).
     "currency_code": ProfileFieldDef(
         name="currency_code", kind=ProfileFieldKind.MODEL_REF,
         model_ref="stapel_currencies.Currency",
@@ -212,11 +211,13 @@ STANDARD_FIELDS: Dict[str, ProfileFieldDef] = {
 
 #: Identity is a MUTUALLY EXCLUSIVE preset (pick one, not a per-field toggle):
 #: a project's manifest names ONE key, not a subset.
+#:
+#: `display_name` is NO LONGER a preset here — it is back in the hard core
+#: (models.ProfileCore, owner directive 2026-07-22): every profile has a
+#: `display_name` by default. `first_last_name` remains for a project that
+#: wants SEPARATE first/last fields alongside (or instead of showing) the core
+#: display_name.
 IDENTITY_PRESETS: Dict[str, list] = {
-    "display_name": [
-        ProfileFieldDef(name="display_name", kind=ProfileFieldKind.TEXT,
-                         doc="User's display name.", default="", params={"max_length": 35}),
-    ],
     "first_last_name": [
         ProfileFieldDef(name="first_name", kind=ProfileFieldKind.TEXT,
                          doc="User's first name.", default="", params={"max_length": 35}),

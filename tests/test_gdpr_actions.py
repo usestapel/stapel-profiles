@@ -44,9 +44,9 @@ class TestGDPRExport:
 
         data = ProfilesGDPRProvider().export(user_id)
 
-        # display_name moved out of the hard core (§66) — absent here (no
-        # identity preset selected), exported as None, not KeyError.
-        assert data["profile"]["display_name"] is None
+        # display_name is back in the hard core (owner 2026-07-22) — always
+        # present, defaulting to "" when the user never set one.
+        assert data["profile"]["display_name"] == ""
         assert data["profile"]["avatar_ref"] == "https://example.com/me.png"
         assert data["profile"]["app_language"] == "de"
         assert data["following"] == [followed]

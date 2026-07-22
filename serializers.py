@@ -124,6 +124,8 @@ class ProfileSerializer(serializers.ModelSerializer):
         model = get_profile_model()
         fields = [
             "user_id",
+            "display_name",
+            "theme",
             "avatar_source",
             "avatar",
             "avatar_image",
@@ -186,6 +188,7 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
         model = get_profile_model()
         fields = [
             "user_id",
+            "display_name",
             "avatar_source",
             "avatar",
             "avatar_image",

@@ -1125,6 +1125,11 @@
             "format": "uuid",
             "description": "User UUID from auth service"
           },
+          "display_name": {
+            "type": "string",
+            "description": "User's display name.",
+            "maxLength": 35
+          },
           "avatar_source": {
             "allOf": [
               {
@@ -1200,6 +1205,9 @@
             "description": "User UUID",
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
+          "display_name": {
+            "type": "string"
+          },
           "avatar_source": {
             "type": "string",
             "description": "Where avatar points (file, url, gravatar, cdn)",
@@ -1262,6 +1270,7 @@
           "avatar",
           "avatar_image",
           "avatar_source",
+          "display_name",
           "followers_count",
           "following_count",
           "location_display_name_broad",
@@ -1281,6 +1290,12 @@
             "format": "uuid",
             "description": "User UUID",
             "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "display_name": {
+            "type": "string"
+          },
+          "theme": {
+            "type": "string"
           },
           "avatar_source": {
             "type": "string",
@@ -1416,6 +1431,7 @@
           "avatar_image",
           "avatar_source",
           "created_at",
+          "display_name",
           "email_messages",
           "email_system",
           "essential_cookies_accepted",
@@ -1428,6 +1444,7 @@
           "push_messages",
           "push_system",
           "rating",
+          "theme",
           "understands",
           "updated_at",
           "use_device_language",
