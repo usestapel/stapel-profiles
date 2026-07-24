@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.2] — 2026-07-24
+
+### Fixed — `docs/capabilities.json` version drift (0.7.1 never published)
+
+0.7.1's tag was cut before `docs/capabilities.json` was regenerated against
+the bumped `pyproject.toml` version, so CI's contract-drift gate correctly
+failed the release on `test_capabilities_envelope` (envelope said 0.7.0,
+`pyproject.toml` said 0.7.1) before the package ever built — nothing named
+0.7.1 reached PyPI. This release is otherwise identical to 0.7.1.
+
 ## [0.7.1] — 2026-07-24
 
 ### Fixed — `PATCH /me` silently dropped `display_name`/`theme`
