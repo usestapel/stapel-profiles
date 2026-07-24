@@ -982,6 +982,18 @@
         "type": "object",
         "description": "Update profile fields (PATCH, all optional).",
         "properties": {
+          "display_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "User's display name",
+            "example": "Ada Lovelace"
+          },
+          "theme": {
+            "type": "string",
+            "nullable": true,
+            "description": "UI theme preference (light/dark/system)",
+            "example": "dark"
+          },
           "avatar_source": {
             "type": "string",
             "nullable": true,

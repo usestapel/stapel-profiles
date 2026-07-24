@@ -32,6 +32,7 @@ from .dto import (
 from .models import (
     AvatarSource,
     Language,
+    Theme,
     UserRelationship,
     get_profile_model,
     validate_avatar_reference,
@@ -240,6 +241,10 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
     see the ProfileSerializer docstring for why a swapped-in extended model's
     extra fields aren't listed here)."""
 
+    display_name = serializers.CharField(
+        max_length=35, required=False, allow_blank=True
+    )
+    theme = serializers.ChoiceField(choices=Theme.choices, required=False)
     avatar_source = serializers.ChoiceField(choices=AvatarSource.choices, required=False)
     avatar = serializers.CharField(
         required=False,
@@ -272,6 +277,8 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
     class Meta:
         model = get_profile_model()
         fields = [
+            "display_name",
+            "theme",
             "avatar_source",
             "avatar",
             "location_id",

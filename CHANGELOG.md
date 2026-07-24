@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.1] — 2026-07-24
+
+### Fixed — `PATCH /me` silently dropped `display_name`/`theme`
+
+`ProfileCreateUpdateSerializer` (the write side of `/me`) never got
+`display_name`/`theme` added to its `fields` when 0.7.0 moved them back into
+the `ProfileCore` hard core — only the READ serializer (`ProfileSerializer`)
+picked them up. A `PATCH /me` carrying either field validated fine (DRF
+silently drops unknown keys) and returned 200, but never wrote the columns —
+confirmed against the DB. `ProfileUpdateRequest` (the OpenAPI doc dataclass)
+had the same gap; both now declare the two fields, contract regenerated.
+
 ## [0.7.0] — 2026-07-22
 
 ### Changed — `display_name` + `theme` back in the hard core (partial §66 reversal)

@@ -77,6 +77,25 @@ class TestMyProfilePatch:
         resp = authed_client.patch("/me", {"avatar_source": "dropbox"}, format="json")
         assert resp.status_code == 400
 
+    def test_patch_display_name_and_theme_persist(self, authed_client, user):
+        """Regression: ProfileCreateUpdateSerializer silently dropped
+        display_name/theme (missing from its `fields`) after they moved back
+        into ProfileCore hard-core (0.7.0) — the write side never got the
+        read side's fields, so a PATCH accepted the request but never wrote
+        the columns."""
+        resp = authed_client.patch(
+            "/me",
+            {"display_name": "Ada Lovelace", "theme": "dark"},
+            format="json",
+        )
+        assert resp.status_code == 200, resp.content
+        data = resp.json()
+        assert data["display_name"] == "Ada Lovelace"
+        assert data["theme"] == "dark"
+        profile = Profile.objects.get(user_id=user.id)
+        assert profile.display_name == "Ada Lovelace"
+        assert profile.theme == "dark"
+
 
 @pytest.mark.django_db
 class TestProfileDetail:

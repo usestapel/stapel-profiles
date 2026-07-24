@@ -123,6 +123,8 @@ class ProfileUpdateRequest:
     """Update profile fields (PATCH, all optional).
 
     Attributes:
+        display_name: User's display name. Example: Ada Lovelace
+        theme: UI theme preference (light/dark/system). Example: dark
         avatar_source: Where avatar points (file, url, gravatar, cdn). Example: file
         avatar: Avatar reference matching avatar_source. Example: avatar/abc123
         location_id: Geo service location ID. Example: 42
@@ -137,6 +139,8 @@ class ProfileUpdateRequest:
         essential_cookies_accepted: Essential cookies consent. Example: true
         initial_setup_passed: Mark onboarding as complete. Example: true
     """
+    display_name: Optional[str] = None
+    theme: Optional[str] = None
     avatar_source: Optional[str] = None
     avatar: Optional[str] = None
     location_id: Optional[int] = None
