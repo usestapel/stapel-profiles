@@ -10,9 +10,54 @@ from stapel_profiles.models import Language, Profile
 from stapel_profiles.serializers import (
     LanguageSerializer,
     ProfileCreateUpdateSerializer,
+    ProfileSerializer,
 )
 
 VALID_REF = "avatar/" + "a" * 64
+
+
+class TestReadWriteSerializerParity:
+    """Regression guard (0.7.2): `ProfileCreateUpdateSerializer` (the write
+    side of `PATCH /me`) silently missed `display_name`/`theme` after 0.7.0
+    moved them back into `ProfileCore` — only `ProfileSerializer` (the read
+    side) picked them up. DRF drops unknown request keys with no error, so
+    the PATCH validated and returned 200 while never writing the columns;
+    caught only by manually checking the DB.
+
+    This asserts the structural invariant that let that happen at all:
+    every WRITABLE field on the read serializer (i.e. not in its
+    `read_only_fields`, and not a computed/method field with no column of
+    its own) must also be accepted by the write serializer. It is
+    field-name-agnostic on purpose — it exists so the NEXT field anyone
+    moves into the hard core fails this test immediately, rather than
+    silently repeating this exact bug for whatever field comes next.
+    """
+
+    #: Read-side fields with no backing model column to PATCH — never
+    #: expected on the write serializer.
+    COMPUTED_ONLY_FIELDS = frozenset({
+        "user_id",
+        "avatar_image",
+        "followers_count",
+        "following_count",
+        "created_at",
+        "updated_at",
+    })
+
+    def test_every_writable_read_field_is_accepted_for_write(self):
+        read_fields = set(ProfileSerializer.Meta.fields)
+        read_only = set(ProfileSerializer.Meta.read_only_fields)
+        writable_on_read = read_fields - read_only - self.COMPUTED_ONLY_FIELDS
+
+        write_fields = set(ProfileCreateUpdateSerializer.Meta.fields)
+
+        missing = writable_on_read - write_fields
+        assert not missing, (
+            f"{sorted(missing)} are writable on ProfileSerializer (the "
+            "read side of /me) but missing from ProfileCreateUpdateSerializer "
+            "(the write side) — PATCH /me will silently accept and drop "
+            "these fields. Add them to ProfileCreateUpdateSerializer.Meta.fields."
+        )
 
 
 @pytest.mark.django_db
