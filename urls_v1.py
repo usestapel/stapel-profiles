@@ -6,6 +6,7 @@ from typing import NamedTuple
 from django.urls import path, include
 from stapel_core.django.api.routers import OptionalSlashRouter
 
+from .errors import ProfilesErrorKeysView
 from .views import (
     LanguageViewSet,
     MyProfileView,
@@ -46,6 +47,9 @@ urlpatterns = [
 
     # Notification unsubscribe
     path('notifications/unsubscribe', UnsubscribeView.as_view(), name='unsubscribe'),
+
+    # Error-key registry for the stapel-translate collector (service/staff only).
+    path('error-keys/', ProfilesErrorKeysView.as_view(), name='error-keys'),
 ]
 
 
