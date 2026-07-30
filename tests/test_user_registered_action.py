@@ -1,8 +1,15 @@
-"""Tests for the ``user.registered`` → avatar-import handler.
+"""Tests for the ``user.registered`` handler (display-name pre-fill + avatar).
 
-Covers the no-op cases (no avatar_url, no user_id, already-set avatar),
-the happy path (mocked ``cdn.import_from_url`` comm call), idempotency
-under at-least-once redelivery, and the swallow-not-retry failure mode.
+Avatar half: the no-op cases (no avatar_url, no user_id, already-set
+avatar), the happy path (mocked ``cdn.import_from_url`` comm call),
+idempotency under at-least-once redelivery, and the swallow-not-retry
+failure mode.
+
+Display-name half (#149): the hint an admin/provider typed for this person
+is a PRE-FILL, never an assignment — the tests below pin the guard that
+makes that true (a set name is never clobbered, a name cleared after
+onboarding is never resurrected by a redelivery) plus the input canon the
+untrusted hint is held to.
 """
 import types
 import uuid
@@ -123,6 +130,139 @@ class TestIdempotency:
         # Fetched exactly once; second delivery sees the stored avatar.
         assert len(mock_import) == 1
         assert Profile.objects.filter(user_id=user_id).count() == 1
+
+
+@pytest.mark.django_db
+class TestDisplayNamePrefill:
+    """#149 — the ``display_name`` hint must actually land on the profile."""
+
+    def test_hint_prefills_a_new_profile(self, mock_import):
+        user_id = uuid.uuid4()
+        handle_user_registered(
+            _event(
+                {
+                    "user_id": str(user_id),
+                    "auth_type": "login",
+                    "display_name": "Ada Lovelace",
+                }
+            )
+        )
+        assert Profile.objects.get(user_id=user_id).display_name == "Ada Lovelace"
+
+    def test_hint_prefills_an_empty_existing_profile(self, mock_import):
+        # GET /me creates an empty row on first render; a hint arriving
+        # after that must still land.
+        user_id = uuid.uuid4()
+        Profile.objects.create(user_id=user_id)
+        handle_user_registered(
+            _event({"user_id": str(user_id), "display_name": "Ada Lovelace"})
+        )
+        assert Profile.objects.get(user_id=user_id).display_name == "Ada Lovelace"
+
+    def test_hint_is_stripped(self, mock_import):
+        user_id = uuid.uuid4()
+        handle_user_registered(
+            _event({"user_id": str(user_id), "display_name": "  Ada  "})
+        )
+        assert Profile.objects.get(user_id=user_id).display_name == "Ada"
+
+    def test_no_hint_creates_no_profile(self, mock_import):
+        user_id = uuid.uuid4()
+        handle_user_registered(_event({"user_id": str(user_id), "auth_type": "email"}))
+        assert not Profile.objects.filter(user_id=user_id).exists()
+
+    def test_null_hint_is_a_noop(self, mock_import):
+        user_id = uuid.uuid4()
+        Profile.objects.create(user_id=user_id, display_name="Ada")
+        handle_user_registered(
+            _event({"user_id": str(user_id), "display_name": None})
+        )
+        assert Profile.objects.get(user_id=user_id).display_name == "Ada"
+
+    def test_whitespace_only_hint_creates_no_row(self, mock_import):
+        """A blank hint is not a name — and must not conjure a profile row
+        for a user who has not touched the product yet."""
+        user_id = uuid.uuid4()
+        handle_user_registered(
+            _event({"user_id": str(user_id), "display_name": "   "})
+        )
+        assert not Profile.objects.filter(user_id=user_id).exists()
+
+
+@pytest.mark.django_db
+class TestDisplayNameBelongsToItsOwner:
+    """A pre-fill is not an assignment: the person named owns the name."""
+
+    def test_user_set_name_is_never_clobbered(self, mock_import):
+        user_id = uuid.uuid4()
+        Profile.objects.create(user_id=user_id, display_name="Ada")
+        handle_user_registered(
+            _event({"user_id": str(user_id), "display_name": "A. Lovelace (admin)"})
+        )
+        assert Profile.objects.get(user_id=user_id).display_name == "Ada"
+
+    def test_redelivery_does_not_overwrite_a_renamed_profile(self, mock_import):
+        """At-least-once delivery must not undo the user's own rename."""
+        user_id = uuid.uuid4()
+        payload = {"user_id": str(user_id), "display_name": "A. Lovelace (admin)"}
+        handle_user_registered(_event(payload))
+        # The user renames themselves during onboarding.
+        Profile.objects.filter(user_id=user_id).update(display_name="Ada")
+        handle_user_registered(_event(payload))  # redelivery
+        assert Profile.objects.get(user_id=user_id).display_name == "Ada"
+
+    def test_redelivery_does_not_resurrect_a_cleared_name(self, mock_import):
+        """The hole an emptiness-only guard leaves: a user who deliberately
+        clears their name after onboarding must not get the admin's version
+        back on the next redelivery."""
+        user_id = uuid.uuid4()
+        payload = {"user_id": str(user_id), "display_name": "A. Lovelace (admin)"}
+        handle_user_registered(_event(payload))
+        # The user finishes onboarding and empties the field on purpose.
+        Profile.objects.filter(user_id=user_id).update(
+            display_name="", initial_setup_passed=True
+        )
+        handle_user_registered(_event(payload))  # redelivery
+        assert Profile.objects.get(user_id=user_id).display_name == ""
+
+
+@pytest.mark.django_db
+class TestDisplayNameHintIsUntrusted:
+    """The hint comes from another service: held to this module's canon."""
+
+    def test_too_long_hint_is_declined_not_truncated(self, mock_import, caplog):
+        user_id = uuid.uuid4()
+        long_name = "x" * 200
+        handle_user_registered(
+            _event({"user_id": str(user_id), "display_name": long_name})
+        )
+        # Declined outright: no truncated "xxx…x" name, and no row at all.
+        assert not Profile.objects.filter(user_id=user_id).exists()
+        assert "declined" in caplog.text
+
+    def test_hint_violating_the_name_canon_is_declined(self, mock_import, caplog):
+        user_id = uuid.uuid4()
+        handle_user_registered(
+            _event({"user_id": str(user_id), "display_name": "<script>"})
+        )
+        # Declined outright — never sanitized into something nobody typed.
+        assert not Profile.objects.filter(user_id=user_id).exists()
+        assert "declined" in caplog.text
+
+    def test_prefill_failure_never_costs_the_avatar(self, mock_import):
+        """The two halves of the handler are independent."""
+        user_id = uuid.uuid4()
+        handle_user_registered(
+            _event(
+                {
+                    "user_id": str(user_id),
+                    "display_name": "<script>",
+                    "avatar_url": "https://p/a.png",
+                }
+            )
+        )
+        assert len(mock_import) == 1
+        assert Profile.objects.get(user_id=user_id).avatar == "avatar/" + "a" * 64
 
 
 @pytest.mark.django_db
