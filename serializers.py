@@ -22,6 +22,8 @@ from .dto import (
     FollowersResponse,
     FollowingResponse,
     LanguageResponse,
+    ProfileBatchRequest,
+    ProfileBatchResponse,
     ProfileFieldManifestEntry,
     ProfilePublicResponse,
     ProfileResponse,
@@ -175,8 +177,26 @@ class ProfileSerializer(serializers.ModelSerializer):
         return avatar_image(obj)
 
 
+#: Context keys a batched caller may fill so N profiles cost O(1) queries
+#: instead of 3N (two COUNTs + one relationship lookup per row). Filled by
+#: `views._batch_social_context()`; absent for the single-profile views,
+#: which keep the per-row queries (one row, one query — nothing to batch).
+CTX_FOLLOWERS = "batch_followers"
+CTX_FOLLOWING = "batch_following"
+CTX_RELATIONSHIPS = "batch_relationships"
+
+
 class ProfilePublicSerializer(serializers.ModelSerializer):
-    """Compact serializer for viewing other user's profile."""
+    """Compact serializer for viewing other user's profile.
+
+    The three social fields (`followers_count`, `following_count`,
+    `relationship_status`) are per-row queries by default. A caller
+    serializing MANY profiles at once (POST .../batch) precomputes them for
+    the whole page and passes the maps through the serializer context (the
+    `CTX_*` keys above); the methods below prefer the map when it is there.
+    Without that, a 50-tile grid would trade 50 HTTP requests for 150 SQL
+    queries — a worse deal than the problem the batch endpoint solves.
+    """
 
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
@@ -203,12 +223,18 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
 
     def get_followers_count(self, obj) -> int:
         """Get count of users following this profile."""
+        precomputed = self.context.get(CTX_FOLLOWERS)
+        if precomputed is not None:
+            return precomputed.get(obj.user_id, 0)
         return UserRelationship.objects.filter(
             following_id=obj.user_id, status="following"
         ).count()
 
     def get_following_count(self, obj) -> int:
         """Get count of users this profile is following."""
+        precomputed = self.context.get(CTX_FOLLOWING)
+        if precomputed is not None:
+            return precomputed.get(obj.user_id, 0)
         return UserRelationship.objects.filter(
             follower_id=obj.user_id, status="following"
         ).count()
@@ -226,6 +252,13 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
         current_user_id = request.user.id
         if str(current_user_id) == str(obj.user_id):
             return "self"
+
+        precomputed = self.context.get(CTX_RELATIONSHIPS)
+        if precomputed is not None:
+            # "No row" is "neutral" here exactly as in the per-row branch —
+            # the absence of a relationship is a relationship state, not a
+            # missing answer.
+            return precomputed.get(obj.user_id, "neutral")
 
         try:
             relationship = UserRelationship.objects.get(
@@ -444,6 +477,31 @@ class ProfileUpdateRequestSerializer(StapelDataclassSerializer):
 
     class Meta:
         dataclass = ProfileUpdateRequest
+
+
+class ProfileBatchRequestSerializer(StapelDataclassSerializer):
+    """Request serializer for the batch profile lookup.
+
+    Shape and types only. The `PROFILES_BATCH_MAX_IDS` ceiling is enforced
+    in the view instead — it has to be answered as a first-class
+    `error.400.too_many_ids` envelope carrying both numbers, and it has to
+    reject a 10k-id body without parsing 10k UUIDs first.
+    """
+
+    class Meta:
+        dataclass = ProfileBatchRequest
+
+
+class ProfileBatchResponseSerializer(StapelDataclassSerializer):
+    """Response serializer for the batch profile lookup (schema contract).
+
+    Like every other `*ResponseSerializer` here it describes the wire shape
+    for the contract emitter; the body itself is rendered by
+    `ProfilePublicSerializer` in the view, off live model rows.
+    """
+
+    class Meta:
+        dataclass = ProfileBatchResponse
 
 
 class RelationshipResponseSerializer(StapelDataclassSerializer):

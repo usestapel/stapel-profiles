@@ -27,6 +27,15 @@ config, not a binary toggle — excluded from capabilities.json accordingly):
     the data-driven skin's source of truth) and by
     `field_defs.build_profile_model()` when a project assembles its own
     swapped-in extended Profile model.
+
+PROFILES_BATCH_MAX_IDS — how many user ids one POST .../batch may carry
+(default 100). Structural config, NOT a capability axis (a numeric ceiling,
+not a behavior toggle — excluded from capabilities.json like PROFILES_FIELDS).
+Over the ceiling the request is REFUSED with `error.400.too_many_ids`
+carrying both numbers; the endpoint never silently truncates the list, which
+would show up in the UI as "some people have no name" with nothing in the
+response saying why. A host with bigger spaces raises the number; the honest
+cost is one bigger query + one bigger response, not a silent partial answer.
 """
 from stapel_core.conf import AppSettings
 
@@ -36,6 +45,7 @@ from stapel_core.conf import AppSettings
 DEFAULTS = {
     "PROFILES_AVATAR_CHECK": "comm",
     "PROFILES_FIELDS": {},
+    "PROFILES_BATCH_MAX_IDS": 100,
 }
 
 profiles_settings = AppSettings(

@@ -391,6 +391,73 @@
         }
       }
     },
+    "/profiles/api/v1/batch": {
+      "post": {
+        "operationId": "batch_profiles",
+        "description": "Resolve up to PROFILES_BATCH_MAX_IDS (default 100) public profiles in one call. Ids with no profile row come back in `missing` — a normal state, never a 404. Ids in neither list were not part of the request. Over the limit the request is refused with `error.400.too_many_ids` carrying both numbers; the list is never silently truncated.\n\n**Permissions:** `AllowAny`",
+        "summary": "Get many user profiles at once",
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileBatchRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileBatchRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileBatchResponse"
+                },
+                "examples": {
+                  "ProfileBatchResponse": {
+                    "value": {
+                      "missing": [
+                        "550e8400-e29b-41d4-a716-446655440000"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
     "/profiles/api/v1/field-manifest": {
       "get": {
         "operationId": "get_field_manifest",
@@ -1079,6 +1146,54 @@
           }
         }
       },
+      "ProfileBatchRequest": {
+        "type": "object",
+        "description": "Look up many public profiles in one request.\n\nSent as a POST body rather than a `?ids=` query string on purpose: a\npeople grid resolves 50-100 ids at once, which is 1.9-3.7 kB of UUIDs —\npast the conservative 2 kB URL ceiling old proxies/WAFs still enforce,\nand close to nginx's default 8 kB request-line+header budget once a JWT\ncookie rides along. A 414 there would read to the user as \"the profile\nservice is down\", which is exactly the failure mode this endpoint exists\nto remove. A body also keeps the roster of who is being looked at out of\naccess logs and Referer headers.\n\nPOST is the transport, not the semantics: this is a read, it changes\nnothing and is safe to repeat. HTTP caching is given up in the trade —\nacceptable, because the caller batches precisely because it keeps its\nown per-id cache and only asks for the ids missing from it.",
+        "properties": {
+          "user_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User UUIDs to look up. Duplicates are collapsed; found profiles come back in the order first requested",
+            "example": [
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          }
+        },
+        "required": [
+          "user_ids"
+        ]
+      },
+      "ProfileBatchResponse": {
+        "type": "object",
+        "description": "Answer of the batch lookup: the profiles that exist + the ids with none.\n\nThe split is the whole point of the endpoint. \"This user has no profile\nrow\" is a NORMAL state — nobody has opened settings yet — not a failure,\nso it must not arrive as a 404 per id: that is what turned a 16-tile\ncontact grid into 16 red console lines. Reading the answer:\n\n* id in ``profiles`` — there is a profile, here it is;\n* id in ``missing`` — asked, none exists: render the placeholder, cache\nthe negative, do not retry, nothing is broken;\n* id in neither — it was not part of THIS request.\n\n``profiles`` and ``missing`` together always cover exactly the\ndeduplicated ids that were sent, so \"absent\" never has to be guessed at.\nNothing is invented for a missing id: an id in ``missing`` carries no\npayload at all, because a filled-in placeholder would be this service\nasserting a display name for a person who never chose one.\n\nThe status is 200 in every one of those cases, including \"all missing\".",
+        "properties": {
+          "profiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfilePublicResponse"
+            },
+            "description": "Profiles that exist, in the order their ids were first requested"
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Requested ids with no profile row — a normal state, not an error",
+            "example": [
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          }
+        },
+        "required": [
+          "missing",
+          "profiles"
+        ]
+      },
       "ProfileFieldManifestEntry": {
         "type": "object",
         "description": "One active profile field, as the frontend skin needs it to render\nitself without hardcoding field names (docs/pending/profile-fields.md,\n\"Дополнение владельца\" §1 — data-driven skin, tier 1 of the two-tier\nfront-pair answer). GET /profiles/api/v1/field-manifest/ returns a list\nof these for whatever the project's STAPEL_PROFILES[\"FIELDS\"] manifest\n(identity preset + standard_fields + custom_fields) actually selected.",
@@ -1130,7 +1245,7 @@
       },
       "ProfilePublic": {
         "type": "object",
-        "description": "Compact serializer for viewing other user's profile.",
+        "description": "Compact serializer for viewing other user's profile.\n\nThe three social fields (`followers_count`, `following_count`,\n`relationship_status`) are per-row queries by default. A caller\nserializing MANY profiles at once (POST .../batch) precomputes them for\nthe whole page and passes the maps through the serializer context (the\n`CTX_*` keys above); the methods below prefer the map when it is there.\nWithout that, a 50-tile grid would trade 50 HTTP requests for 150 SQL\nqueries — a worse deal than the problem the batch endpoint solves.",
         "properties": {
           "user_id": {
             "type": "string",

@@ -35,7 +35,7 @@
       "summary": "The primary hook for syncing derived data: emitted on every profile mutation (keyed by user_id) — subscribe with @on_action from any module or the host app, no import of this package."
     }
   ],
-  "operations_total": 15,
+  "operations_total": 16,
   "requires": [
     {
       "module": "stapel-core",

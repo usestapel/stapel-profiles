@@ -201,6 +201,16 @@
     "en": "Invalid currency code"
   },
   {
+    "code": "error.400.too_many_ids",
+    "status": 400,
+    "params": [
+      "requested",
+      "limit"
+    ],
+    "remediation": "fix_input",
+    "en": "Too many ids: {requested} requested, at most {limit} per batch request"
+  },
+  {
     "code": "error.400.validation_error",
     "status": 400,
     "params": [],

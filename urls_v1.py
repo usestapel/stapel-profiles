@@ -10,6 +10,7 @@ from .errors import ProfilesErrorKeysView
 from .views import (
     LanguageViewSet,
     MyProfileView,
+    ProfileBatchView,
     ProfileDetailView,
     FollowView,
     UnfollowView,
@@ -36,6 +37,11 @@ urlpatterns = [
     path('me/following', MyFollowingView.as_view(), name='my-following'),
     path('me/blocked', MyBlockedView.as_view(), name='my-blocked'),
     path('field-manifest', FieldManifestView.as_view(), name='field-manifest'),
+    # Must stay ABOVE the `<uuid:user_id>` route — a literal segment under a
+    # converter-typed sibling is only safe while the converter rejects it,
+    # and "batch" is not a UUID today. Ordering it first makes that
+    # independent of the converter.
+    path('batch', ProfileBatchView.as_view(), name='profile-batch'),
     path('<uuid:user_id>', ProfileDetailView.as_view(), name='profile-detail'),
 
     # Relationship actions

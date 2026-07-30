@@ -157,6 +157,60 @@ class ProfileUpdateRequest:
 
 
 @dataclass
+class ProfileBatchRequest:
+    """Look up many public profiles in one request.
+
+    Sent as a POST body rather than a `?ids=` query string on purpose: a
+    people grid resolves 50-100 ids at once, which is 1.9-3.7 kB of UUIDs —
+    past the conservative 2 kB URL ceiling old proxies/WAFs still enforce,
+    and close to nginx's default 8 kB request-line+header budget once a JWT
+    cookie rides along. A 414 there would read to the user as "the profile
+    service is down", which is exactly the failure mode this endpoint exists
+    to remove. A body also keeps the roster of who is being looked at out of
+    access logs and Referer headers.
+
+    POST is the transport, not the semantics: this is a read, it changes
+    nothing and is safe to repeat. HTTP caching is given up in the trade —
+    acceptable, because the caller batches precisely because it keeps its
+    own per-id cache and only asks for the ids missing from it.
+
+    Attributes:
+        user_ids: User UUIDs to look up. Duplicates are collapsed; found profiles come back in the order first requested. Example: ["550e8400-e29b-41d4-a716-446655440000"]
+    """
+    user_ids: List[UUID]
+
+
+@dataclass
+class ProfileBatchResponse:
+    """Answer of the batch lookup: the profiles that exist + the ids with none.
+
+    The split is the whole point of the endpoint. "This user has no profile
+    row" is a NORMAL state — nobody has opened settings yet — not a failure,
+    so it must not arrive as a 404 per id: that is what turned a 16-tile
+    contact grid into 16 red console lines. Reading the answer:
+
+    * id in ``profiles`` — there is a profile, here it is;
+    * id in ``missing`` — asked, none exists: render the placeholder, cache
+      the negative, do not retry, nothing is broken;
+    * id in neither — it was not part of THIS request.
+
+    ``profiles`` and ``missing`` together always cover exactly the
+    deduplicated ids that were sent, so "absent" never has to be guessed at.
+    Nothing is invented for a missing id: an id in ``missing`` carries no
+    payload at all, because a filled-in placeholder would be this service
+    asserting a display name for a person who never chose one.
+
+    The status is 200 in every one of those cases, including "all missing".
+
+    Attributes:
+        profiles: Profiles that exist, in the order their ids were first requested.
+        missing: Requested ids with no profile row — a normal state, not an error. Example: ["550e8400-e29b-41d4-a716-446655440000"]
+    """
+    profiles: List[ProfilePublicResponse]
+    missing: List[UUID]
+
+
+@dataclass
 class ProfileFieldManifestEntry:
     """One active profile field, as the frontend skin needs it to render
     itself without hardcoding field names (docs/pending/profile-fields.md,

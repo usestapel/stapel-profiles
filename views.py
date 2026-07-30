@@ -4,6 +4,7 @@ Views for stapel-profiles service.
 
 import logging
 
+from django.db.models import Count
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import status, viewsets
@@ -26,8 +27,11 @@ logger = logging.getLogger(__name__)
 from stapel_profiles.errors import (
     ERR_400_CANNOT_BLOCK_SELF,
     ERR_400_CANNOT_FOLLOW_SELF,
+    ERR_400_TOO_MANY_IDS,
     ERR_404_PROFILE_NOT_FOUND,
 )
+
+from .conf import profiles_settings
 
 from .dto import (
     FollowersResponse,
@@ -38,10 +42,15 @@ from .dto import (
 from .field_defs import IDENTITY_PRESETS, STANDARD_FIELDS
 from .models import Language, RelationshipStatus, UserRelationship, get_profile_model
 from .serializers import (
+    CTX_FOLLOWERS,
+    CTX_FOLLOWING,
+    CTX_RELATIONSHIPS,
     FollowersResponseSerializer,
     FollowingResponseSerializer,
     LanguageResponseSerializer,
     LanguageSerializer,
+    ProfileBatchRequestSerializer,
+    ProfileBatchResponseSerializer,
     ProfileCreateUpdateSerializer,
     ProfileFieldManifestEntrySerializer,
     ProfilePublicResponseSerializer,
@@ -284,6 +293,134 @@ class ProfileDetailView(SerializerSeamsMixin, APIView):
             profile, context={"request": request}
         )
         return StapelResponse(serializer)
+
+
+def _batch_social_context(request, profiles):
+    """Precompute the three social fields for a whole page of profiles.
+
+    `ProfilePublicSerializer` computes `followers_count`, `following_count`
+    and `relationship_status` with one query each per row. Serving a
+    50-profile batch that way would swap 50 HTTP round-trips for 150 SQL
+    queries — a worse deal than the problem the batch endpoint solves. Three
+    grouped queries answer the whole page instead, handed to the serializer
+    through the `CTX_*` context keys.
+
+    A count that is absent from a map means zero, and a relationship absent
+    from the map means `neutral` — the same reading as the per-row branch,
+    because "no row" is an answer here, not a hole.
+    """
+    ids = [p.user_id for p in profiles]
+    if not ids:
+        return {}
+
+    followers = dict(
+        UserRelationship.objects.filter(
+            following_id__in=ids, status=RelationshipStatus.FOLLOWING
+        )
+        .values_list("following_id")
+        .annotate(n=Count("id"))
+    )
+    following = dict(
+        UserRelationship.objects.filter(
+            follower_id__in=ids, status=RelationshipStatus.FOLLOWING
+        )
+        .values_list("follower_id")
+        .annotate(n=Count("id"))
+    )
+
+    relationships = {}
+    user = getattr(request, "user", None)
+    if user is not None and user.is_authenticated:
+        relationships = dict(
+            UserRelationship.objects.filter(
+                follower_id=user.id, following_id__in=ids
+            ).values_list("following_id", "status")
+        )
+
+    return {
+        CTX_FOLLOWERS: followers,
+        CTX_FOLLOWING: following,
+        CTX_RELATIONSHIPS: relationships,
+    }
+
+
+@extend_schema(tags=["Profile"])
+class ProfileBatchView(SerializerSeamsMixin, APIView):
+    """Resolve many public profiles in one request (#111).
+
+    A contact grid used to fire one `GET .../<id>` per tile and take a 404
+    for every person who had never opened settings — 16 red lines in the
+    console for a screen that was working exactly as intended. Two things
+    were wrong with that: the fan-out, and calling a normal state an error.
+    This endpoint fixes both, and the second one is the important one.
+
+    Permission parity with `ProfileDetailView` (`AllowAny`): the batch
+    exposes nothing the per-id endpoint does not already expose to the same
+    caller, and a batch that answered differently from the single lookup
+    would be a seam where the two disagree. `PROFILES_BATCH_MAX_IDS` caps
+    how much one request can amplify.
+    """
+
+    permission_classes = [AllowAny]
+    request_serializer_class = ProfileBatchRequestSerializer
+    response_serializer_class = ProfilePublicSerializer
+
+    @extend_schema(
+        operation_id="batch_profiles",
+        summary="Get many user profiles at once",
+        description=(
+            "Resolve up to PROFILES_BATCH_MAX_IDS (default 100) public "
+            "profiles in one call. Ids with no profile row come back in "
+            "`missing` — a normal state, never a 404. Ids in neither list "
+            "were not part of the request. Over the limit the request is "
+            "refused with `error.400.too_many_ids` carrying both numbers; "
+            "the list is never silently truncated."
+        ),
+        request=ProfileBatchRequestSerializer,
+        responses={
+            200: ProfileBatchResponseSerializer,
+            400: StapelErrorSerializer,
+        },
+    )
+    def post(self, request):  # noqa: R007
+        """Resolve a list of user ids to public profiles."""
+        submitted = request.data.get("user_ids")
+        limit = int(profiles_settings.PROFILES_BATCH_MAX_IDS)
+        if isinstance(submitted, list) and len(submitted) > limit:
+            # Refused, not truncated. A short 200 would render the overflow
+            # as people who "have no profile" — a wrong answer delivered as
+            # a successful one, with nothing saying part of the question was
+            # dropped. Both numbers ride along so the caller can chunk
+            # deterministically instead of bisecting the limit by hand.
+            #
+            # Checked on the payload as submitted, before parsing: the
+            # ceiling bounds what the caller sends, so it must not depend on
+            # how much of it happens to be redundant (a limit that
+            # "sometimes lets 150 through" is not one anybody can code
+            # against), and a 10k-id body must not cost 10k UUID parses to
+            # reject. Anything that is not a list falls through to the
+            # serializer's ordinary type error.
+            return StapelErrorResponse(
+                400,
+                ERR_400_TOO_MANY_IDS,
+                params={"requested": len(submitted), "limit": limit},
+            )
+
+        request_serializer = self.get_request_serializer_class()(data=request.data)
+        request_serializer.is_valid(raise_exception=True)
+        # De-duplicate while keeping first-seen order: the response order is
+        # the caller's order, so a grid can zip it back onto its tiles.
+        requested = list(dict.fromkeys(request_serializer.validated_data.user_ids))
+
+        found = {p.user_id: p for p in Profile.objects.filter(user_id__in=requested)}
+        profiles = [found[uid] for uid in requested if uid in found]
+        missing = [uid for uid in requested if uid not in found]
+
+        context = {"request": request, **_batch_social_context(request, profiles)}
+        serializer = self.get_response_serializer_class()(
+            profiles, many=True, context=context
+        )
+        return StapelResponse({"profiles": serializer.data, "missing": missing})  # noqa: R006
 
 
 # =============================================================================

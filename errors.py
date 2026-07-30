@@ -12,6 +12,10 @@ ERR_400_DISPLAY_NAME_INVISIBLE_CHARS = 'error.400.display_name_invisible_chars'
 ERR_400_INVALID_CURRENCY = 'error.400.invalid_currency'
 ERR_400_INVALID_AVATAR_FORMAT = 'error.400.invalid_avatar_format'
 ERR_400_AVATAR_NOT_FOUND = 'error.400.avatar_not_found'
+#: POST .../batch over PROFILES_BATCH_MAX_IDS. Carries BOTH numbers so the
+#: caller can chunk without guessing — the alternative (truncate to the limit
+#: and answer 200) would hide the overflow as "those people have no profile".
+ERR_400_TOO_MANY_IDS = 'error.400.too_many_ids'
 
 PROFILES_ERRORS = {
     ERR_404_PROFILE_NOT_FOUND: 'Profile not found',
@@ -24,6 +28,7 @@ PROFILES_ERRORS = {
     ERR_400_INVALID_CURRENCY: 'Invalid currency code',
     ERR_400_INVALID_AVATAR_FORMAT: 'Invalid avatar reference format. Expected: avatar/<hash>',
     ERR_400_AVATAR_NOT_FOUND: 'Avatar not found on CDN',
+    ERR_400_TOO_MANY_IDS: 'Too many ids: {requested} requested, at most {limit} per batch request',
 }
 
 # Machine-readable recovery hints (remediation) — the canonical "what to do"
@@ -49,6 +54,7 @@ PROFILES_REMEDIATION = {
     ERR_400_INVALID_CURRENCY: 'fix_input',
     ERR_400_INVALID_AVATAR_FORMAT: 'fix_input',
     ERR_400_AVATAR_NOT_FOUND: 'fix_input',
+    ERR_400_TOO_MANY_IDS: 'fix_input',
 }
 
 register_service_errors(PROFILES_ERRORS, remediation=PROFILES_REMEDIATION)
