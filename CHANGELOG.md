@@ -5,6 +5,79 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] — 2026-07-30
+
+### Added — `POST /profiles/api/v1/batch`: many public profiles in one request (#111)
+
+A 16-tile contact grid fired 16 `GET .../<id>` calls and took a **404 for
+every person who had never opened settings** — sixteen red console lines for a
+screen working exactly as designed. Two things were wrong: the fan-out, and
+calling a normal state an error. The second is the one that mattered.
+
+**Why POST with a body, not `GET ?ids=`.** A people grid resolves 50-100 UUIDs
+at once — 1.9-3.7 kB of them, past the conservative 2 kB URL ceiling old
+proxies/WAFs still enforce and into nginx's default 8 kB request-line budget
+once a JWT cookie rides along. A 414 there would read to the user as "the
+profile service is down", the exact failure this endpoint exists to remove. A
+body also keeps the roster of who is being looked at out of access logs and
+`Referer` headers. POST is the transport, not the semantics: the call changes
+nothing and is safe to repeat, and giving up HTTP caching costs nothing —
+the caller batches precisely *because* it keeps its own per-id cache.
+
+**Missing is not an error.** The answer is `{profiles, missing}`:
+
+* id in `profiles` — there is a profile, here it is;
+* id in `missing` — asked, none exists: render the placeholder, cache the
+  negative, do not retry, nothing is broken;
+* id in neither — it was not part of this request.
+
+The two lists always cover the de-duplicated input exactly, so "absent" is
+never a guess. Nothing is invented for a missing id — a filled-in stub would
+be this service asserting a display name for a person who never chose one.
+Status is `200` in every case, including all-missing.
+
+**The ceiling refuses, it does not truncate.** New `PROFILES_BATCH_MAX_IDS`
+(default 100). Over it the request is rejected with the new
+`error.400.too_many_ids` carrying **both** numbers (`requested`, `limit`) so a
+caller can chunk deterministically. A silent truncation would answer 200 with
+a short list and the UI would render the overflow as people who "have no
+profile" — a wrong answer delivered as a successful one, with nothing
+anywhere saying part of the question was dropped. The count is taken on the
+payload as submitted, before de-duplication and before UUID parsing: the
+ceiling bounds what the caller sends (a limit that "sometimes lets 150
+through" is not one anybody can code against), and a 10k-id body costs no
+parses to reject.
+
+`_batch_social_context()` precomputes `followers_count` / `following_count` /
+`relationship_status` for the whole page, so the query count is flat in page
+size — otherwise a 50-profile batch would have traded 50 HTTP round-trips for
+150 SQL queries. Pinned by a test.
+
+### Fixed — the `user.registered` `display_name` hint was read and thrown away (#149)
+
+`actions.handle_user_registered` pulled only `avatar_url` out of the payload,
+so the name an org admin typed while provisioning a login never reached the
+profile: onboarding always opened on a blank field even though `stapel-auth`
+had been shipping `display_name` in the event for a while.
+
+The hint is a **pre-fill, not an assignment** — the owner of a name is the
+person it names, never the person who invited them. So the write is guarded
+twice, not once. "The stored name is empty" alone is **not** the guard:
+delivery is at-least-once, so a user who deliberately *clears* their name
+would get the admin's version resurrected by the next redelivery. The pre-fill
+therefore also stops at the onboarding boundary (`initial_setup_passed`) —
+past setup the name is the human's, empty included, and a late hint is a
+no-op.
+
+The hint is untrusted cross-service input, so it is held to this module's own
+name canon (`validate_display_name` + the model's `max_length`); a failing
+hint is **declined and logged**, never truncated or sanitised into something
+the admin did not type, and a whitespace-only hint conjures no profile row at
+all. Handled before the avatar import and independently of it: a cosmetic
+network failure must not cost the account its name.
+
+Not a patch: the subscriber now writes a field it previously left alone.
+
 ## [0.7.3] — 2026-07-26
 
 ### Added — `error-keys/` is finally mounted

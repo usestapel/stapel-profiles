@@ -16,11 +16,11 @@ registries). Everything below is customizable **without forking**.
 | Surface | Contents |
 |---|---|
 | Models | `Profile` (PK `user_id: UUID`, links to auth by id — no FK across modules), `Language` (PK `code`), `UserRelationship` (follow/block, unique per pair, no self-relation). Choices: `MeasurementUnit`, `Theme`, `RelationshipStatus`. |
-| HTTP API (`urls.py`) | `me` (GET/PATCH), `me/followers`, `me/following`, `me/blocked`, `<uuid:user_id>` (public profile), `<uuid:user_id>/{follow,unfollow,block,unblock,relationship}`, `languages` (read-only viewset), `notifications/unsubscribe` (RFC 8058 one-click, HMAC token). |
+| HTTP API (`urls.py`) | `me` (GET/PATCH), `me/followers`, `me/following`, `me/blocked`, `<uuid:user_id>` (public profile), `batch` (POST, many public profiles at once — missing ids come back in `missing`, never as 404s), `<uuid:user_id>/{follow,unfollow,block,unblock,relationship}`, `languages` (read-only viewset), `notifications/unsubscribe` (RFC 8058 one-click, HMAC token). |
 | Events | Emits `profile.changed`; consumes `user.deleted` (see below). |
 | GDPR | `ProfilesGDPRProvider` (section `profile`): export of profile + relationships, hard delete. Auto-registered in `apps.ProfilesConfig.ready()` via `stapel_core.gdpr.gdpr_registry`. |
 | Validation | `validate_display_name` (control chars, emoji, invisible chars, min length); avatar reference validation against the CDN contract `avatar/<hash>` with existence check (mode-selectable, see settings). |
-| Error keys | `errors.PROFILES_ERRORS` — `error.404.profile_not_found`, `error.400.cannot_follow_self`, `error.400.cannot_block_self`, `error.400.display_name_*`, `error.400.invalid_avatar_format`, `error.400.avatar_not_found`. Registered via `stapel_core` `register_service_errors`. |
+| Error keys | `errors.PROFILES_ERRORS` — `error.404.profile_not_found`, `error.400.cannot_follow_self`, `error.400.cannot_block_self`, `error.400.display_name_*`, `error.400.invalid_avatar_format`, `error.400.avatar_not_found`, `error.400.too_many_ids`. Registered via `stapel_core` `register_service_errors`. |
 | Management commands | `sync_languages` (seed/refresh `Language` from bundled fixture, preserving flags), `publish_all_profiles` (backfill `profile.changed` for all rows). |
 | Public API (`__all__`) | `profiles_settings`, `publish_profile_changed`, `validate_display_name`, `ProfilesGDPRProvider` — lazily exported (PEP 562); importing `stapel_profiles` does not require configured Django. Anything not in `__all__` is internal and may change without notice. |
 
@@ -36,6 +36,7 @@ environment variable → default.
 | Key | Default | Values | Effect |
 |---|---|---|---|
 | `PROFILES_AVATAR_CHECK` | `"comm"` | `"comm"` \| `"off"` | How `validate_avatar` verifies the CDN reference: `"comm"` = name-addressed function call `stapel_core.comm.call("cdn.media_exists", {"ref": ...})`; `"off"` = skip existence check (format still validated). Fail-closed: an unverifiable reference is rejected. |
+| `PROFILES_BATCH_MAX_IDS` | `100` | positive int | How many ids one `POST batch` may carry. Over the ceiling the request is **refused** with `error.400.too_many_ids` carrying `requested` + `limit` — never silently truncated, which would surface in the UI as "some people have no name" with nothing saying why. A numeric ceiling, not a behaviour toggle, so it is not a capability axis. |
 
 This module currently declares **no `import_strings` keys** (no dotted-path
 settings that swap in app-layer classes). `stapel_core.conf.AppSettings`
