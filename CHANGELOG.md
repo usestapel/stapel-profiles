@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] — 2026-07-30
+
+### Changed — every view says, in its own source, what a guest may do (#168)
+
+`stapel-core` 0.16 turns the `AUTH_ANONYMOUS` axis into a question this module
+never answered. A guest session is `is_authenticated`, so a bare
+`IsAuthenticated` gate lets it through — and nine views here were gated on
+exactly that. Nothing in the source said whether that was wanted, which meant
+a consumer reading this module could not tell an open door from an oversight.
+`stapel_core.adoption` W002 reported all nine against a real deployment.
+
+They now answer, and the answer is one rule:
+
+> **a guest may see the social graph, and may not write to it.**
+
+- **Reads stay open, deliberately.** `GET /me`, `/me/followers`,
+  `/me/following`, `/me/blocked` and `/{user_id}/relationship` are scoped to
+  `request.user.id`, so a guest's answer is their own — an empty list, or
+  `neutral`. That empty answer is the truth and is what a frontend wants when
+  it renders a "Follow" button for a visitor who has not registered; a 403
+  would only make it render an error. Declared
+  `stapel_anonymous_access = ANONYMOUS_ALLOWED`.
+- **`GET`/`PATCH /me` is load-bearing for guests, not merely tolerated.** It
+  is the view a guest uses to name themselves *before* joining a call in
+  meettoday. Closing it would have broken a product in production, mid-call.
+  Its declaration is now the line that stops that from happening by accident.
+
+### Changed (BREAKING for anonymous callers) — follow/block require a real account
+
+`POST /{user_id}/follow`, `/unfollow`, `/block`, `/unblock` now carry
+`IsNotAnonymousUser`: an anonymous session gets **403** where it previously
+got 200. A follow or a block is a durable `UserRelationship` edge and an
+anonymous account is throwaway by construction — the edge outlives the session
+that minted it, with nobody left who can undo it. A block is the worse half: a
+moderation decision no one can revisit.
+
+Minor, not patch: for a deployment with `AUTH_ANONYMOUS` on, this is a
+behaviour change on a live surface, and it is visible in the published
+contract (`docs/schema.json` now documents `IsNotAnonymousUser` on those four
+operations). Deployments without guest sessions are unaffected — an ordinary
+authenticated user passes `IsNotAnonymousUser` exactly as before.
+
+### Changed
+
+- Minimum `stapel-core` raised to `>=0.16` (the release that added
+  `ANONYMOUS_ALLOWED` / `ANONYMOUS_DENIED`).
+
 ## [0.8.0] — 2026-07-30
 
 ### Added — `POST /profiles/api/v1/batch`: many public profiles in one request (#111)

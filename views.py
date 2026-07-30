@@ -1,5 +1,31 @@
 """
 Views for stapel-profiles service.
+
+Guest (anonymous session) stance
+--------------------------------
+With ``AUTH_ANONYMOUS`` on, a guest session is ``is_authenticated``, so a bare
+``IsAuthenticated`` says nothing about whether guests belong on a view
+(``stapel_core.adoption`` E001/W002). Every view here states its answer, and
+the module's rule is one line:
+
+    **a guest may see the social graph, and may not write to it.**
+
+Reading is safe and useful: every read below is scoped to
+``request.user.id``, so a guest's answer is their own — necessarily empty or
+``neutral``. Returning that empty answer is better than a 403, because the
+caller is usually a frontend deciding what a "Follow" button should look like
+for a visitor who has not registered yet.
+
+Writing is not: follow/block mint a durable ``UserRelationship`` edge, and an
+anonymous account is throwaway by construction — the edge outlives the
+session that made it and can never be managed by anyone. Those four views
+carry :class:`~stapel_core.django.api.permissions.IsNotAnonymousUser`.
+
+``MyProfileView`` is the exception that proves the axis exists: it is on the
+live guest path of a real consumer (meettoday — a guest types their display
+name at ``PATCH /profiles/api/v1/me`` *before* joining a call, and the app
+header reads the same view for the guest session). It is explicitly
+``ANONYMOUS_ALLOWED``.
 """
 
 import logging
@@ -20,6 +46,10 @@ from stapel_core.django.api.errors import (
     StapelErrorResponse,
     StapelErrorSerializer,
     StapelResponse,
+)
+from stapel_core.django.api.permissions import (
+    ANONYMOUS_ALLOWED,
+    IsNotAnonymousUser,
 )
 from stapel_core.notifications.tokens import verify_unsubscribe_token
 
@@ -205,6 +235,12 @@ class MyProfileView(SerializerSeamsMixin, APIView):
     """Current user's profile management."""
 
     permission_classes = [IsAuthenticated]
+    # A guest has a "me" too, and this is the view that gives them one: in
+    # meettoday the display-name prompt shown *before* a guest joins a call
+    # is a PATCH here, and the app header reads the same view for the guest
+    # session. Both halves are scoped to `request.user.id` — a guest can only
+    # ever read and write their own row.
+    stapel_anonymous_access = ANONYMOUS_ALLOWED
     request_serializer_class = ProfileCreateUpdateSerializer
     response_serializer_class = ProfileSerializer
 
@@ -432,7 +468,9 @@ class ProfileBatchView(SerializerSeamsMixin, APIView):
 class FollowView(SerializerSeamsMixin, APIView):
     """Follow a user."""
 
-    permission_classes = [IsAuthenticated]
+    # A follow is a durable edge; an anonymous account is throwaway. The edge
+    # would outlive the session that made it, with nobody left to unfollow.
+    permission_classes = [IsNotAnonymousUser]
     response_serializer_class = RelationshipActionResponseSerializer
 
     @extend_schema(
@@ -479,7 +517,8 @@ class FollowView(SerializerSeamsMixin, APIView):
 class UnfollowView(SerializerSeamsMixin, APIView):
     """Unfollow a user."""
 
-    permission_classes = [IsAuthenticated]
+    # Mirror of FollowView: a session that cannot follow has nothing to undo.
+    permission_classes = [IsNotAnonymousUser]
     response_serializer_class = RelationshipActionResponseSerializer
 
     @extend_schema(
@@ -528,7 +567,9 @@ class UnfollowView(SerializerSeamsMixin, APIView):
 class BlockView(SerializerSeamsMixin, APIView):
     """Block a user."""
 
-    permission_classes = [IsAuthenticated]
+    # Same durable edge as FollowView, and worse if left open: a block placed
+    # by a throwaway account is a moderation decision nobody can revisit.
+    permission_classes = [IsNotAnonymousUser]
     response_serializer_class = RelationshipActionResponseSerializer
 
     @extend_schema(
@@ -571,7 +612,8 @@ class BlockView(SerializerSeamsMixin, APIView):
 class UnblockView(SerializerSeamsMixin, APIView):
     """Unblock a user."""
 
-    permission_classes = [IsAuthenticated]
+    # Mirror of BlockView: a session that cannot block has nothing to undo.
+    permission_classes = [IsNotAnonymousUser]
     response_serializer_class = RelationshipActionResponseSerializer
 
     @extend_schema(
@@ -621,6 +663,11 @@ class RelationshipStatusView(SerializerSeamsMixin, APIView):
     """Get relationship status with a user."""
 
     permission_classes = [IsAuthenticated]
+    # Read of the caller's own row. A guest cannot follow or block, so the
+    # answer is always `neutral` — and `neutral` is the right answer for the
+    # caller (a frontend rendering a "Follow" button for a visitor), where a
+    # 403 would only make it render an error instead.
+    stapel_anonymous_access = ANONYMOUS_ALLOWED
     response_serializer_class = RelationshipResponseSerializer
 
     @extend_schema(
@@ -662,6 +709,9 @@ class MyFollowersView(SerializerSeamsMixin, APIView):
     """List current user's followers."""
 
     permission_classes = [IsAuthenticated]
+    # Own rows only (`following_id=request.user.id`); for a guest the list is
+    # necessarily empty. An empty list is the truth, a 403 would not be.
+    stapel_anonymous_access = ANONYMOUS_ALLOWED
     response_serializer_class = FollowersResponseSerializer
 
     @extend_schema(
@@ -691,6 +741,8 @@ class MyFollowingView(SerializerSeamsMixin, APIView):
     """List users the current user is following."""
 
     permission_classes = [IsAuthenticated]
+    # Mirror of MyFollowersView: own rows only, empty for a guest.
+    stapel_anonymous_access = ANONYMOUS_ALLOWED
     response_serializer_class = FollowingResponseSerializer
 
     @extend_schema(
@@ -720,6 +772,9 @@ class MyBlockedView(SerializerSeamsMixin, APIView):
     """List profiles of users the current user has blocked."""
 
     permission_classes = [IsAuthenticated]
+    # Own rows only (`follower_id=request.user.id`); a guest cannot block, so
+    # the list is necessarily empty and nothing about anyone else is exposed.
+    stapel_anonymous_access = ANONYMOUS_ALLOWED
     response_serializer_class = ProfilePublicSerializer
 
     @extend_schema(

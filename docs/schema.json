@@ -74,7 +74,7 @@
     "/profiles/api/v1/{user_id}/block": {
       "post": {
         "operationId": "block_user",
-        "description": "Block a user. Creates or updates relationship to \"blocked\" status.\n\n**Permissions:** `IsAuthenticated`",
+        "description": "Block a user. Creates or updates relationship to \"blocked\" status.\n\n**Permissions:** `IsNotAnonymousUser`",
         "summary": "Block user",
         "parameters": [
           {
@@ -142,7 +142,7 @@
     "/profiles/api/v1/{user_id}/follow": {
       "post": {
         "operationId": "follow_user",
-        "description": "Follow a user. Creates or updates relationship to \"following\" status.\n\n**Permissions:** `IsAuthenticated`",
+        "description": "Follow a user. Creates or updates relationship to \"following\" status.\n\n**Permissions:** `IsNotAnonymousUser`",
         "summary": "Follow user",
         "parameters": [
           {
@@ -278,7 +278,7 @@
     "/profiles/api/v1/{user_id}/unblock": {
       "post": {
         "operationId": "unblock_user",
-        "description": "Unblock a user. Sets relationship to \"neutral\" status.\n\n**Permissions:** `IsAuthenticated`",
+        "description": "Unblock a user. Sets relationship to \"neutral\" status.\n\n**Permissions:** `IsNotAnonymousUser`",
         "summary": "Unblock user",
         "parameters": [
           {
@@ -336,7 +336,7 @@
     "/profiles/api/v1/{user_id}/unfollow": {
       "post": {
         "operationId": "unfollow_user",
-        "description": "Unfollow a user. Sets relationship to \"neutral\" status.\n\n**Permissions:** `IsAuthenticated`",
+        "description": "Unfollow a user. Sets relationship to \"neutral\" status.\n\n**Permissions:** `IsNotAnonymousUser`",
         "summary": "Unfollow user",
         "parameters": [
           {
