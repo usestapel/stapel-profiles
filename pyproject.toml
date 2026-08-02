@@ -55,7 +55,7 @@ stapel_profiles = [
     "schemas/**/*.json",
     "fixtures/*.json",
     "fixtures/flags/*.svg",
-    "docs/capabilities.json",
+    "docs/capabilities.json", "docs/llms.txt",
     "docs/flows.json",
     "docs/errors.json",
     "CONFIG.MD",
