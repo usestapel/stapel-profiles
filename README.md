@@ -6,6 +6,7 @@
 [![downloads](https://static.pepy.tech/badge/stapel-profiles/month)](https://pepy.tech/project/stapel-profiles)
 [![python](https://img.shields.io/pypi/pyversions/stapel-profiles?logo=python&logoColor=white)](https://pypi.org/project/stapel-profiles/)
 [![license](https://img.shields.io/github/license/usestapel/stapel-profiles)](https://github.com/usestapel/stapel-profiles/blob/main/LICENSE)
+[![llms.txt](https://img.shields.io/badge/llms.txt-blue)](https://github.com/usestapel/stapel-profiles/blob/main/docs/llms.txt)
 
 > User profiles — avatars, social graph (follow/block), privacy settings, language preferences
 

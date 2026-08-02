@@ -1,0 +1,103 @@
+# stapel-profiles 0.9.0
+
+User profiles and social graph: display name, avatar, locale/currency/measurement preferences, notification opt-outs, and follow/unfollow/block relationships between users, with a relationship-status lookup.
+
+Contract: axes 1 · extension points 3 · operations 16 · error codes 52.
+Generated from docs/capabilities.json by `stapel-llms-txt` — do not edit; drift-gated by `make contract-check`.
+
+## Configuration axes — what a product switches on
+Settings keys; `default` is what you get by saying nothing. Turning an axis off unmounts the operations it gates.
+- PROFILES_AVATAR_CHECK [enum, default "comm"] — Avatar existence verification method
+  Controls how the profile service confirms an uploaded avatar reference actually exists on the CDN before saving it: through the internal comm bus (default) or skipped entirely (only the reference format is still validated).
+
+## Extension points — what a product replaces, fork-free
+- profile.changed [comm_event]
+  The primary hook for syncing derived data: emitted on every profile mutation (keyed by user_id) — subscribe with @on_action from any module or the host app, no import of this package.
+- profile_extras_relation [app_layer_model]
+  Extend the profile without a fork: an app-layer model with a OneToOne to profiles.Profile (or keyed by the same user_id UUID), exposed through the serializer seams — models here are deliberately not swappable.
+- serializer_seams [class_override]
+  Every profile/relationship view declares request/response serializer seams (SerializerSeamsMixin) — subclass the view, override the attribute, remount the URL; keep calling super() in serializer overrides so profile.changed keeps publishing.
+
+## Fits with — fleet dependencies
+- stapel-auth (optional) — consumes the user.registered / user.deleted comm events (OAuth avatar import, GDPR erasure on account deletion) that stapel-auth emits; decoupled via the comm bus, not a hard import dependency
+- stapel-cdn (optional) — avatar storage/existence checks (PROFILES_AVATAR_CHECK=comm calls cdn.media_exists) and OAuth avatar import (cdn.import_from_url) go through stapel_core.comm to a CDN provider
+- stapel-core (required) — comm bus (events/functions), JWT authentication, GDPR provider registry, AppSettings config layer
+- stapel-gdpr (optional) — surfaces this module's registered GDPR provider (profile section export/erase) through DSR endpoints; the registration itself only needs stapel-core.gdpr
+
+## HTTP operations (16) — call by operationId, never by a typed path
+Paths are relative to `/profiles/api/v1/`.
+### Languages
+- GET /languages/{code}/ — get_language
+- GET /languages/ — list_languages
+### Notifications
+- POST /notifications/unsubscribe — unsubscribe_notifications
+### Profile
+- POST /batch — batch_profiles
+- GET /field-manifest — get_field_manifest
+- GET /me — get_my_profile
+- GET /{user_id} — get_profile
+- PATCH /me — update_my_profile
+### Relationships
+- POST /{user_id}/block — block_user
+- POST /{user_id}/follow — follow_user
+- GET /me/blocked — get_my_blocked
+- GET /me/followers — get_my_followers
+- GET /me/following — get_my_following
+- GET /{user_id}/relationship — get_relationship
+- POST /{user_id}/unblock — unblock_user
+- POST /{user_id}/unfollow — unfollow_user
+
+## Error codes (52) — the StapelError envelope
+Render `t(code, params)`; branch UX on the remediation. Localized text lives in docs/errors.<lang>.md, not here.
+- error.400.avatar_not_found [400] fix_input
+- error.400.bad_request [400] fix_input
+- error.400.cannot_block_self [400] fix_input
+- error.400.cannot_follow_self [400] fix_input
+- error.400.captcha_invalid [400] retry
+- error.400.captcha_required [400] retry
+- error.400.display_name_emoji [400] fix_input
+- error.400.display_name_forbidden_chars [400] fix_input
+- error.400.display_name_invisible_chars [400] fix_input
+- error.400.display_name_too_short [400] fix_input
+- error.400.expected_list [400] fix_input
+- error.400.field.blank [400] fix_input {field}
+- error.400.field.does_not_exist [400] fix_input {field}
+- error.400.field.invalid [400] fix_input {field}
+- error.400.field.invalid_choice [400] fix_input {field}
+- error.400.field.max_length [400] fix_input {field,max_length}
+- error.400.field.max_value [400] fix_input {field,max_value}
+- error.400.field.min_length [400] fix_input {field,min_length}
+- error.400.field.min_value [400] fix_input {field,min_value}
+- error.400.field.null [400] fix_input {field}
+- error.400.field.required [400] fix_input {field}
+- error.400.field.unique [400] fix_input {field}
+- error.400.invalid_ad_id [400] fix_input
+- error.400.invalid_avatar_format [400] fix_input
+- error.400.invalid_currency [400] fix_input
+- error.400.too_many_ids [400] fix_input {requested,limit}
+- error.400.validation_error [400] fix_input
+- error.400.verification_failed [400] verify
+- error.400.verification_invalid_factor [400] verify
+- error.401.unauthorized [401] reauthenticate
+- error.402.payment_required [402] retry
+- error.403.forbidden [403] retry
+- error.403.network_blocked [403] contact_support
+- error.403.verification_enrollment_required [403] verify
+- error.403.verification_required [403] verify
+- error.404.ad_not_found [404] retry
+- error.404.not_found [404] retry
+- error.404.profile_not_found [404] fix_input
+- error.404.verification_challenge_not_found [404] verify
+- error.405.method_not_allowed [405] retry
+- error.406.not_acceptable [406] retry
+- error.408.request_timeout [408] retry
+- error.409.conflict [409] fix_input
+- error.410.gone [410] retry
+- error.413.payload_too_large [413] retry
+- error.415.unsupported_media_type [415] retry
+- error.422.unprocessable_entity [422] wait_and_retry
+- error.423.locked [423] wait_and_retry
+- error.423.verification_locked [423] wait_and_retry
+- error.429.rate_limit [429] wait_and_retry {retry_after_minutes}
+- error.429.too_many_requests [429] wait_and_retry
+- error.500.internal [500] contact_support
