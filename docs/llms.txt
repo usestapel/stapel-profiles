@@ -2,13 +2,36 @@
 
 User profiles and social graph: display name, avatar, locale/currency/measurement preferences, notification opt-outs, and follow/unfollow/block relationships between users, with a relationship-status lookup.
 
-Contract: axes 1 · extension points 3 · operations 16 · error codes 52.
+Contract: axes 1 · surface 7 · extension points 3 · operations 16 · error codes 52.
 Generated from docs/capabilities.json by `stapel-llms-txt` — do not edit; drift-gated by `make contract-check`.
 
 ## Configuration axes — what a product switches on
 Settings keys; `default` is what you get by saying nothing. Turning an axis off unmounts the operations it gates.
 - PROFILES_AVATAR_CHECK [enum, default "comm"] — Avatar existence verification method
   Controls how the profile service confirms an uploaded avatar reference actually exists on the CDN before saving it: through the internal comm bus (default) or skipped entirely (only the reference format is still validated).
+
+## Usage surface — call these before writing your own
+This is the answer to "does Stapel already have something for X?". `instead of` names the outside symbol this one displaces.
+### gate_function
+- validate_avatar_reference — stapel_profiles.models.validate_avatar_reference
+  instead of: stapel_core.django.cdn.fields.validate_cdn_reference
+  Format-check an avatar value against its declared avatar_source before storing it — the source taxonomy (file/url/gravatar/cdn) lives here, and only `cdn` has a fixed `avatar/<64-hex>` wire shape. Reach for it from any serializer seam that accepts an avatar; validating with the core CDN checker directly instead rejects every non-CDN source a project is allowed to pick.
+- validate_display_name — stapel_profiles.validators.validate_display_name
+  This module's display-name canon — minimum length, control/invisible characters and emoji, raising StapelValidationError with the module's own error keys so the frontend gets a translatable key rather than a sentence. Any host onboarding form, admin action or importer that writes a name must run it through here instead of inventing a second, differently-strict regex; the user.registered pre-fill already does.
+### factory
+- assemble_profile_fields — stapel_profiles.field_defs.assemble_profile_fields
+  The manifest → {field_name: Django field} primitive under build_profile_model, failing loudly at assembly time on an unknown identity preset or standard-field name instead of with a confusing system check later. Call it directly only when splicing profile fields into a model you already own; if you want a Profile, call build_profile_model.
+- avatar_image — stapel_profiles.serializers.avatar_image
+  instead of: stapel_core.media.image
+  The renderable StapelImage for a profile's avatar — variant ladder plus blur-up — mapping this module's avatar_source taxonomy onto the matching media provider. A custom profile presenter or serializer seam must call this rather than hand the raw ref to the media builder with a guessed provider: a pil-default deployment describing CDN refs is how meettoday shipped an empty variant ladder.
+- build_profile_model — stapel_profiles.field_defs.build_profile_model
+  Assemble a project's extended, swappable Profile subclass from a field manifest (identity preset + standard fields + custom ProfileFieldDefs) — call it once in your OWN app's models.py and point STAPEL_SWAP["PROFILES_PROFILE_MODEL"] at the result, so the extra columns and their migration live in the project rather than in this package.
+- get_profile_model — stapel_profiles.models.get_profile_model
+  instead of: stapel_profiles.models.Profile
+  THE way to reach the profile DAO: resolves STAPEL_SWAP["PROFILES_PROFILE_MODEL"], so a host that assembled its own extended Profile (build_profile_model) is honoured. Views, serializers, admin, GDPR providers and product code all go through it — a direct `from stapel_profiles.models import Profile` pins the zero-field default and silently ignores the swap, which is exactly what the SWAP001 lint flags.
+- publish_profile_changed — stapel_profiles.events.publish_profile_changed
+  instead of: stapel_core.comm.emit
+  Emit profile.changed for a mutated profile row — the payload shape (schemas/emits/profile.changed.json) and the best-effort savepoint isolation that keeps a broker failure from 500-ing the request both live inside. Call it after ANY profile write that does not go through this module's serializers (a data migration, an admin action, a product's own service function), or every downstream consumer of the event quietly desyncs.
 
 ## Extension points — what a product replaces, fork-free
 - profile.changed [comm_event]

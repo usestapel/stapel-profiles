@@ -1,5 +1,5 @@
 {
-  "_comment": "Hand-curated layer of docs/capabilities.json (capability-config.md §2 p.3). The emitter (stapel_profiles/_capabilities.py) merges this over the derived axes; an axis present in conf.py DEFAULTS but missing here (or vice versa) is a loud emission error. Keep business_label/summary in business language — they surface in CTO conversations, not in code.",
+  "_comment": "Hand-curated layer of docs/capabilities.json (capability-config.md §2 p.3). The emitter (stapel_profiles/_capabilities.py) merges this over the derived axes; an axis present in conf.py DEFAULTS but missing here (or vice versa) is a loud emission error. Keep business_label/summary in business language — they surface in CTO conversations, not in code. surface_roots/surface are the third section (stapel_tools.surface): the symbols a product is meant to CALL rather than reimplement. The roots select the symbols; every selected symbol MUST carry an intent line here or emission fails naming it, and an intent for a symbol no root selects fails as stale prose. Most of this module's value is HTTP + comm events, so the roots are deliberately narrow — actions.py (bus subscribers, invoked by delivery, never by a caller) and the codegen shims are not surface.",
   "provides": "User profiles and social graph: display name, avatar, locale/currency/measurement preferences, notification opt-outs, and follow/unfollow/block relationships between users, with a relationship-status lookup.",
   "requires": [
     {
@@ -44,6 +44,70 @@
     "PROFILES_AVATAR_CHECK": {
       "business_label": "Avatar existence verification method",
       "summary": "Controls how the profile service confirms an uploaded avatar reference actually exists on the CDN before saving it: through the internal comm bus (default) or skipped entirely (only the reference format is still validated)."
+    }
+  },
+  "surface_roots": [
+    {
+      "select": "functions",
+      "path": "models.py"
+    },
+    {
+      "select": "functions",
+      "path": "field_defs.py"
+    },
+    {
+      "select": "functions",
+      "path": "validators.py"
+    },
+    {
+      "select": "functions",
+      "path": "events.py"
+    },
+    {
+      "select": "functions",
+      "path": "serializers.py"
+    }
+  ],
+  "surface": {
+    "get_profile_model": {
+      "kind": "factory",
+      "intent": "THE way to reach the profile DAO: resolves STAPEL_SWAP[\"PROFILES_PROFILE_MODEL\"], so a host that assembled its own extended Profile (build_profile_model) is honoured. Views, serializers, admin, GDPR providers and product code all go through it — a direct `from stapel_profiles.models import Profile` pins the zero-field default and silently ignores the swap, which is exactly what the SWAP001 lint flags.",
+      "instead_of": [
+        "stapel_profiles.models.Profile"
+      ]
+    },
+    "validate_avatar_reference": {
+      "kind": "gate_function",
+      "intent": "Format-check an avatar value against its declared avatar_source before storing it — the source taxonomy (file/url/gravatar/cdn) lives here, and only `cdn` has a fixed `avatar/<64-hex>` wire shape. Reach for it from any serializer seam that accepts an avatar; validating with the core CDN checker directly instead rejects every non-CDN source a project is allowed to pick.",
+      "instead_of": [
+        "stapel_core.django.cdn.fields.validate_cdn_reference"
+      ]
+    },
+    "build_profile_model": {
+      "kind": "factory",
+      "intent": "Assemble a project's extended, swappable Profile subclass from a field manifest (identity preset + standard fields + custom ProfileFieldDefs) — call it once in your OWN app's models.py and point STAPEL_SWAP[\"PROFILES_PROFILE_MODEL\"] at the result, so the extra columns and their migration live in the project rather than in this package."
+    },
+    "assemble_profile_fields": {
+      "kind": "factory",
+      "intent": "The manifest → {field_name: Django field} primitive under build_profile_model, failing loudly at assembly time on an unknown identity preset or standard-field name instead of with a confusing system check later. Call it directly only when splicing profile fields into a model you already own; if you want a Profile, call build_profile_model."
+    },
+    "validate_display_name": {
+      "kind": "gate_function",
+      "intent": "This module's display-name canon — minimum length, control/invisible characters and emoji, raising StapelValidationError with the module's own error keys so the frontend gets a translatable key rather than a sentence. Any host onboarding form, admin action or importer that writes a name must run it through here instead of inventing a second, differently-strict regex; the user.registered pre-fill already does."
+    },
+    "publish_profile_changed": {
+      "kind": "factory",
+      "intent": "Emit profile.changed for a mutated profile row — the payload shape (schemas/emits/profile.changed.json) and the best-effort savepoint isolation that keeps a broker failure from 500-ing the request both live inside. Call it after ANY profile write that does not go through this module's serializers (a data migration, an admin action, a product's own service function), or every downstream consumer of the event quietly desyncs.",
+      "instead_of": [
+        "stapel_core.comm.emit"
+      ]
+    },
+    "avatar_image": {
+      "kind": "factory",
+      "intent": "The renderable StapelImage for a profile's avatar — variant ladder plus blur-up — mapping this module's avatar_source taxonomy onto the matching media provider. A custom profile presenter or serializer seam must call this rather than hand the raw ref to the media builder with a guessed provider: a pil-default deployment describing CDN refs is how meettoday shipped an empty variant ladder.",
+      "instead_of": [
+        "stapel_core.media.image"
+      ]
     }
   }
 }
