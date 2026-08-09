@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stapel-profiles"
-version = "0.10.0"
+version = "0.11.0"
 description = "User profiles Django app for the Stapel framework"
 readme = "README.md"
 license = { text = "MIT" }
@@ -53,6 +53,7 @@ stapel_profiles = [
     "migrations/*.py",
     "migrations/**/*.py",
     "schemas/**/*.json",
+    "translations/*.json",
     "fixtures/*.json",
     "fixtures/flags/*.svg",
     "docs/capabilities.json", "docs/llms.txt",
