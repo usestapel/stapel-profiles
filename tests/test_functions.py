@@ -178,6 +178,55 @@ class TestDisplayNames:
         }
 
 
+class TestLanguage:
+    def test_answers_the_chosen_language_and_the_observed_one(
+        self, db, user, registered
+    ):
+        from stapel_profiles.models import Language
+
+        Language.objects.create(code="en", name="English")
+        Profile = get_profile_model()
+        Profile.objects.create(
+            user_id=user.id, app_language_id="en", auto_detected_language="ru"
+        )
+
+        assert call(functions.LANGUAGE, {"user_id": str(user.id)}) == {
+            "app_language": "en",
+            "auto_detected_language": "ru",
+        }
+
+    def test_chose_nothing_is_null_not_the_detected_one(self, db, user, registered):
+        """The two facts stay separate — the caller decides how to rank them."""
+        Profile = get_profile_model()
+        Profile.objects.create(user_id=user.id, auto_detected_language="ru")
+
+        assert call(functions.LANGUAGE, {"user_id": str(user.id)}) == {
+            "app_language": None,
+            "auto_detected_language": "ru",
+        }
+
+    def test_no_profile_row_answers_null_rather_than_raising(self, db, registered):
+        """The normal state of an invitee who has not accepted yet.
+
+        "profiles has no language for this person" is an ANSWER; only
+        "profiles could not be asked" raises, and that is the distinction
+        the mirror this replaces could never make.
+        """
+        assert call(functions.LANGUAGE, {"user_id": str(uuid.uuid4())}) == {
+            "app_language": None,
+            "auto_detected_language": None,
+        }
+
+    def test_blank_detected_language_is_null(self, db, user, registered):
+        Profile = get_profile_model()
+        Profile.objects.create(user_id=user.id, auto_detected_language="")
+
+        assert call(functions.LANGUAGE, {"user_id": str(user.id)}) == {
+            "app_language": None,
+            "auto_detected_language": None,
+        }
+
+
 def test_register_is_idempotent(db):
     functions.register()
     functions.register()
@@ -192,6 +241,7 @@ def test_schemas_are_committed_next_to_the_providers():
         functions.SET_DISPLAY_NAME,
         functions.VALIDATE_DISPLAY_NAME,
         functions.DISPLAY_NAMES,
+        functions.LANGUAGE,
     ):
         schema = base / f"{name}.json"
         assert schema.exists(), f"missing schema for {name}"

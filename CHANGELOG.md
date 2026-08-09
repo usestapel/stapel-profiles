@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.1] — 2026-08-10
+
+### Added — `profiles.language`: ask the owner instead of mirroring the field
+
+A sibling that needs to know which language a user reads in now asks by name:
+
+    call("profiles.language", {"user_id": str(user_id)})
+    # -> {"app_language": "en", "auto_detected_language": "ru"}
+
+Two facts, kept apart because a caller ranks them differently — the language
+the user **chose** in their language settings, and the one merely **observed**
+from an Accept-Language header. Both `null` when absent, including for a
+`user_id` with no profile row at all: that is the normal state of an invitee
+who has not accepted an invitation yet, and it is an *answer*, not a failure.
+
+The alternative is what it replaces. stapel-notifications mirrored
+`app_language` into a local table fed by a bus consumer, and the mirror was
+empty for its entire lifetime — 0 rows against 66 profiles on the meettoday
+sandbox — for two independent reasons: a monolith on the in-process bus cannot
+run a standalone consumer at all (core 0.14.2 now refuses instead of
+restart-looping), and the consumer listened on `stapel.profiles.profile-changed`
+while the comm plane publishes under the action name `profile.changed`. The
+consequence was invisible because a mirror answers `None` both for "the user
+chose nothing" and for "the sync never ran", and every notification fell
+through to the language of whoever *triggered* it. A call cannot hide that: it
+either answers or raises.
+
+Swap-aware like the rest of this module's comm surface (`get_profile_model`),
+and a profile model carrying neither field answers `null`/`null` with a
+warning rather than raising — "this deployment holds no stated language for
+anybody" is a legitimate answer. Contract:
+`schemas/functions/profiles.language.json`.
+
 ## [0.12.0] — 2026-08-09
 
 ### Fixed — the avatar/avatar_source pair can no longer be stored inconsistently

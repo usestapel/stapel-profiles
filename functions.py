@@ -18,6 +18,9 @@ monolith and in a split deployment where profiles is its own container::
     call("profiles.display_names", {"user_ids": [str(a), str(b)]})
     # -> {"display_names": {"<a>": "Ada Lovelace"}}
 
+    call("profiles.language", {"user_id": str(user_id)})
+    # -> {"app_language": "en", "auto_detected_language": "ru"}
+
 **Why a write is published at all.** The module that owns the *authority*
 question owns the endpoint; the module that owns the *data* owns the write
 and publishes it by name (`tasks/who-owns-the-name-write.md`). A workspace
@@ -61,6 +64,7 @@ logger = logging.getLogger(__name__)
 SET_DISPLAY_NAME = "profiles.set_display_name"
 VALIDATE_DISPLAY_NAME = "profiles.validate_display_name"
 DISPLAY_NAMES = "profiles.display_names"
+LANGUAGE = "profiles.language"
 
 #: Structural refusal reasons that are NOT a bad name: the deployment's
 #: active profile model carries no ``display_name`` at all (§66 moved it out
@@ -83,6 +87,7 @@ def _load_schema(name: str) -> dict:
 SET_DISPLAY_NAME_SCHEMA = _load_schema(SET_DISPLAY_NAME)
 VALIDATE_DISPLAY_NAME_SCHEMA = _load_schema(VALIDATE_DISPLAY_NAME)
 DISPLAY_NAMES_SCHEMA = _load_schema(DISPLAY_NAMES)
+LANGUAGE_SCHEMA = _load_schema(LANGUAGE)
 
 
 def _reason_of(error_key: str) -> str:
@@ -218,6 +223,61 @@ def display_names(payload: dict) -> dict:
     }
 
 
+def language(payload: dict) -> dict:
+    """Provider for ``profiles.language``.
+
+    Payload: ``{"user_id": str}``
+    Returns: ``{"app_language": str | None, "auto_detected_language": str | None}``
+
+    The recipient's own answer to "which language do you read in", asked at
+    the moment somebody is about to write to them. Two different facts, and
+    a caller ranks them differently: ``app_language`` is a language the user
+    CHOSE (the picker in profiles' language settings), ``auto_detected_language``
+    is one merely OBSERVED from an Accept-Language header. Both are ``None``
+    when absent — including for a user_id with no profile row at all, which
+    is the normal state of an invitee who has not accepted yet.
+
+    Published because the alternative — every sibling keeping a mirror of
+    this field, fed by an event — is the shape that failed: stapel-notifications
+    mirrored ``app_language`` into ``UserNotificationSettings`` and the table
+    stood empty for the mirror's whole lifetime (meettoday sandbox, 2026-08:
+    0 rows for 66 profiles), so every recipient silently got the SENDER's
+    language. A mirror cannot tell "the user chose nothing" from "the sync
+    never ran"; a call can — it either answers or raises.
+
+    Swap-aware like the rest of this module's surface: a host that assembled
+    its own extended profile keeps the language there. A profile model
+    carrying neither field answers null/null rather than raising — "this
+    deployment holds no language for anybody" is a legitimate answer, and
+    the caller's fallback chain handles it.
+    """
+    from .models import get_profile_model
+
+    Profile = get_profile_model()
+    fields = {f.name for f in Profile._meta.get_fields()}
+    wanted = [f for f in ("app_language", "auto_detected_language") if f in fields]
+    if not wanted:
+        logger.warning(
+            "%s: the active profile model %s carries no language field — "
+            "this deployment holds no stated language for anybody",
+            LANGUAGE, Profile.__name__,
+        )
+        return {"app_language": None, "auto_detected_language": None}
+
+    row = (
+        Profile.objects.filter(user_id=payload["user_id"])
+        .values(*wanted)
+        .first()
+    ) or {}
+    # app_language is a FK to Language, whose PK *is* the code — .values()
+    # yields the code itself, which is what the wire carries (same shape as
+    # the profile.changed payload).
+    return {
+        "app_language": (row.get("app_language") or None),
+        "auto_detected_language": ((row.get("auto_detected_language") or "").strip() or None),
+    }
+
+
 def register() -> None:
     """Register this module's Function providers.
 
@@ -233,3 +293,4 @@ def register() -> None:
         schema=VALIDATE_DISPLAY_NAME_SCHEMA,
     )
     register_function(DISPLAY_NAMES, display_names, schema=DISPLAY_NAMES_SCHEMA)
+    register_function(LANGUAGE, language, schema=LANGUAGE_SCHEMA)

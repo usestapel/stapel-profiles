@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "profiles.language",
+  "description": "Payload for the profiles.language comm Function — ask the owner of the fact, at the moment it is needed, which language a user reads in. Returns {\"app_language\": str|null, \"auto_detected_language\": str|null}: the language the user CHOSE (null when they never chose one) and the last language observed from their Accept-Language header (null when none was ever observed). A user with no profile row answers null/null — missing is not invented. Replaces the mirror shape, where a sibling kept a copy of this fact and could not tell \"no preference\" from \"the copy never arrived\"; a caller that cannot reach this function gets FunctionNotRegistered/FunctionCallError and knows it is guessing.",
+  "type": "object",
+  "required": ["user_id"],
+  "properties": {
+    "user_id": { "type": "string", "format": "uuid" }
+  },
+  "additionalProperties": false
+}
