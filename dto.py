@@ -214,7 +214,7 @@ class ProfileBatchResponse:
 class ProfileFieldManifestEntry:
     """One active profile field, as the frontend skin needs it to render
     itself without hardcoding field names (docs/pending/profile-fields.md,
-    "Дополнение владельца" §1 — data-driven skin, tier 1 of the two-tier
+    "Owner Addendum" §1 — data-driven skin, tier 1 of the two-tier
     front-pair answer). GET /profiles/api/v1/field-manifest/ returns a list
     of these for whatever the project's STAPEL_PROFILES["FIELDS"] manifest
     (identity preset + standard_fields + custom_fields) actually selected.

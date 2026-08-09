@@ -1,5 +1,5 @@
 """Tests for GET /field-manifest/ (§66 data-driven skin, tier 1 —
-docs/pending/profile-fields.md, "Дополнение владельца" §1)."""
+docs/pending/profile-fields.md, "Owner Addendum" §1)."""
 import pytest
 from django.test import override_settings
 

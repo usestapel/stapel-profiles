@@ -13,8 +13,8 @@ preset + standard field names + its own custom `ProfileFieldDef`s) and either:
   ``STAPEL_SWAP["PROFILES_PROFILE_MODEL"]`` — see ``stapel_profiles.models``);
   or
 - (later) lets the stapel-tools codegen step (§3 of the governing spec, not
-  part of this pass — "не ждать §53/§52") do the same thing plus write the
-  migration file into the project app automatically.
+  part of this pass — "don't wait for §53/§52") do the same thing plus write
+  the migration file into the project app automatically.
 
 Owner directive (2026-07-17): avatar and the whole language block stay HARD
 in ``ProfileCore`` (not in this registry) — only theme/currency/measurement

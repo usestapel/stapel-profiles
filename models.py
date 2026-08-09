@@ -138,7 +138,7 @@ class ProfileCore(models.Model):
 
     # Language settings — hard in core (owner directive 2026-07-17):
     # multi-understand-language is universal account infrastructure, not a
-    # per-product preference, even though a real product (miттудей) may
+    # per-product preference, even though a real product (meettoday) may
     # front it with a simpler single-code UI of its own.
     app_language = models.ForeignKey(
         Language,

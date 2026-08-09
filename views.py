@@ -936,7 +936,7 @@ def _active_field_manifest():
 @extend_schema(tags=["Profile"])
 class FieldManifestView(APIView):
     """Active profile field manifest — canon for the frontend's data-driven
-    skin (docs/pending/profile-fields.md, "Дополнение владельца" §1): the
+    skin (docs/pending/profile-fields.md, "Owner Addendum" §1): the
     default skin renders identity/standard/custom fields from this response
     instead of a hardcoded field list, so a host's STAPEL_PROFILES["FIELDS"]
     selection is reflected in the UI with zero frontend code changes.

@@ -1,8 +1,8 @@
 """Localized error catalog (``translations/errors.ru.json``) + provenance gate.
 
-i18n-shipping.md §5 / волна 2. stapel-profiles rolls out the
+i18n-shipping.md §5 / wave 2. stapel-profiles rolls out the
 ``stapel_core.i18n`` catalog contour to the ``errors`` domain exactly as
-piloted in stapel-auth (волна 1, commit c55a347): the en canon lives in
+piloted in stapel-auth (wave 1, commit c55a347): the en canon lives in
 ``docs/errors.json`` (the ``generate_error_keys`` codegen artifact), ru ships
 as a flat ``translations/errors.ru.json`` catalog with a
 ``translations/.state.json`` provenance sidecar, and

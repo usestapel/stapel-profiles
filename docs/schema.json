@@ -1196,7 +1196,7 @@
       },
       "ProfileFieldManifestEntry": {
         "type": "object",
-        "description": "One active profile field, as the frontend skin needs it to render\nitself without hardcoding field names (docs/pending/profile-fields.md,\n\"Дополнение владельца\" §1 — data-driven skin, tier 1 of the two-tier\nfront-pair answer). GET /profiles/api/v1/field-manifest/ returns a list\nof these for whatever the project's STAPEL_PROFILES[\"FIELDS\"] manifest\n(identity preset + standard_fields + custom_fields) actually selected.",
+        "description": "One active profile field, as the frontend skin needs it to render\nitself without hardcoding field names (docs/pending/profile-fields.md,\n\"Owner Addendum\" §1 — data-driven skin, tier 1 of the two-tier\nfront-pair answer). GET /profiles/api/v1/field-manifest/ returns a list\nof these for whatever the project's STAPEL_PROFILES[\"FIELDS\"] manifest\n(identity preset + standard_fields + custom_fields) actually selected.",
         "properties": {
           "name": {
             "type": "string",
