@@ -110,9 +110,9 @@ class LanguageCodeField(serializers.SlugRelatedField):
         try:
             return super().to_internal_value(data)
         except serializers.ValidationError:
-            from django.conf import settings
+            from .models import declared_languages
 
-            declared = dict(getattr(settings, "LANGUAGES", []) or [])
+            declared = declared_languages()
             code = str(data).strip()
             if code not in declared:
                 raise

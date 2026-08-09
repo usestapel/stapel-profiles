@@ -97,6 +97,23 @@ class TestMyProfilePatch:
         # and the profile agree about what "fi" is called.
         assert Language.objects.get(code="fi").name == "Suomi"
 
+    def test_language_list_offers_declared_languages_without_seeding(
+        self, authed_client
+    ):
+        """The picker is not empty just because nobody ran `sync_languages`.
+
+        Half the defect was here: the write could be widened all it liked,
+        but a settings screen with nothing to pick still leaves every user
+        without a stated language.
+        """
+        from django.test import override_settings
+
+        Language.objects.all().delete()
+        with override_settings(LANGUAGES=[("fi", "Suomi"), ("sv", "Svenska")]):
+            resp = authed_client.get("/languages/")
+        assert resp.status_code == 200, resp.content
+        assert {row["code"] for row in resp.json()} == {"fi", "sv"}
+
     def test_patch_undeclared_language_is_still_rejected(self, authed_client):
         """Widened, not opened: a code nobody declared is still not a language."""
         from django.test import override_settings
@@ -196,3 +213,22 @@ class TestLanguages:
     def test_retrieve_unknown_404(self, api_client, db):
         resp = api_client.get("/languages/zz")
         assert resp.status_code == 404
+
+
+@pytest.mark.django_db
+def test_unconfigured_languages_are_not_a_declaration():
+    """Django's 100-entry default is not a claim this project made.
+
+    Materialising it would fill the picker with languages nobody chose to
+    support, so an unconfigured project keeps the old behaviour: only rows
+    somebody seeded.
+    """
+    from django.conf import global_settings
+    from django.test import override_settings
+
+    from stapel_profiles.models import Language, ensure_declared_languages
+
+    Language.objects.all().delete()
+    with override_settings(LANGUAGES=global_settings.LANGUAGES):
+        ensure_declared_languages()
+    assert Language.objects.count() == 0

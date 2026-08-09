@@ -57,6 +57,56 @@ class Language(models.Model):
         return f"{self.name} ({self.code})"
 
 
+def declared_languages() -> dict[str, str]:
+    """``{code: name}`` this deployment actually DECLARED, or ``{}``.
+
+    "Declared" means the project set ``LANGUAGES`` itself. Django ships a
+    100-entry default for every project that never touched it, and treating
+    that as a declaration would be a claim nobody made — so an unconfigured
+    project keeps the old behaviour exactly: only rows somebody seeded.
+    """
+    from django.conf import global_settings, settings
+
+    configured = getattr(settings, "LANGUAGES", None)
+    if not configured or list(configured) == list(global_settings.LANGUAGES):
+        return {}
+    return {code: str(name) for code, name in configured}
+
+
+def ensure_declared_languages() -> None:
+    """Materialise a ``Language`` row for every code ``settings.LANGUAGES`` declares.
+
+    ``Language`` is a reference table of display metadata, and the only thing
+    that ever filled it was the manual ``sync_languages`` command. A
+    deployment that declared its languages the standard Django way and never
+    ran that command got an EMPTY picker and a 400 on every ``app_language``
+    write — so nobody could state a language, and every notification then had
+    to guess at its recipient's (meettoday sandbox, 2026-08: 0 rows, 0 of 66
+    profiles with a language, mail sent in the sender's language to everyone).
+
+    Configuration is the declaration; this just makes the table agree with it.
+    Idempotent, and best-effort: a read-only replica or a race must degrade to
+    "show what rows exist", never to a 500 on the settings screen.
+    ``sync_languages`` remains the way to get flags and curated names.
+    """
+    declared = declared_languages()
+    if not declared:
+        return
+    try:
+        known = set(
+            Language.objects.filter(code__in=declared).values_list("code", flat=True)
+        )
+        missing = [code for code in declared if code not in known]
+        if not missing:
+            return
+        Language.objects.bulk_create(
+            [Language(code=code, name=str(declared[code])) for code in missing],
+            ignore_conflicts=True,
+        )
+    except Exception:  # pragma: no cover - defensive; see docstring
+        logger.exception("could not materialise declared languages")
+
+
 class AvatarSource(StapelProfileEnum):
     """Where an avatar reference points.
 

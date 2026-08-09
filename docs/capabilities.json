@@ -1,6 +1,6 @@
 {
   "module": "stapel-profiles",
-  "version": "0.12.2",
+  "version": "0.12.3",
   "provides": "User profiles and social graph: display name, avatar, locale/currency/measurement preferences, notification opt-outs, and follow/unfollow/block relationships between users, with a relationship-status lookup.",
   "axes": [
     {
@@ -56,6 +56,24 @@
       "kind": "factory",
       "path": "stapel_profiles.field_defs.build_profile_model",
       "intent": "Assemble a project's extended, swappable Profile subclass from a field manifest (identity preset + standard fields + custom ProfileFieldDefs) — call it once in your OWN app's models.py and point STAPEL_SWAP[\"PROFILES_PROFILE_MODEL\"] at the result, so the extra columns and their migration live in the project rather than in this package."
+    },
+    {
+      "name": "declared_languages",
+      "kind": "predicate",
+      "path": "stapel_profiles.models.declared_languages",
+      "intent": "Answer which languages this deployment actually DECLARED (it set LANGUAGES itself), as {code: name} — Django's 100-entry default answers {} because nobody claimed it. Reach for it wherever a language code must be validated or offered; reading settings.LANGUAGES directly cannot tell a declaration from Django's default and turns an unconfigured project into one that claims a hundred languages.",
+      "instead_of": [
+        "django.conf.settings.LANGUAGES"
+      ]
+    },
+    {
+      "name": "ensure_declared_languages",
+      "kind": "factory",
+      "path": "stapel_profiles.models.ensure_declared_languages",
+      "intent": "Make the Language reference table agree with the declaration: materialise a row for every declared code that has none. Reach for it before listing or validating languages in a deployment that never ran `sync_languages` — without it the picker is empty and every app_language write 400s, so no user can ever state a language and every notification downstream has to guess at its recipient's.",
+      "instead_of": [
+        "stapel_profiles.management.commands.sync_languages"
+      ]
     },
     {
       "name": "get_profile_model",

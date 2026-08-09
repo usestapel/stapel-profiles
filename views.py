@@ -157,6 +157,14 @@ class LanguageViewSet(viewsets.ReadOnlyModelViewSet):
     def get_queryset(self):
         from django.conf import settings
 
+        from .models import ensure_declared_languages
+
+        # A declared language is offered even if nobody ran `sync_languages`:
+        # an empty picker is indistinguishable from "this deployment speaks
+        # one language", and it is how meettoday's users came to have no
+        # stated language at all (see ensure_declared_languages).
+        ensure_declared_languages()
+
         qs = Language.objects.filter(is_active=True)
         configured_codes = {code for code, _name in getattr(settings, "LANGUAGES", [])}
         if configured_codes:

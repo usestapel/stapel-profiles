@@ -116,6 +116,20 @@
       "instead_of": [
         "stapel_core.media.image"
       ]
+    },
+    "declared_languages": {
+      "kind": "predicate",
+      "intent": "Answer which languages this deployment actually DECLARED (it set LANGUAGES itself), as {code: name} — Django's 100-entry default answers {} because nobody claimed it. Reach for it wherever a language code must be validated or offered; reading settings.LANGUAGES directly cannot tell a declaration from Django's default and turns an unconfigured project into one that claims a hundred languages.",
+      "instead_of": [
+        "django.conf.settings.LANGUAGES"
+      ]
+    },
+    "ensure_declared_languages": {
+      "kind": "factory",
+      "intent": "Make the Language reference table agree with the declaration: materialise a row for every declared code that has none. Reach for it before listing or validating languages in a deployment that never ran `sync_languages` — without it the picker is empty and every app_language write 400s, so no user can ever state a language and every notification downstream has to guess at its recipient's.",
+      "instead_of": [
+        "stapel_profiles.management.commands.sync_languages"
+      ]
     }
   }
 }

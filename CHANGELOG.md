@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.3] — 2026-08-10
+
+### Fixed — the language picker is no longer empty either
+
+0.12.2 made a declared language *writable*; the settings screen still had
+nothing to offer, because `GET /languages/` lists `Language` rows and the
+table is only ever filled by `manage.py sync_languages`. Half a fix: a user
+cannot state a preference they are never shown.
+
+`ensure_declared_languages()` materialises a row for every code the project
+declared, called from the language list. "Declared" means the project set
+`LANGUAGES` itself — Django's 100-entry default is not a claim anybody made,
+so an unconfigured project keeps the old behaviour exactly (only seeded rows).
+Best-effort: a read-only replica or a race degrades to "show what rows
+exist", never to a 500 on the settings screen. `sync_languages` remains the
+way to get flags and curated names.
+
 ## [0.12.2] — 2026-08-10
 
 ### Fixed — a language the deployment declares can actually be chosen
