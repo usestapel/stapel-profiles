@@ -83,6 +83,45 @@ def avatar_image(profile):
 # =============================================================================
 
 
+class LanguageCodeField(serializers.SlugRelatedField):
+    """A language code this deployment DECLARES — not only one a fixture seeded.
+
+    ``Language`` is a reference table with display metadata (name, flag), and
+    it is populated by ``manage.py sync_languages``. Validating a write
+    against its rows alone made the language a user can CHOOSE depend on
+    whether anybody had ever run that command: a deployment that declares
+    ``LANGUAGES = [("ru", ...), ("en", ...)]`` and never ran it answered an
+    empty picker to the settings screen and 400 ``does_not_exist`` to every
+    PATCH — so ``app_language`` stayed NULL for every user, forever, and
+    every notification fell back to guessing at their language.
+
+    Measured on the meettoday sandbox 2026-08: 0 ``Language`` rows, 0 of 66
+    profiles with an ``app_language``, and ``{"app_language": "en"}``
+    rejected as nonexistent while ``settings.LANGUAGES`` declared exactly
+    that code.
+
+    So a declared code is accepted, and its row is materialised on first use
+    (name from ``settings.LANGUAGES``; flags stay a ``sync_languages``
+    concern). Rows that exist keep working unchanged — this only widens what
+    a write may say, never narrows it.
+    """
+
+    def to_internal_value(self, data):
+        try:
+            return super().to_internal_value(data)
+        except serializers.ValidationError:
+            from django.conf import settings
+
+            declared = dict(getattr(settings, "LANGUAGES", []) or [])
+            code = str(data).strip()
+            if code not in declared:
+                raise
+            language, _created = Language.objects.get_or_create(
+                code=code, defaults={"name": str(declared[code])}
+            )
+            return language
+
+
 class LanguageSerializer(serializers.ModelSerializer):
     """Serializer for Language model."""
 
@@ -291,13 +330,13 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
     location_id = serializers.IntegerField(
         required=False, allow_null=True, help_text="Location ID"
     )
-    app_language = serializers.SlugRelatedField(
+    app_language = LanguageCodeField(
         slug_field="code",
         queryset=Language.objects.all(),
         required=False,
         allow_null=True,
     )
-    understands = serializers.SlugRelatedField(
+    understands = LanguageCodeField(
         many=True, slug_field="code", queryset=Language.objects.all(), required=False
     )
     use_device_language = serializers.BooleanField(required=False)

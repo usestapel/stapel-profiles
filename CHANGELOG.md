@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.2] — 2026-08-10
+
+### Fixed — a language the deployment declares can actually be chosen
+
+`app_language` and `understands` validated writes against the `Language`
+reference table alone, which is populated by `manage.py sync_languages`. So
+whether a user could state their language depended on whether anybody had
+ever run that command — and nothing anywhere said so. A deployment that
+declared `LANGUAGES = [("ru", …), ("en", …)]` and never ran it served an
+empty picker (the read side already intersects with `settings.LANGUAGES`)
+and answered 400 `does_not_exist` to every write.
+
+Measured on the meettoday sandbox, 2026-08: 0 `Language` rows, 0 of 66
+profiles with an `app_language`, and `PATCH {"app_language": "en"}` rejected
+as nonexistent while `settings.LANGUAGES` declared exactly `en`. That is
+the answer to "did nobody choose, or could nobody choose": **nobody could**.
+Downstream, every notification had to guess at its recipient's language.
+
+`LanguageCodeField` now accepts any code the deployment declares and
+materialises its row on first use (name from `settings.LANGUAGES`; flags
+remain a `sync_languages` concern). Existing rows keep working unchanged and
+an undeclared code is still rejected — this widens what a write may say,
+never narrows it.
+
 ## [0.12.1] — 2026-08-10
 
 ### Added — `profiles.language`: ask the owner instead of mirroring the field

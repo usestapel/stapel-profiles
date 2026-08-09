@@ -73,6 +73,53 @@ class TestMyProfilePatch:
         assert resp.cookies[COOKIE_USE_DEVICE_LANGUAGE].value == "0"
         assert Profile.objects.get(user_id=user.id).app_language_id == "de"
 
+    def test_patch_app_language_declared_but_never_seeded(self, authed_client, user):
+        """A language the deployment DECLARES is choosable even if nobody ran
+        `sync_languages`.
+
+        This is the state the meettoday sandbox was in: LANGUAGES declared ru
+        and en, the Language table held zero rows, so the picker was empty and
+        every write 400'd — app_language stayed NULL for all 66 profiles and
+        every notification had to guess at the recipient's language.
+        """
+        from django.test import override_settings
+
+        assert not Language.objects.filter(code="fi").exists()
+        with override_settings(LANGUAGES=[("fi", "Suomi")]):
+            resp = authed_client.patch(
+                "/me",
+                {"app_language": "fi", "use_device_language": False},
+                format="json",
+            )
+        assert resp.status_code == 200, resp.content
+        assert Profile.objects.get(user_id=user.id).app_language_id == "fi"
+        # Materialised with the name the deployment declared, so the picker
+        # and the profile agree about what "fi" is called.
+        assert Language.objects.get(code="fi").name == "Suomi"
+
+    def test_patch_undeclared_language_is_still_rejected(self, authed_client):
+        """Widened, not opened: a code nobody declared is still not a language."""
+        from django.test import override_settings
+
+        with override_settings(LANGUAGES=[("fi", "Suomi")]):
+            resp = authed_client.patch("/me", {"app_language": "zz"}, format="json")
+        assert resp.status_code == 400
+        assert not Language.objects.filter(code="zz").exists()
+
+    def test_patch_understands_accepts_declared_codes(self, authed_client, user):
+        from django.test import override_settings
+
+        with override_settings(LANGUAGES=[("fi", "Suomi"), ("sv", "Svenska")]):
+            resp = authed_client.patch(
+                "/me", {"understands": ["fi", "sv"]}, format="json"
+            )
+        assert resp.status_code == 200, resp.content
+        assert set(
+            Profile.objects.get(user_id=user.id).understands.values_list(
+                "code", flat=True
+            )
+        ) == {"fi", "sv"}
+
     def test_patch_invalid_avatar_source_rejected(self, authed_client):
         resp = authed_client.patch("/me", {"avatar_source": "dropbox"}, format="json")
         assert resp.status_code == 400
