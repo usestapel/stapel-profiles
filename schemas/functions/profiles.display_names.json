@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "profiles.display_names",
+  "description": "Payload for the profiles.display_names comm Function — the comm form of POST /profiles/api/v1/batch narrowed to the one field a roster needs. Returns {\"display_names\": {user_id: display_name}} containing ONLY ids that have a non-empty name: missing is not invented, so a caller can tell \"no name here\" from \"a name that is empty\" and fall back to whatever it holds locally.",
+  "type": "object",
+  "required": ["user_ids"],
+  "properties": {
+    "user_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

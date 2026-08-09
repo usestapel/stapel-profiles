@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "profiles.set_display_name",
+  "description": "Payload for the profiles.set_display_name comm Function — write the CANONICAL display name of a user, performed by profiles on another module's authority (the caller's edge already authorized it; see billing.debit for the same shape). The provider runs this module's own validate_display_name canon, resolves the swappable profile model, creates the row if absent and publishes profile.changed. Returns {\"ok\": bool, \"display_name\": str|null, \"reason\": str|null}; reason is the trailing name of a profiles error key (display_name_too_short | display_name_forbidden_chars | display_name_emoji | display_name_invisible_chars) or no_display_name_field when the deployment's profile model carries no display_name at all. No idempotency key: the write is last-write-wins on one field, so at-least-once delivery is harmless.",
+  "type": "object",
+  "required": ["user_id", "display_name"],
+  "properties": {
+    "user_id":      { "type": "string", "format": "uuid" },
+    "display_name": { "type": "string", "maxLength": 35 }
+  },
+  "additionalProperties": false
+}

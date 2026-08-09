@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "profiles.validate_display_name",
+  "description": "Payload for the profiles.validate_display_name comm Function — the display-name canon on its own, no write and no side effect, for a caller that stores a name of its own which will be displayed beside the ones profiles keeps. Returns {\"ok\": bool, \"reason\": str|null} with reason as the trailing name of a profiles error key. The empty string is valid (clearing a name is not a violation).",
+  "type": "object",
+  "required": ["display_name"],
+  "properties": {
+    "display_name": { "type": "string" }
+  },
+  "additionalProperties": false
+}

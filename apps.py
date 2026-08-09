@@ -15,3 +15,9 @@ class ProfilesConfig(AppConfig):
         # Action subscriptions (in-process in a monolith, bus consumer in
         # microservices — same code, transport chosen by STAPEL_COMM).
         from . import actions  # noqa: F401
+
+        # Function providers (profiles.set_display_name / .validate_display_name
+        # / .display_names — this module's named write/read surface for
+        # siblings). register() is idempotent; ready() may run more than once.
+        from . import functions
+        functions.register()

@@ -5,6 +5,50 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] — 2026-08-09
+
+### Added — profiles publishes its name surface as comm Functions
+
+Until now this module's "Provides (function)" row read `—`: a sibling that
+needed a name had nothing to call by name. stapel-workspaces 0.19.0 filled
+that gap the only way left to it — asking Django's app registry whether
+`stapel_profiles` runs in this process and then resolving
+`stapel_profiles.validators.validate_display_name`,
+`stapel_profiles.models.get_profile_model` and
+`stapel_profiles.events.publish_profile_changed` **by dotted path**. That
+worked where profiles was co-mounted and nowhere else: in a split
+deployment the roster's name-edit endpoint answered a permanent
+`error.503.profiles_unavailable`. It was also the fleet's only cross-module
+symbol resolution. The fix belongs here, not there — the data owner
+publishes the operation (`tasks/who-owns-the-name-write.md`):
+
+- **`profiles.set_display_name`** — payload `{user_id, display_name}`, result
+  `{ok, display_name, reason}`. The named write of the canonical name,
+  performed by profiles on another module's authority, exactly as
+  `billing.debit` lets workspaces move credits in billing's ledger: the
+  caller's edge already authorized the act, and the owner enforces its own
+  invariants — the `validate_display_name` canon, the swap-aware
+  `get_profile_model` (SWAP001), get-or-create, and the `profile.changed`
+  emission every downstream projection depends on. Refusals are
+  **structural** (`ok=False` + `reason`), never exceptions: `reason` is the
+  trailing name of this module's own error keys (`display_name_emoji` →
+  `error.400.display_name_emoji`), so a caller re-declaring those keys maps
+  one to one instead of minting a second name vocabulary. No idempotency key
+  — the write is last-write-wins on one field, so at-least-once delivery is
+  harmless.
+- **`profiles.validate_display_name`** — payload `{display_name}`, result
+  `{ok, reason}`. The canon alone, no write, for a caller that stores a
+  *displayed* name of its own (workspaces' `WorkspaceInvitation.display_name_hint`
+  is the first) and must not grow a second, weaker regex.
+- **`profiles.display_names`** — payload `{user_ids}`, result
+  `{display_names: {user_id: name}}`. The comm form of `POST /batch`
+  narrowed to the field a roster needs, with the same "missing is not
+  invented" contract: an id with no row, or an empty name, is absent.
+
+Registered from `apps.ready()`; payload contracts committed under
+`schemas/functions/`. No HTTP surface changed, no migration, nothing
+removed — a deployment that calls none of these is byte-for-byte unaffected.
+
 ## [0.9.1] — 2026-08-02
 
 ### Changed — packaging/CI only, no runtime change
