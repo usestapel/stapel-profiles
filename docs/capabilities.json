@@ -67,6 +67,18 @@
       ]
     },
     {
+      "name": "is_cdn_avatar_reference",
+      "kind": "gate_function",
+      "path": "stapel_profiles.models.is_cdn_avatar_reference",
+      "intent": "Answer whether an avatar value IS a stapel-cdn reference (`avatar/<64-hex>`) — the single discriminator behind the avatar/avatar_source pair invariant. Reach for it when you have a ref and need to know where it came from; matching the prefix or the slash by hand is how a `product/<hash>` ref or a path-like upload key gets mistaken for a CDN avatar."
+    },
+    {
+      "name": "resolve_avatar_source",
+      "kind": "gate_function",
+      "path": "stapel_profiles.models.resolve_avatar_source",
+      "intent": "The avatar_source that MUST accompany a given avatar value — returns the declared source unchanged unless the value is unmistakably a CDN ref tagged otherwise. Call it in any writer that sets an avatar outside this module's serializers; storing the ref and letting the model default choose the tag is exactly how a live stand ended up serving 500s from a cosmetic avatar."
+    },
+    {
       "name": "validate_avatar_reference",
       "kind": "gate_function",
       "path": "stapel_profiles.models.validate_avatar_reference",

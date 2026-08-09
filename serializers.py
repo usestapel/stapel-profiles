@@ -13,6 +13,7 @@ from stapel_core.media.drf import StapelImageSerializer
 
 from .errors import (
     ERR_400_AVATAR_NOT_FOUND,
+    ERR_400_AVATAR_SOURCE_MISMATCH,
     ERR_400_INVALID_AVATAR_FORMAT,
 )
 
@@ -37,6 +38,7 @@ from .models import (
     Theme,
     UserRelationship,
     get_profile_model,
+    is_cdn_avatar_reference,
     validate_avatar_reference,
 )
 
@@ -327,21 +329,55 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
             "initial_setup_passed",
         ]
 
-    def validate_avatar(self, value):
-        """Validate avatar format and existence — only for avatar_source=cdn.
+    def _stated_avatar_source(self):
+        """The source this REQUEST states, or `None` when it states nothing.
 
-        `file`/`url`/`gravatar` are free-form strings this serializer does
-        not police the shape of; only `cdn` keeps the historical fixed
-        `avatar/<64-hex>` wire format + existence check, and only when the
-        effective source (this request's `avatar_source`, or the existing
-        instance's, when not being changed) actually is `cdn`.
+        The distinction is the whole design: a stated source is a belief that
+        can be wrong and must be contradicted (400); an unstated one is a gap
+        the ref itself fills (`models.resolve_avatar_source`).
+        """
+        stated = self.initial_data.get("avatar_source")
+        return stated or None
+
+    def _effective_avatar_source(self, value):
+        """The source that will actually be stored for `value`."""
+        stated = self._stated_avatar_source()
+        if stated:
+            return stated
+        if is_cdn_avatar_reference(value):
+            # Derived, not defaulted — see resolve_avatar_source.
+            return AvatarSource.CDN
+        if self.instance is not None:
+            return self.instance.avatar_source
+        return AvatarSource.FILE
+
+    def validate_avatar(self, value):
+        """Validate the avatar PAIR: format, source agreement, and existence.
+
+        `file`/`url`/`gravatar` are free-form strings this serializer does not
+        police the shape of; `cdn` keeps the fixed `avatar/<64-hex>` wire
+        format + existence check. What is NEW here (and what the live
+        meettoday outage cost): the check no longer only runs when the source
+        already says `cdn` — i.e. only in the case that was already correct.
+        A request whose ref is a CDN ref is now either tagged `cdn` by the
+        caller, tagged `cdn` by derivation, or REJECTED. It can no longer end
+        up stored as `file` because nobody said otherwise.
         """
         if not value:
             return value
 
-        source = self.initial_data.get("avatar_source") or (
-            self.instance.avatar_source if self.instance is not None else AvatarSource.FILE
-        )
+        stated = self._stated_avatar_source()
+        if (
+            stated
+            and stated != AvatarSource.CDN
+            and is_cdn_avatar_reference(value)
+        ):
+            # The caller asserted a source the ref contradicts. Refuse rather
+            # than coerce: coercing an ASSERTION hides the caller's bug, and
+            # this is the bug that took the stand down.
+            raise StapelValidationError(ERR_400_AVATAR_SOURCE_MISMATCH)
+
+        source = self._effective_avatar_source(value)
         if source != AvatarSource.CDN:
             return value
 
@@ -382,6 +418,26 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
         if not exists:
             raise StapelValidationError(ERR_400_AVATAR_NOT_FOUND)
         return value
+
+    def validate(self, attrs):
+        """Write the derived `avatar_source` into the data being saved.
+
+        A request that sends only `avatar` used to leave the tag to the model
+        default (`FILE`) — that is how the live rows got a CDN ref tagged
+        `file`. Now the pair leaves this serializer complete. (The model's
+        `save()` holds the same invariant for every writer that never passes
+        through here; this one exists so the RESPONSE body already carries the
+        source the caller will read back.)
+        """
+        attrs = super().validate(attrs)
+        avatar = attrs.get("avatar")
+        if (
+            "avatar" in attrs
+            and is_cdn_avatar_reference(avatar)
+            and not self._stated_avatar_source()
+        ):
+            attrs["avatar_source"] = AvatarSource.CDN
+        return attrs
 
     def update(self, instance, validated_data):
         # Capture old avatar for ref sync

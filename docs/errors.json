@@ -7,6 +7,13 @@
     "en": "Avatar not found on CDN"
   },
   {
+    "code": "error.400.avatar_source_mismatch",
+    "status": 400,
+    "params": [],
+    "remediation": "fix_input",
+    "en": "Avatar reference is a CDN reference but avatar_source says otherwise — send avatar_source=\"cdn\" with it, or omit avatar_source and it will be derived from the reference"
+  },
+  {
     "code": "error.400.bad_request",
     "status": 400,
     "params": [],

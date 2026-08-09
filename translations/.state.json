@@ -4,6 +4,10 @@
       "hash": "2f240e4f653819c4",
       "origin": "seed:stapel-builtin"
     },
+    "error.400.avatar_source_mismatch": {
+      "hash": "3700b6779135566a",
+      "origin": "imported"
+    },
     "error.400.bad_request": {
       "hash": "917ef22f94f46014",
       "origin": "seed:stapel-builtin"

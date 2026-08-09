@@ -1,6 +1,6 @@
 # Errors — English
 
-`51` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.en.json`.
+`52` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.en.json`.
 
 | Code | Status | Params | Remediation | Text |
 |---|---|---|---|---|
@@ -29,6 +29,7 @@
 | `error.400.invalid_ad_id` | 400 | — | `fix_input` | Invalid advertisement ID |
 | `error.400.invalid_avatar_format` | 400 | — | `fix_input` | Invalid avatar reference format. Expected: avatar/<hash> |
 | `error.400.invalid_currency` | 400 | — | `fix_input` | Invalid currency code |
+| `error.400.too_many_ids` | 400 | `requested`, `limit` | `fix_input` | Too many ids: {requested} requested, at most {limit} per batch request |
 | `error.400.validation_error` | 400 | — | `fix_input` | Validation error |
 | `error.400.verification_failed` | 400 | — | `verify` | Verification failed |
 | `error.400.verification_invalid_factor` | 400 | — | `verify` | This verification factor is not available |

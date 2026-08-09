@@ -7,6 +7,7 @@ from stapel_core.comm import function_registry, register_function
 
 from stapel_profiles.errors import (
     ERR_400_AVATAR_NOT_FOUND,
+    ERR_400_AVATAR_SOURCE_MISMATCH,
     ERR_400_INVALID_AVATAR_FORMAT,
 )
 from stapel_profiles.serializers import ProfileCreateUpdateSerializer
@@ -101,11 +102,42 @@ class TestAvatarValidationViaComm:
         assert serializer.errors == {}
         assert serializer.validated_data["avatar"] == "https://example.com/me.png"
 
-    def test_file_source_is_default_and_skips_cdn_checks(self):
-        """No avatar_source in the payload + no existing instance -> defaults
-        to `file`, which never triggers the cdn-only format/existence check."""
+    def test_untagged_cdn_ref_is_derived_not_defaulted_to_file(self):
+        """No `avatar_source` in the payload + a ref that IS a cdn ref -> the
+        source is DERIVED as `cdn`, so the cdn checks run.
+
+        This test used to assert the opposite ("defaults to file, skips the
+        cdn checks") and that assertion was the defect, written down. Both
+        profiles on the meettoday sandbox that ever had an avatar (2 of 2)
+        were stored exactly this way — `PATCH {avatar: "avatar/<hash>"}` with
+        no source — and serializing them 500'd `/profiles/api/v1/me`.
+        """
+        register_function("cdn.media_exists", lambda payload: {"exists": True})
+
         serializer = _validate(VALID_REF, source=None)
+
         assert serializer.errors == {}
+        assert serializer.validated_data["avatar_source"] == "cdn"
+
+    def test_untagged_free_form_ref_still_defaults_to_file(self):
+        """Derivation is not a land grab: only an unmistakable cdn ref moves
+        the tag. A free-form key stays `file` and skips the cdn checks."""
+        serializer = _validate("uploads/me.png", source=None)
+
+        assert serializer.errors == {}
+        assert "avatar_source" not in serializer.validated_data
+
+    def test_cdn_ref_tagged_file_is_rejected_not_coerced(self):
+        """A STATED source that the ref contradicts is a caller bug and is
+        told so — coercing an assertion would hide it."""
+        serializer = _validate(VALID_REF, source="file")
+
+        assert ERR_400_AVATAR_SOURCE_MISMATCH in _avatar_errors(serializer)
+
+    def test_cdn_ref_tagged_url_is_rejected(self):
+        serializer = _validate(VALID_REF, source="url")
+
+        assert ERR_400_AVATAR_SOURCE_MISMATCH in _avatar_errors(serializer)
 
 
 class TestAvatarCheckOff:

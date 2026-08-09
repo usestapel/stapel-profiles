@@ -13,11 +13,17 @@ IDENTITY_PRESETS choice (`field_defs.assemble_profile_fields` /
 Owner directive kept HARD in core (overrides the spec doc's own §6.2
 recommendation to make it opt-in): the whole language block, and avatar.
 """
+import logging
+import re
+
+from django.core.exceptions import ValidationError
 from django.db import models
 from stapel_core.django.cdn.fields import validate_cdn_reference
 from stapel_core.django.swappable import declare_swap, get_model
 
 from .field_defs import StapelProfileEnum, Theme
+
+logger = logging.getLogger(__name__)
 
 
 class Language(models.Model):
@@ -69,17 +75,80 @@ class AvatarSource(StapelProfileEnum):
     CDN = "cdn", "CDN"
 
 
-def validate_avatar_reference(source: str, value: str) -> None:
-    """Format-validate `avatar` against its declared `avatar_source`.
+#: `avatar/<64-hex>` — stapel-cdn's ref format, and nothing else's. A `file`
+#: upload key, a URL and a Gravatar email-hash cannot collide with it: the
+#: first has no `avatar/` prefix from any writer in this fleet, the second
+#: carries a scheme, the third has no slash at all. That total discrimination
+#: is what makes `avatar_source` DERIVABLE from the ref below.
+_CDN_AVATAR_REF = re.compile(r"^avatar/[a-fA-F0-9]{64}$")
 
-    Only the `cdn` source has a fixed wire format (`avatar/<64-hex>`,
-    `stapel_core.django.cdn.fields.validate_cdn_reference`) — `file`/`url`/
-    `gravatar` are free-form strings (upload key / URL / email-hash), this
-    model does not police their shape.
+
+def is_cdn_avatar_reference(value: str | None) -> bool:
+    """True when `value` is unmistakably a stapel-cdn avatar ref."""
+    return bool(value) and bool(_CDN_AVATAR_REF.match(value))
+
+
+def validate_avatar_reference(source: str, value: str) -> None:
+    """Validate the PAIR `avatar` + `avatar_source`, in both directions.
+
+    `cdn` has a fixed wire format (`avatar/<64-hex>`,
+    `stapel_core.django.cdn.fields.validate_cdn_reference`); `file`/`url`/
+    `gravatar` are free-form strings (upload key / URL / email-hash) whose
+    shape this model does not police — with ONE exception, which is the whole
+    point of this function: a value that IS a cdn ref may not be tagged
+    anything but `cdn`.
+
+    That mismatch is not hypothetical. On the meettoday sandbox both profiles
+    that ever had an avatar (2 of 2 — a 100% failure rate of the manual upload
+    path, not an edge case) stored a real cdn ref tagged `file`, because the
+    frontend PATCHed `{avatar: ref}` and let the model default decide the tag.
+    Serialization then routed the ref to the PIL provider, which opened the
+    ladder DIRECTORY as a file and raised — 500 on `/profiles/api/v1/me`, so
+    the frontend saw no `display_name`, blocked the meeting door with an
+    "enter your name" dialog, and that dialog's PATCH 500'd on the same
+    avatar. A cosmetic ref locked two people out of the product.
+
+    The invariant is enforced, not merely documented — see
+    `resolve_avatar_source` and `ProfileCore.save`.
     """
-    if not value or source != AvatarSource.CDN:
+    if not value:
         return
-    validate_cdn_reference(value, "avatar")
+    if source == AvatarSource.CDN:
+        validate_cdn_reference(value, "avatar")
+        return
+    if is_cdn_avatar_reference(value):
+        raise ValidationError(
+            f"avatar {value!r} is a CDN reference but avatar_source is "
+            f"{source!r} — the pair must agree (use avatar_source='cdn')."
+        )
+
+
+def resolve_avatar_source(source: str, value: str | None) -> str:
+    """The `avatar_source` that MUST accompany `value`.
+
+    Returns `source` unchanged unless the ref is unmistakably a cdn ref that
+    is tagged otherwise, in which case it returns `cdn`.
+
+    WHY DERIVE HERE AND REJECT AT THE API BOUNDARY (see
+    `serializers.ProfileCreateUpdateSerializer.validate`). Two different
+    situations wear the same shape:
+
+    - A CLIENT that sent `avatar_source="file"` alongside a cdn ref has stated
+      a belief that is wrong. Silently overriding a stated belief hides the
+      caller's bug — it gets a 400 so the caller is fixed.
+    - A WRITER with no stated belief (a client that sent only `avatar`, an
+      internal `update_or_create`, the admin, a data migration) left the field
+      to a default that predates the ref. There is no caller to correct, and
+      refusing the save would turn a cosmetic avatar defect into a write
+      failure on unrelated fields — the exact escalation this whole incident
+      was. So the ref, which is self-describing, decides; loudly, at WARNING.
+
+    The coercion is not a guess: `avatar/<64-hex>` is produced by exactly one
+    writer in the fleet (stapel-cdn) and by nothing else.
+    """
+    if is_cdn_avatar_reference(value) and source != AvatarSource.CDN:
+        return AvatarSource.CDN
+    return source
 
 
 class ProfileCore(models.Model):
@@ -215,6 +284,44 @@ class ProfileCore(models.Model):
 
     class Meta:
         abstract = True
+
+    # -- avatar pair invariant -------------------------------------------
+    # `avatar` and `avatar_source` are one value in two columns. Nothing used
+    # to hold them together: the serializer only format-checked the ref when
+    # the source ALREADY said `cdn` (i.e. exactly the case that was already
+    # right), and every other writer — admin, shell, data migration, an
+    # `update_or_create` whose defaults predate the ref — could store any
+    # combination it liked. Two rows on the meettoday sandbox did, and 500'd
+    # the profile endpoint. The invariant lives HERE, at the last gate every
+    # writer passes, so "inconsistent" stops being a storable state rather
+    # than a state the read path has to survive.
+
+    def clean(self):
+        """Reject an inconsistent pair for callers that validate (admin,
+        `full_clean()`). `save()` below repairs instead of raising — see
+        `resolve_avatar_source` for why the two differ."""
+        super().clean()
+        validate_avatar_reference(self.avatar_source, self.avatar or "")
+
+    def save(self, *args, **kwargs):
+        resolved = resolve_avatar_source(self.avatar_source, self.avatar)
+        if resolved != self.avatar_source:
+            logger.warning(
+                "profile %s: avatar %r is a CDN reference but avatar_source "
+                "was %r — storing 'cdn'. The writer should send the pair; a "
+                "ref stored under the wrong source renders as no avatar at "
+                "best and used to 500 the profile endpoint.",
+                self.pk,
+                self.avatar,
+                self.avatar_source,
+            )
+            self.avatar_source = resolved
+            # `update_or_create` and any partial save pass `update_fields`;
+            # without this the repaired tag would be computed and dropped.
+            update_fields = kwargs.get("update_fields")
+            if update_fields is not None:
+                kwargs["update_fields"] = set(update_fields) | {"avatar_source"}
+        return super().save(*args, **kwargs)
 
 
 #: Swap key for the profile DAO model override (`STAPEL_SWAP` registry) — the

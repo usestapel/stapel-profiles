@@ -12,6 +12,12 @@ ERR_400_DISPLAY_NAME_INVISIBLE_CHARS = 'error.400.display_name_invisible_chars'
 ERR_400_INVALID_CURRENCY = 'error.400.invalid_currency'
 ERR_400_INVALID_AVATAR_FORMAT = 'error.400.invalid_avatar_format'
 ERR_400_AVATAR_NOT_FOUND = 'error.400.avatar_not_found'
+#: `avatar` is unmistakably a CDN ref (`avatar/<64-hex>`) but the request
+#: EXPLICITLY tagged it something else. Not coerced: a caller that stated a
+#: source stated a belief, and silently "correcting" a stated belief hides the
+#: caller's bug. A caller that states nothing gets the source derived from the
+#: ref instead (models.resolve_avatar_source) — nothing to correct there.
+ERR_400_AVATAR_SOURCE_MISMATCH = 'error.400.avatar_source_mismatch'
 #: POST .../batch over PROFILES_BATCH_MAX_IDS. Carries BOTH numbers so the
 #: caller can chunk without guessing — the alternative (truncate to the limit
 #: and answer 200) would hide the overflow as "those people have no profile".
@@ -28,6 +34,11 @@ PROFILES_ERRORS = {
     ERR_400_INVALID_CURRENCY: 'Invalid currency code',
     ERR_400_INVALID_AVATAR_FORMAT: 'Invalid avatar reference format. Expected: avatar/<hash>',
     ERR_400_AVATAR_NOT_FOUND: 'Avatar not found on CDN',
+    ERR_400_AVATAR_SOURCE_MISMATCH: (
+        'Avatar reference is a CDN reference but avatar_source says '
+        'otherwise — send avatar_source="cdn" with it, or omit avatar_source '
+        'and it will be derived from the reference'
+    ),
     ERR_400_TOO_MANY_IDS: 'Too many ids: {requested} requested, at most {limit} per batch request',
 }
 
@@ -54,6 +65,7 @@ PROFILES_REMEDIATION = {
     ERR_400_INVALID_CURRENCY: 'fix_input',
     ERR_400_INVALID_AVATAR_FORMAT: 'fix_input',
     ERR_400_AVATAR_NOT_FOUND: 'fix_input',
+    ERR_400_AVATAR_SOURCE_MISMATCH: 'fix_input',
     ERR_400_TOO_MANY_IDS: 'fix_input',
 }
 

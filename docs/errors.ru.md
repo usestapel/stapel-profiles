@@ -1,6 +1,6 @@
 # Errors — Русский
 
-`51` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.ru.json`.
+`52` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.ru.json`.
 
 | Код | Статус | Параметры | Действие | Текст |
 |---|---|---|---|---|
@@ -29,6 +29,7 @@
 | `error.400.invalid_ad_id` | 400 | — | `fix_input` | Недопустимый идентификатор объявления |
 | `error.400.invalid_avatar_format` | 400 | — | `fix_input` | Неверный формат ссылки на аватар. Ожидается: avatar/<hash> |
 | `error.400.invalid_currency` | 400 | — | `fix_input` | Неверный код валюты |
+| `error.400.too_many_ids` | 400 | `requested`, `limit` | `fix_input` | Слишком много идентификаторов: запрошено {requested}, максимум {limit} за один запрос |
 | `error.400.validation_error` | 400 | — | `fix_input` | Ошибка валидации |
 | `error.400.verification_failed` | 400 | — | `verify` | Проверка не пройдена |
 | `error.400.verification_invalid_factor` | 400 | — | `verify` | Этот способ подтверждения недоступен |
