@@ -5,6 +5,57 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.0] — 2026-08-09
+
+### Fixed — the avatar/avatar_source pair can no longer be stored inconsistently
+
+`avatar` and `avatar_source` are one value in two columns, and nothing held
+them together. `validate_avatar` only checked the reference when the source
+ALREADY said `cdn` — exactly the case that was already correct — so a client
+that PATCHed `{avatar: "avatar/<hash>"}` without a source got the model default
+(`file`) written next to a CDN ref, silently.
+
+On the meettoday sandbox that was not an edge case. **2 of 2** profiles that
+had ever set an avatar were stored this way, on two different people — a 100%
+failure rate of the manual upload path. Serializing such a row routed the ref
+to the PIL provider, which opened stapel-cdn's variant DIRECTORY as a plain
+file and raised: `GET /profiles/api/v1/me` and `POST /profiles/api/v1/batch`
+both 500'd. The frontend then read no `display_name`, concluded the account was
+unnamed, blocked the meeting door with an "enter your name" dialog, and that
+dialog's PATCH re-serialized the same avatar and 500'd again. A cosmetic
+reference locked two people out of the product.
+
+The rule is stated once and enforced twice:
+
+- **Model** — `is_cdn_avatar_reference` / `resolve_avatar_source`: an
+  `avatar/<64-hex>` reference is produced by exactly one writer in the fleet,
+  so it is self-describing. `ProfileCore.save()` writes the source the
+  reference implies (widening `update_fields` so a partial save cannot drop the
+  repair) and logs the correction at WARNING; `clean()` rejects the pair for
+  callers that validate. Every writer — admin, shell, data migration,
+  `update_or_create` — passes this gate.
+- **Serializer** — a request that STATES a source the reference contradicts is
+  refused with the new `error.400.avatar_source_mismatch`, because coercing an
+  assertion hides the caller's bug. A request that states nothing has the
+  source derived and returned in the response body: there is no assertion to
+  correct, and refusing would turn a cosmetic defect into a write failure on
+  unrelated fields — the escalation this incident was.
+
+Deriving server-side is the NET. The MECHANISM is `@stapel/profiles-react`
+0.15.0, where `useAvatarUpload().upload()` now resolves `{ref, source}` instead
+of a bare string and `useSetAvatar()` makes setting an avatar one operation —
+the provenance is transported from the one place that knows it, rather than
+inferred later.
+
+Pairs with the `stapel_core.media` fix (0.20.1) that stops any unresolvable
+reference from raising out of `image()` in the first place.
+
+### Fixed — contract drift that made 0.11.0 unpublishable
+
+0.11.0 bumped `pyproject.toml` without regenerating `docs/capabilities.json`,
+which embeds the version. The drift gate failed, the tag built nothing, and
+0.11.0 does not exist on PyPI — its Spanish catalogue ships here instead.
+
 ## [0.11.0] — 2026-08-09
 
 ### Added — Spanish ships as a language of the library, not as a host override
