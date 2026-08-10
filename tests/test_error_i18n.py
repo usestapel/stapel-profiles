@@ -202,6 +202,28 @@ def test_translations_preserve_placeholders():
                     f"{lang}: {key}"
 
 
+def test_error_reference_matches_a_fresh_regeneration(tmp_path):
+    """The committed reference is what the generator produces TODAY.
+
+    ``test_error_docs_exist_for_every_language`` reads the committed file, so a
+    reference that had stopped being reproducible stayed green: dropping the
+    core-owned duplicates blanked those rows to ``_(en)_`` on the next
+    regeneration, and nothing said so until somebody regenerated. This module
+    shipped exactly that in 0.12.4 — 41 of its 53 ru rows would have come back
+    English. stapel-core 0.23.1 taught the reader to resolve a key this module
+    does not own from its owner's catalog; this compares the bytes instead of
+    trusting the file.
+    """
+    for lang in LANGUAGES:
+        call_command("generate_error_docs", "--lang", lang, "--out", str(tmp_path),
+                     "--translations", str(TRANSLATIONS), stdout=io.StringIO())
+        assert (tmp_path / f"errors.{lang}.md").read_bytes() == \
+            (DOCS / f"errors.{lang}.md").read_bytes(), (
+                f"docs/errors.{lang}.md is stale — run "
+                f"STAPEL_REGEN_ERROR_I18N=1 pytest tests/test_error_i18n.py::test_regen"
+            )
+
+
 def test_error_docs_exist_for_every_language():
     for lang in LANGUAGES:
         path = DOCS / f"errors.{lang}.md"

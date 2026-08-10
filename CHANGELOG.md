@@ -1,5 +1,30 @@
 # Changelog
 
+## [0.12.5] — 2026-08-10
+
+### Fixed — the error reference is gated as reproducible, not merely as present
+
+0.12.4 dropped the 41 core-owned duplicates from `translations/errors.{ru,es}.json`
+and shipped. What it could not know: `build_error_docs` read this module's
+`translations/` directory and nothing else, while the reference it renders
+covers the whole registry — so `docs/errors.ru.md` was correct only because it
+had been generated *before* the prune. Regenerating it produced **41 of its 53
+rows in English** (`_(en)_` fallbacks), and nothing would have said so:
+`test_error_docs_exist_for_every_language` reads the committed file, which was
+green.
+
+stapel-core 0.23.1 fixes the reader — `module_catalog` resolves a key this
+module does not own from its owner's catalog — so a fresh regeneration is once
+again byte-identical to the committed reference (verified: 53/53 ru rows in
+Russian, zero `_(en)_`). `test_error_reference_matches_a_fresh_regeneration`
+now compares those bytes on every run, so a committed reference can no longer
+be green while being unreproducible.
+
+The `stapel-core` pin moves to `>=0.23.1`. It was `>=0.16`, under which 0.12.4's
+pruned catalogs resolve to **English at runtime** — the pin, not just the docs,
+was the part 0.12.4 left behind.
+
+
 All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
