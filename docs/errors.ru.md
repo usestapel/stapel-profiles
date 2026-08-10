@@ -1,10 +1,11 @@
 # Errors — Русский
 
-`52` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.ru.json`.
+`53` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.ru.json`.
 
 | Код | Статус | Параметры | Действие | Текст |
 |---|---|---|---|---|
 | `error.400.avatar_not_found` | 400 | — | `fix_input` | Аватар не найден на CDN |
+| `error.400.avatar_source_mismatch` | 400 | — | `fix_input` | Ссылка на аватар — это CDN-ссылка, но avatar_source говорит иное. Передайте avatar_source="cdn" вместе с ней либо не передавайте avatar_source вовсе — источник будет выведен из самой ссылки |
 | `error.400.bad_request` | 400 | — | `fix_input` | Некорректный запрос |
 | `error.400.cannot_block_self` | 400 | — | `fix_input` | Нельзя заблокировать самого себя |
 | `error.400.cannot_follow_self` | 400 | — | `fix_input` | Нельзя подписаться на самого себя |

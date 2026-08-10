@@ -166,8 +166,21 @@ def test_catalog_gate_green():
     assert errors == 0
 
 
-def test_every_language_covers_every_canonical_key():
-    source = source_texts("errors")
+def test_every_language_covers_every_key_this_module_owns():
+    """Coverage is scoped to OWNERSHIP (stapel-core 0.22.0).
+
+    Core ships its own catalogs now and the loader merges the owner's, so a
+    module that also translated core's keys was maintaining a second, drifting
+    copy of them — the gate calls that ``foreign`` and fails on it. What this
+    module still answers for is every key it owns, in every target language.
+    """
+    from stapel_core.i18n import owned_keys, owner_of_dir, source_owners
+
+    source = owned_keys(
+        source_texts("errors"),
+        source_owners("errors"),
+        owner_of_dir(TRANSLATIONS),
+    )
     for lang in TARGET_LANGUAGES:
         catalog = load_catalog_file(TRANSLATIONS / f"errors.{lang}.json")
         missing = [k for k in source if k not in catalog]

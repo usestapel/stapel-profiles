@@ -1,10 +1,11 @@
 # Errors — Español
 
-`52` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.es.json`.
+`53` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.es.json`.
 
 | Código | Estado | Parámetros | Acción | Texto |
 |---|---|---|---|---|
 | `error.400.avatar_not_found` | 400 | — | `fix_input` | Avatar no encontrado en el CDN |
+| `error.400.avatar_source_mismatch` | 400 | — | `fix_input` | La referencia del avatar es una referencia de CDN, pero avatar_source indica otra cosa: envía avatar_source="cdn" junto a ella, u omite avatar_source y se derivará de la referencia |
 | `error.400.bad_request` | 400 | — | `fix_input` | Solicitud incorrecta |
 | `error.400.cannot_block_self` | 400 | — | `fix_input` | No puedes bloquearte a ti mismo |
 | `error.400.cannot_follow_self` | 400 | — | `fix_input` | No puedes seguirte a ti mismo |

@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.12.4] — 2026-08-10
+
+### Fixed — this module translates only the error keys it owns
+
+stapel-core 0.22.0 ships its own error catalogs and the loader merges the
+owner's, so the 41 core-owned keys duplicated in `translations/errors.ru.json`
+and `errors.es.json` were a second, drifting copy — the new catalog gate calls
+them `foreign` and fails on them, which is what took 0.12.3's release build
+down. Dropped them, and scoped the coverage test to the keys this module owns
+(`owned_keys` / `owner_of_dir`). Ships 0.12.3's picker fix, which never
+reached PyPI.
+
 ## [0.12.3] — 2026-08-10
 
 ### Fixed — the language picker is no longer empty either
