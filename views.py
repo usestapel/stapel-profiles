@@ -91,6 +91,7 @@ from .serializers import (
     RelationshipActionResponseSerializer,
     RelationshipResponseSerializer,
 )
+from .throttles import ProfileBatchThrottle, ProfileLookupThrottle
 
 #: Resolved once at import time — the active (possibly host-swapped) Profile
 #: DAO model (§66; same swap-at-import-time convention already used by
@@ -118,6 +119,30 @@ class SerializerSeamsMixin:
 
     def get_response_serializer_class(self):
         return self.response_serializer_class
+
+
+class PrivacyHeadersMixin:
+    """Declare this service's referrer policy on its own responses.
+
+    A profile response carries an avatar reference a client will fetch from
+    another origin (audit PROFILE-01). The URL boundary keeps the reference
+    itself inert; this states the other half of the client contract —
+    render profile media under a restrictive referrer policy, so a viewer's
+    current page never travels to whatever host an avatar points at.
+
+    A header on a JSON response cannot enforce a client's rendering, and it
+    is not pretended to: it is the machine-readable form of the contract
+    MODULE.md spells out, and it also covers browsers that navigate to these
+    endpoints directly. ``PROFILES_REFERRER_POLICY = ""`` leaves the header
+    to whatever the host's own middleware sets.
+    """
+
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        policy = profiles_settings.PROFILES_REFERRER_POLICY
+        if policy:
+            response["Referrer-Policy"] = policy
+        return response
 
 
 # =============================================================================
@@ -239,7 +264,7 @@ def _update_auto_detected_language(request, profile):
 
 
 @extend_schema(tags=["Profile"])
-class MyProfileView(SerializerSeamsMixin, APIView):
+class MyProfileView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
     """Current user's profile management."""
 
     permission_classes = [IsAuthenticated]
@@ -304,10 +329,17 @@ class MyProfileView(SerializerSeamsMixin, APIView):
 
 
 @extend_schema(tags=["Profile"])
-class ProfileDetailView(SerializerSeamsMixin, APIView):
-    """View other user's profile (compact public view)."""
+class ProfileDetailView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
+    """View other user's profile (compact public view).
+
+    `AllowAny` over every user id is the enumeration surface of the whole
+    user base, so it is rate-limited per caller (audit PROFILE-01) and what
+    it exposes is the declared visibility policy of
+    `ProfilePublicSerializer`, not simply "whatever this serializer lists".
+    """
 
     permission_classes = [AllowAny]
+    throttle_classes = [ProfileLookupThrottle]
     response_serializer_class = ProfilePublicSerializer
 
     @extend_schema(
@@ -389,7 +421,7 @@ def _batch_social_context(request, profiles):
 
 
 @extend_schema(tags=["Profile"])
-class ProfileBatchView(SerializerSeamsMixin, APIView):
+class ProfileBatchView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
     """Resolve many public profiles in one request (#111).
 
     A contact grid used to fire one `GET .../<id>` per tile and take a 404
@@ -406,6 +438,9 @@ class ProfileBatchView(SerializerSeamsMixin, APIView):
     """
 
     permission_classes = [AllowAny]
+    # One request answers for up to PROFILES_BATCH_MAX_IDS people, so the
+    # sequence gets its own, tighter budget than single lookups.
+    throttle_classes = [ProfileBatchThrottle]
     request_serializer_class = ProfileBatchRequestSerializer
     response_serializer_class = ProfilePublicSerializer
 

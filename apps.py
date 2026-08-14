@@ -21,3 +21,8 @@ class ProfilesConfig(AppConfig):
         # siblings). register() is idempotent; ready() may run more than once.
         from . import functions
         functions.register()
+
+        # Boot-time checks: every security switch this deployment has opened
+        # says so at `manage.py check` instead of at the next audit.
+        from .checks import register_checks
+        register_checks()

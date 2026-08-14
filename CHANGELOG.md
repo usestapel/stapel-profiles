@@ -1,5 +1,86 @@
 # Changelog
 
+## [Unreleased]
+
+### Added — the avatar URL boundary, a public visibility policy, enumeration limits
+
+Security audit PROFILE-01: the avatar was a free-form user-controlled value
+handed to every consumer, and the public profile surface had no written-down
+answer to "what does it expose" or "how much of the user base may one caller
+walk".
+
+- **URL boundary.** `avatar_source=url` is accepted only for the schemes a
+  deployment allows (`PROFILES_AVATAR_URL_ALLOWED_SCHEMES`, https by
+  default) and only from allowlisted hosts
+  (`PROFILES_AVATAR_URL_ALLOWED_HOSTS`); `avatar_source=gravatar` must be an
+  email hash, not a path interpolated into a gravatar URL. The read path
+  holds the same line: a stored value today's policy would refuse is no
+  longer emitted (it degrades to "no avatar"), so a legacy row cannot turn
+  into a write failure and cannot reach a client either. New keys
+  `error.400.avatar_url_scheme`, `error.400.avatar_url_host`,
+  `error.400.avatar_gravatar_hash` (en/ru/es).
+- **Referrer policy.** Profile responses declare `PROFILES_REFERRER_POLICY`
+  (default `no-referrer`); MODULE.md states the client half of the contract.
+- **Public visibility policy.** `PROFILES_PUBLIC_FIELDS` and
+  `PROFILES_PUBLIC_FIELDS_ANONYMOUS` (may only narrow) govern what
+  `GET .../<user_id>` and `POST .../batch` expose — both go through one
+  serializer, so the two doors cannot disagree. The member-facing default is
+  the historical field set; the anonymous default is narrower (see below).
+- **Enumeration limits.** Per-caller throttles over the existing batching
+  cap: `PROFILES_LOOKUP_RATE` (default `120/min`) and the deliberately
+  tighter `PROFILES_BATCH_RATE` (default `30/min`), keyed by user when
+  authenticated and by IP otherwise; `None` switches one off.
+
+### Changed — two permissive defaults closed (UPGRADE NOTE)
+
+Follow-up to the 2026-08-11 audit. Both switches above shipped open, which
+means the safe value was the one nobody had chosen yet. They are now closed
+by default, and opening them is an explicit, greppable act. **Both can change
+what an existing deployment returns — read this before upgrading.**
+
+- **External avatar hosts are refused unless allowlisted.**
+  `PROFILES_AVATAR_URL_ALLOWED_HOSTS` still defaults to `[]`, but `[]` now
+  means "no external host is trusted" instead of "any host". An
+  `avatar_source=url` avatar is refused on write (`error.400.avatar_url_host`)
+  and suppressed on read (`avatar_image` degrades to `null`; the raw `avatar`
+  string is untouched in the database) until the deployment names the hosts
+  it trusts. Rationale: without an allowlist every profile view fetches an
+  image from a host the profile's OWNER picked — a cross-site beacon carrying
+  the VIEWER's IP, user agent and referring page.
+  *Upgrade:* list your hosts — `STAPEL_PROFILES = {"PROFILES_AVATAR_URL_ALLOWED_HOSTS": ["cdn.example.com", ".example.com"]}`.
+  *Opt-out restoring the old behaviour:* `["*"]` (any host), stated once and
+  findable by grep. `avatar_source=cdn`/`file`/`gravatar` are unaffected.
+
+- **Anonymous callers get a narrower field set.**
+  `PROFILES_PUBLIC_FIELDS_ANONYMOUS` now defaults to
+  `["user_id", "display_name", "avatar_source", "avatar", "avatar_image"]`
+  instead of `None` ("the same as members"). `GET .../<user_id>` and
+  `POST .../batch` are `AllowAny` and answer for any user id, so the old
+  default let the open internet walk the member directory for coarse AND
+  narrow location plus follower/following counts; throttles bound the rate,
+  not the content. `relationship_status` is also gone for anonymous callers —
+  it has no meaning without a viewer. Authenticated callers are unaffected.
+  *Upgrade:* clients that render location or follow counts for logged-out
+  visitors must either authenticate or the deployment must widen the list.
+  *Opt-out restoring the old behaviour:*
+  `STAPEL_PROFILES = {"PROFILES_PUBLIC_FIELDS_ANONYMOUS": None}` — or `["*"]`
+  where a flat setting / env var cannot carry `None`.
+
+The emitted OpenAPI contract is unchanged: it describes the endpoints'
+declared surface (the member policy), not one caller's subset.
+
+### Added — `checks.py`, so an opened switch is never silent
+
+`manage.py check` now reports every security switch a deployment has opened
+(same genre as `stapel_gdpr.checks` W003 / `stapel_cdn.checks`). Warnings,
+not errors — a host is allowed to open them, it just may not do so quietly:
+`profiles.W001` (`PROFILES_AVATAR_CHECK="off"` — an avatar reference stored
+without confirming the CDN object exists), `profiles.W002`
+(`PROFILES_AVATAR_URL_ALLOWED_HOSTS=["*"]`), `profiles.W003` (anonymous
+callers given the full member field set) and `profiles.W004`
+(`PROFILES_LOOKUP_RATE` / `PROFILES_BATCH_RATE` disabled, so one caller may
+enumerate the user base as fast as the service answers).
+
 ## [0.12.5] — 2026-08-10
 
 ### Fixed — the error reference is gated as reproducible, not merely as present

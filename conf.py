@@ -46,6 +46,69 @@ DEFAULTS = {
     "PROFILES_AVATAR_CHECK": "comm",
     "PROFILES_FIELDS": {},
     "PROFILES_BATCH_MAX_IDS": 100,
+    # ── Avatar URL boundary ──────────────────────────────────────────
+    # An `avatar_source=url` avatar is a user-controlled string this
+    # service hands to every consumer, so it has a boundary: only these
+    # schemes are accepted on import and only these are ever emitted on
+    # read. Active schemes (javascript:, data:) are not renderable
+    # references, they are code; plain http downgrades the page and leaks
+    # the referrer in clear text.
+    "PROFILES_AVATAR_URL_ALLOWED_SCHEMES": ["https"],
+    # Hosts external avatars may point at. CLOSED BY DEFAULT: [] names no
+    # trusted host, so an `avatar_source=url` avatar is refused on import and
+    # suppressed on read until this deployment says where such an avatar may
+    # come from. An entry is an exact host ("cdn.example.com") or a
+    # dot-prefixed suffix (".example.com"); listing them turns the avatar
+    # from a cross-site tracking pixel into a reference to storage the host
+    # trusts. The single entry ["*"] reopens "any host" — the pre-0.12.6
+    # behaviour, restored as one explicit, greppable act rather than as the
+    # silent consequence of never having configured anything.
+    "PROFILES_AVATAR_URL_ALLOWED_HOSTS": [],
+    # Referrer policy this service declares on its own responses, and the
+    # policy its clients are asked to render avatars under (MODULE.md
+    # "Client contract"). "" leaves the header alone.
+    "PROFILES_REFERRER_POLICY": "no-referrer",
+    # ── Public-profile visibility ────────────────────────────────────
+    # The fields a public lookup (GET .../<user_id>, POST .../batch) may
+    # expose. Default is the full historical set — narrowing it is the
+    # host's privacy decision, and it applies to BOTH public endpoints so
+    # they can never disagree.
+    "PROFILES_PUBLIC_FIELDS": [
+        "user_id",
+        "display_name",
+        "avatar_source",
+        "avatar",
+        "avatar_image",
+        "location_id",
+        "location_display_name_narrow",
+        "location_display_name_broad",
+        "followers_count",
+        "following_count",
+        "relationship_status",
+    ],
+    # What an UNAUTHENTICATED caller sees. NARROW BY DEFAULT: the two public
+    # endpoints are AllowAny and answer for any user id, so this list is what
+    # the open internet may walk the member directory for. Identity and
+    # avatar are what a name-next-to-a-message needs; whereabouts
+    # (location_*) and the social graph (followers/following counts) are not
+    # needed to render a stranger's name and are exactly what makes a bulk
+    # scrape worth running. relationship_status has no meaning without a
+    # viewer. A host that wants the pre-0.12.6 answer sets this to None (or
+    # ["*"]) — "anonymous callers see everything members see" is a decision
+    # a deployment states, not one it inherits. A narrower list (or []) still
+    # narrows further; it may never widen past PROFILES_PUBLIC_FIELDS.
+    "PROFILES_PUBLIC_FIELDS_ANONYMOUS": [
+        "user_id",
+        "display_name",
+        "avatar_source",
+        "avatar",
+        "avatar_image",
+    ],
+    # ── Enumeration limits ───────────────────────────────────────────
+    # Public lookups are the enumeration surface of the whole user base:
+    # DRF rate strings ("120/min"), None/"" disables one of them.
+    "PROFILES_LOOKUP_RATE": "120/min",
+    "PROFILES_BATCH_RATE": "30/min",
 }
 
 profiles_settings = AppSettings(

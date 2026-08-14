@@ -22,6 +22,18 @@ ERR_400_AVATAR_SOURCE_MISMATCH = 'error.400.avatar_source_mismatch'
 #: caller can chunk without guessing — the alternative (truncate to the limit
 #: and answer 200) would hide the overflow as "those people have no profile".
 ERR_400_TOO_MANY_IDS = 'error.400.too_many_ids'
+#: An `avatar_source=url` avatar whose scheme this service will not accept.
+#: The avatar is a string one user controls and every consumer renders, so
+#: only inert, transport-safe schemes cross the boundary (an active scheme is
+#: code, and plain http leaks the referrer and downgrades the page).
+ERR_400_AVATAR_URL_SCHEME = 'error.400.avatar_url_scheme'
+#: An external avatar host the deployment does not allow
+#: (PROFILES_AVATAR_URL_ALLOWED_HOSTS) — the anti-tracking half of the same
+#: boundary: an arbitrary host turns every profile view into a beacon.
+ERR_400_AVATAR_URL_HOST = 'error.400.avatar_url_host'
+#: `avatar_source=gravatar` carries an email HASH, not a path or a URL; the
+#: value is interpolated into a gravatar URL, so anything else is refused.
+ERR_400_AVATAR_GRAVATAR_HASH = 'error.400.avatar_gravatar_hash'
 
 PROFILES_ERRORS = {
     ERR_404_PROFILE_NOT_FOUND: 'Profile not found',
@@ -40,6 +52,9 @@ PROFILES_ERRORS = {
         'and it will be derived from the reference'
     ),
     ERR_400_TOO_MANY_IDS: 'Too many ids: {requested} requested, at most {limit} per batch request',
+    ERR_400_AVATAR_URL_SCHEME: 'Avatar URL must use one of: {schemes}',
+    ERR_400_AVATAR_URL_HOST: 'Avatar URL host is not allowed here',
+    ERR_400_AVATAR_GRAVATAR_HASH: 'Gravatar avatar must be an email hash (32 or 64 hex characters)',
 }
 
 # Machine-readable recovery hints (remediation) — the canonical "what to do"
@@ -67,6 +82,9 @@ PROFILES_REMEDIATION = {
     ERR_400_AVATAR_NOT_FOUND: 'fix_input',
     ERR_400_AVATAR_SOURCE_MISMATCH: 'fix_input',
     ERR_400_TOO_MANY_IDS: 'fix_input',
+    ERR_400_AVATAR_URL_SCHEME: 'fix_input',
+    ERR_400_AVATAR_URL_HOST: 'fix_input',
+    ERR_400_AVATAR_GRAVATAR_HASH: 'fix_input',
 }
 
 register_service_errors(PROFILES_ERRORS, remediation=PROFILES_REMEDIATION)

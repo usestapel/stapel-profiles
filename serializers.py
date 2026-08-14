@@ -16,6 +16,12 @@ from .errors import (
     ERR_400_AVATAR_SOURCE_MISMATCH,
     ERR_400_INVALID_AVATAR_FORMAT,
 )
+from .validators import (
+    is_gravatar_hash,
+    is_safe_avatar_url,
+    validate_avatar_url,
+    validate_gravatar_hash,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -59,8 +65,15 @@ def avatar_image(profile):
     - CDN → the cdn provider (its own variant naming — the fix for the empty
       ladder meettoday hit when a pil-default deployment described cdn refs);
     - FILE → the PIL provider over plain Django storage;
-    - URL → an external link, passed through untouched;
+    - URL → an external link, subject to the URL boundary below;
     - GRAVATAR → the gravatar URL built from the stored email-hash (square).
+
+    Read boundary (security audit PROFILE-01): an external `url` avatar is
+    emitted only when it still satisfies the URL boundary, and a `gravatar`
+    avatar only when it is an email hash. Rows written before the rule (or
+    by a writer that bypassed the API) therefore degrade to "no avatar"
+    instead of handing every consumer a reference the boundary would refuse
+    today — no client should ever have to defend itself against this field.
     """
     value = profile.avatar
     if not value:
@@ -71,8 +84,18 @@ def avatar_image(profile):
     if source == AvatarSource.FILE:
         return build_image("file", value)
     if source == AvatarSource.URL:
+        if not is_safe_avatar_url(value):
+            logger.warning(
+                "profiles: suppressed unsafe stored avatar URL for %s", profile.user_id
+            )
+            return None
         return build_image("link", value)
     if source == AvatarSource.GRAVATAR:
+        if not is_gravatar_hash(value):
+            logger.warning(
+                "profiles: suppressed non-hash gravatar avatar for %s", profile.user_id
+            )
+            return None
         return build_image(
             "link", f"https://www.gravatar.com/avatar/{value}", aspect=1.0
         )
@@ -226,6 +249,12 @@ CTX_FOLLOWERS = "batch_followers"
 CTX_FOLLOWING = "batch_following"
 CTX_RELATIONSHIPS = "batch_relationships"
 
+#: The one entry that reopens the anonymous view to the full member set in
+#: PROFILES_PUBLIC_FIELDS_ANONYMOUS. Not a wildcard over field names — a
+#: whole-policy opt-out, expressible where a flat setting or env var cannot
+#: carry `None`.
+ANONYMOUS_FIELDS_SAME_AS_MEMBERS = "*"
+
 
 class ProfilePublicSerializer(serializers.ModelSerializer):
     """Compact serializer for viewing other user's profile.
@@ -238,6 +267,21 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
     Without that, a 50-tile grid would trade 50 HTTP requests for 150 SQL
     queries — a worse deal than the problem the batch endpoint solves.
     """
+
+    # VISIBILITY (security audit PROFILE-01). What a public lookup exposes
+    # is a declared policy, not an accident of which fields this class
+    # happens to list: PROFILES_PUBLIC_FIELDS is the set an authenticated
+    # caller sees and PROFILES_PUBLIC_FIELDS_ANONYMOUS the one the internet
+    # sees. Both public entry points — GET .../<user_id> and POST .../batch —
+    # serialize through this class, so they cannot disagree about a person's
+    # privacy. The anonymous default is deliberately NARROWER than the member
+    # set (identity + avatar, no whereabouts and no social graph): these
+    # endpoints are AllowAny and answer for any user id, so their default
+    # answer is what an unauthenticated scraper gets. `None` (or ["*"])
+    # restores "anonymous sees what members see" as a stated decision.
+    # (Kept out of the docstring on purpose: the docstring is the emitted
+    # OpenAPI component description, byte-compared against the monolith
+    # aggregate's slice.)
 
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
@@ -261,6 +305,38 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
             "following_count",
             "relationship_status",
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for name in set(self.fields) - set(self._visible_fields()):
+            self.fields.pop(name)
+
+    def _visible_fields(self) -> list[str]:
+        """The policy for THIS caller (see the class docstring)."""
+        from .conf import profiles_settings
+
+        visible = list(profiles_settings.PROFILES_PUBLIC_FIELDS or [])
+        request = self.context.get("request")
+        if request is None:
+            # No caller at all: schema emission and internal construction.
+            # The DECLARED surface of both endpoints is the member policy —
+            # narrowing here would publish the anonymous subset as the
+            # contract every client codegens against. Every HTTP path builds
+            # this serializer with the request in context (views.py), so this
+            # branch is never how a real caller is answered.
+            return visible
+        user = getattr(request, "user", None)
+        if user is not None and getattr(user, "is_authenticated", False):
+            return visible
+        anonymous = profiles_settings.PROFILES_PUBLIC_FIELDS_ANONYMOUS
+        if anonymous is None or ANONYMOUS_FIELDS_SAME_AS_MEMBERS in anonymous:
+            # The explicit reopening: this deployment states that anonymous
+            # callers get the member view. `None` says it in a settings dict,
+            # ["*"] says it in a form a flat setting / env var can carry.
+            return visible
+        # An anonymous policy may only ever narrow: a field the host hid from
+        # members must not reappear for the internet through this list.
+        return [name for name in anonymous if name in visible]
 
     def get_followers_count(self, obj) -> int:
         """Get count of users following this profile."""
@@ -417,6 +493,15 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
             raise StapelValidationError(ERR_400_AVATAR_SOURCE_MISMATCH)
 
         source = self._effective_avatar_source(value)
+        # The URL boundary (audit PROFILE-01): `url` and `gravatar` are
+        # user-controlled values every consumer renders, so they are policed
+        # on import — an active scheme, a plain-http reference, a host the
+        # deployment does not allow, or a "hash" that is really a path never
+        # becomes a stored profile field.
+        if source == AvatarSource.URL:
+            return validate_avatar_url(value)
+        if source == AvatarSource.GRAVATAR:
+            return validate_gravatar_hash(value)
         if source != AvatarSource.CDN:
             return value
 

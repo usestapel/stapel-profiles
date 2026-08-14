@@ -3,8 +3,15 @@ Validators for profile fields.
 """
 
 import re
+from urllib.parse import urlsplit
 
 from stapel_core.django.api.errors import StapelValidationError
+
+#: A gravatar avatar stores an email HASH (md5 historically, sha256 since
+#: 2024) that this service interpolates into a gravatar URL. Anything else —
+#: a path segment, a query string, a whole URL — would be interpolation into
+#: a URL, which is how a "hash" becomes an arbitrary destination.
+_GRAVATAR_HASH = re.compile(r"^[a-fA-F0-9]{32}$|^[a-fA-F0-9]{64}$")
 
 # Matches control chars, HTML-dangerous chars
 _DISPLAY_NAME_FORBIDDEN = re.compile(
@@ -73,4 +80,115 @@ def validate_display_name(value: str) -> str:
         if cat.startswith("C") and cat != "Co":
             raise StapelValidationError(ERR_400_DISPLAY_NAME_INVISIBLE_CHARS)
 
+    return value
+
+
+# =============================================================================
+# Avatar URL boundary (security audit PROFILE-01)
+# =============================================================================
+#
+# `avatar_source=url` and `avatar_source=gravatar` are user-controlled values
+# this service hands to EVERY consumer of a profile. Two rules make that
+# safe, and both live here so the write path and the read path agree:
+#
+#   scheme — only inert, transport-safe schemes (https by default). An
+#            active scheme (javascript:, data:, vbscript:) is not a picture
+#            reference, it is code a careless client would execute; plain
+#            http downgrades the page and leaks the referrer in clear text.
+#   host   — an allowlist, closed by default. Without one, every profile
+#            view fetches from a host the profile's owner chose: a cross-site
+#            beacon with the viewer's IP, user agent and (without a referrer
+#            policy) the page they were on. So an empty allowlist refuses
+#            external avatars outright; ["*"] is the explicit reopening.
+#
+# Written values are REFUSED (below); values already stored are simply not
+# emitted (`serializers.avatar_image`), because a legacy row must not turn
+# an unrelated save into a write failure.
+
+
+def avatar_url_allowed_schemes() -> list[str]:
+    from .conf import profiles_settings
+
+    return [
+        str(scheme).strip().lower().rstrip(":")
+        for scheme in (profiles_settings.PROFILES_AVATAR_URL_ALLOWED_SCHEMES or [])
+    ]
+
+
+#: The one entry that means "any host" in PROFILES_AVATAR_URL_ALLOWED_HOSTS.
+#: Not a wildcard pattern — a whole-policy opt-out, spelled so that grepping
+#: a deployment's settings for it finds every place the boundary is open.
+HOST_ALLOWLIST_ANY = "*"
+
+
+def avatar_url_allowed_hosts() -> list[str]:
+    from .conf import profiles_settings
+
+    return [
+        str(host).strip().lower()
+        for host in (profiles_settings.PROFILES_AVATAR_URL_ALLOWED_HOSTS or [])
+    ]
+
+
+def is_safe_avatar_url(value: str) -> bool:
+    """Whether *value* may cross the boundary in either direction."""
+    if not value:
+        return False
+    try:
+        parts = urlsplit(value.strip())
+    except ValueError:
+        return False
+    scheme = (parts.scheme or "").lower()
+    if scheme not in avatar_url_allowed_schemes():
+        return False
+    host = (parts.hostname or "").lower()
+    if not host:
+        return False
+    allowed = avatar_url_allowed_hosts()
+    if not allowed:
+        # No allowlist = no host this deployment has decided to trust, so
+        # there is nothing to accept. An unlisted external avatar is fetched
+        # by every viewer of the profile, which makes it a beacon its OWNER
+        # chose and the viewer never consented to.
+        return False
+    if HOST_ALLOWLIST_ANY in allowed:
+        # The explicit reopening (see conf.py) — "any host", stated once.
+        return True
+    return any(
+        host == entry or (entry.startswith(".") and host.endswith(entry))
+        for entry in allowed
+    )
+
+
+def validate_avatar_url(value: str) -> str:
+    """Refuse an external avatar URL on import. Raises StapelValidationError."""
+    from .errors import ERR_400_AVATAR_URL_HOST, ERR_400_AVATAR_URL_SCHEME
+
+    if not value:
+        return value
+    parts = urlsplit(value.strip())
+    schemes = avatar_url_allowed_schemes()
+    if (parts.scheme or "").lower() not in schemes:
+        raise StapelValidationError(
+            ERR_400_AVATAR_URL_SCHEME, params={"schemes": ", ".join(schemes)}
+        )
+    if not is_safe_avatar_url(value):
+        # Scheme already passed, so the remaining reason is the host.
+        raise StapelValidationError(ERR_400_AVATAR_URL_HOST)
+    return value
+
+
+def is_gravatar_hash(value: str) -> bool:
+    """Whether *value* is an email hash and nothing else."""
+    return bool(value) and bool(_GRAVATAR_HASH.match(value.strip()))
+
+
+def validate_gravatar_hash(value: str) -> str:
+    """Refuse a gravatar avatar that is not an email hash."""
+    from .errors import ERR_400_AVATAR_GRAVATAR_HASH
+
+    if not value:
+        return value
+    if not is_gravatar_hash(value):
+        raise StapelValidationError(ERR_400_AVATAR_GRAVATAR_HASH)
     return value

@@ -2,7 +2,7 @@
 
 User profiles and social graph: display name, avatar, locale/currency/measurement preferences, notification opt-outs, and follow/unfollow/block relationships between users, with a relationship-status lookup.
 
-Contract: axes 1 · surface 11 · extension points 3 · operations 16 · error codes 53.
+Contract: axes 1 · surface 17 · extension points 3 · operations 16 · error codes 56.
 Generated from docs/capabilities.json by `stapel-llms-txt` — do not edit; drift-gated by `make contract-check`.
 
 ## Configuration axes — what a product switches on
@@ -15,13 +15,19 @@ This is the answer to "does Stapel already have something for X?". `instead of` 
 ### gate_function
 - is_cdn_avatar_reference — stapel_profiles.models.is_cdn_avatar_reference
   Answer whether an avatar value IS a stapel-cdn reference (`avatar/<64-hex>`) — the single discriminator behind the avatar/avatar_source pair invariant. Reach for it when you have a ref and need to know where it came from; matching the prefix or the slash by hand is how a `product/<hash>` ref or a path-like upload key gets mistaken for a CDN avatar.
+- is_safe_avatar_url — stapel_profiles.validators.is_safe_avatar_url
+  The read half of the same boundary, as a predicate: whether a stored avatar URL may still be handed to a client. Use it before rendering an avatar reference that did not come from this module's serializers — an old row is not evidence that today's policy allows it.
 - resolve_avatar_source — stapel_profiles.models.resolve_avatar_source
   The avatar_source that MUST accompany a given avatar value — returns the declared source unchanged unless the value is unmistakably a CDN ref tagged otherwise. Call it in any writer that sets an avatar outside this module's serializers; storing the ref and letting the model default choose the tag is exactly how a live stand ended up serving 500s from a cosmetic avatar.
 - validate_avatar_reference — stapel_profiles.models.validate_avatar_reference
   instead of: stapel_core.django.cdn.fields.validate_cdn_reference
   Format-check an avatar value against its declared avatar_source before storing it — the source taxonomy (file/url/gravatar/cdn) lives here, and only `cdn` has a fixed `avatar/<64-hex>` wire shape. Reach for it from any serializer seam that accepts an avatar; validating with the core CDN checker directly instead rejects every non-CDN source a project is allowed to pick.
+- validate_avatar_url — stapel_profiles.validators.validate_avatar_url
+  The import half of the avatar URL boundary: refuses an external avatar whose scheme this deployment does not accept (https only by default) or whose host is outside PROFILES_AVATAR_URL_ALLOWED_HOSTS. Any writer that stores an avatar without passing through this module's serializer must call it, or a user-controlled active-scheme string reaches every consumer that renders a profile.
 - validate_display_name — stapel_profiles.validators.validate_display_name
   This module's display-name canon — minimum length, control/invisible characters and emoji, raising StapelValidationError with the module's own error keys so the frontend gets a translatable key rather than a sentence. Any host onboarding form, admin action or importer that writes a name must run it through here instead of inventing a second, differently-strict regex; the user.registered pre-fill already does.
+- validate_gravatar_hash — stapel_profiles.validators.validate_gravatar_hash
+  Refuse a gravatar avatar that is not an email hash. The value is interpolated into a gravatar URL, so a 'hash' carrying a path or a query is an arbitrary destination wearing a hash's name.
 ### predicate
 - declared_languages — stapel_profiles.models.declared_languages
   instead of: django.conf.settings.LANGUAGES
@@ -32,6 +38,10 @@ This is the answer to "does Stapel already have something for X?". `instead of` 
 - avatar_image — stapel_profiles.serializers.avatar_image
   instead of: stapel_core.media.image
   The renderable StapelImage for a profile's avatar — variant ladder plus blur-up — mapping this module's avatar_source taxonomy onto the matching media provider. A custom profile presenter or serializer seam must call this rather than hand the raw ref to the media builder with a guessed provider: a pil-default deployment describing CDN refs is how meettoday shipped an empty variant ladder.
+- avatar_url_allowed_hosts — stapel_profiles.validators.avatar_url_allowed_hosts
+  The external avatar host allowlist (PROFILES_AVATAR_URL_ALLOWED_HOSTS, normalized; empty = no external host trusted, ["*"] = any host). Same reason as the schemes accessor: one reading of the policy, not two.
+- avatar_url_allowed_schemes — stapel_profiles.validators.avatar_url_allowed_schemes
+  The schemes this deployment accepts for external avatars (PROFILES_AVATAR_URL_ALLOWED_SCHEMES, normalized). Read the policy from here rather than hardcoding "https" in a second place that will not follow when a host changes it.
 - build_profile_model — stapel_profiles.field_defs.build_profile_model
   Assemble a project's extended, swappable Profile subclass from a field manifest (identity preset + standard fields + custom ProfileFieldDefs) — call it once in your OWN app's models.py and point STAPEL_SWAP["PROFILES_PROFILE_MODEL"] at the result, so the extra columns and their migration live in the project rather than in this package.
 - ensure_declared_languages — stapel_profiles.models.ensure_declared_languages
@@ -40,6 +50,8 @@ This is the answer to "does Stapel already have something for X?". `instead of` 
 - get_profile_model — stapel_profiles.models.get_profile_model
   instead of: stapel_profiles.models.Profile
   THE way to reach the profile DAO: resolves STAPEL_SWAP["PROFILES_PROFILE_MODEL"], so a host that assembled its own extended Profile (build_profile_model) is honoured. Views, serializers, admin, GDPR providers and product code all go through it — a direct `from stapel_profiles.models import Profile` pins the zero-field default and silently ignores the swap, which is exactly what the SWAP001 lint flags.
+- is_gravatar_hash — stapel_profiles.validators.is_gravatar_hash
+  Predicate form of the gravatar rule, for read paths deciding whether a stored value may be turned into a URL.
 - publish_profile_changed — stapel_profiles.events.publish_profile_changed
   instead of: stapel_core.comm.emit
   Emit profile.changed for a mutated profile row — the payload shape (schemas/emits/profile.changed.json) and the best-effort savepoint isolation that keeps a broker failure from 500-ing the request both live inside. Call it after ANY profile write that does not go through this module's serializers (a data migration, an admin action, a product's own service function), or every downstream consumer of the event quietly desyncs.
@@ -81,10 +93,13 @@ Paths are relative to `/profiles/api/v1/`.
 - POST /{user_id}/unblock — unblock_user
 - POST /{user_id}/unfollow — unfollow_user
 
-## Error codes (53) — the StapelError envelope
+## Error codes (56) — the StapelError envelope
 Render `t(code, params)`; branch UX on the remediation. Localized text lives in docs/errors.<lang>.md, not here.
+- error.400.avatar_gravatar_hash [400] fix_input
 - error.400.avatar_not_found [400] fix_input
 - error.400.avatar_source_mismatch [400] fix_input
+- error.400.avatar_url_host [400] fix_input
+- error.400.avatar_url_scheme [400] fix_input {schemes}
 - error.400.bad_request [400] fix_input
 - error.400.cannot_block_self [400] fix_input
 - error.400.cannot_follow_self [400] fix_input

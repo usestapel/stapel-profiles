@@ -1,4 +1,16 @@
 {
+  "error.400.avatar_gravatar_hash": {
+    "hash": "493c0daeab013231",
+    "text": "Аватар Gravatar должен быть хешем адреса электронной почты (32 или 64 шестнадцатеричных символа)"
+  },
+  "error.400.avatar_url_host": {
+    "hash": "3bc956be2ea58b09",
+    "text": "Этот хост URL аватара здесь не разрешён."
+  },
+  "error.400.avatar_url_scheme": {
+    "hash": "d5a58bf1a469f1ac",
+    "text": "URL аватара должен использовать одну из схем: {schemes}"
+  },
   "error.403.network_blocked": {
     "hash": "73418e2ec86c7544",
     "text": "Запросы из этой сети не разрешены."

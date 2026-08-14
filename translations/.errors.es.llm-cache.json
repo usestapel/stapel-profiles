@@ -1,4 +1,16 @@
 {
+  "error.400.avatar_gravatar_hash": {
+    "hash": "493c0daeab013231",
+    "text": "El avatar de Gravatar debe ser un hash de correo electrónico (32 o 64 caracteres hexadecimales)"
+  },
+  "error.400.avatar_url_host": {
+    "hash": "3bc956be2ea58b09",
+    "text": "El host de la URL del avatar no está permitido aquí."
+  },
+  "error.400.avatar_url_scheme": {
+    "hash": "d5a58bf1a469f1ac",
+    "text": "La URL del avatar debe usar uno de: {schemes}"
+  },
   "error.400.too_many_ids": {
     "hash": "f6368a24e46084ec",
     "text": "Demasiados identificadores: {requested} solicitados, como máximo {limit} por solicitud por lotes"

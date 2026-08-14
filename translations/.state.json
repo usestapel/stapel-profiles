@@ -1,5 +1,9 @@
 {
   "errors.es": {
+    "error.400.avatar_gravatar_hash": {
+      "hash": "493c0daeab013231",
+      "origin": "llm"
+    },
     "error.400.avatar_not_found": {
       "hash": "2f240e4f653819c4",
       "origin": "seed:stapel-builtin"
@@ -7,6 +11,14 @@
     "error.400.avatar_source_mismatch": {
       "hash": "3700b6779135566a",
       "origin": "imported"
+    },
+    "error.400.avatar_url_host": {
+      "hash": "3bc956be2ea58b09",
+      "origin": "llm"
+    },
+    "error.400.avatar_url_scheme": {
+      "hash": "d5a58bf1a469f1ac",
+      "origin": "llm"
     },
     "error.400.cannot_block_self": {
       "hash": "32697345a70bcf8a",
@@ -50,6 +62,10 @@
     }
   },
   "errors.ru": {
+    "error.400.avatar_gravatar_hash": {
+      "hash": "493c0daeab013231",
+      "origin": "llm"
+    },
     "error.400.avatar_not_found": {
       "hash": "2f240e4f653819c4",
       "origin": "seed:stapel-builtin"
@@ -57,6 +73,14 @@
     "error.400.avatar_source_mismatch": {
       "hash": "3700b6779135566a",
       "origin": "imported"
+    },
+    "error.400.avatar_url_host": {
+      "hash": "3bc956be2ea58b09",
+      "origin": "llm"
+    },
+    "error.400.avatar_url_scheme": {
+      "hash": "d5a58bf1a469f1ac",
+      "origin": "llm"
     },
     "error.400.cannot_block_self": {
       "hash": "32697345a70bcf8a",
