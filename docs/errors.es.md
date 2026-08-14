@@ -1,11 +1,14 @@
 # Errors — Español
 
-`53` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.es.json`.
+`56` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.es.json`.
 
 | Código | Estado | Parámetros | Acción | Texto |
 |---|---|---|---|---|
+| `error.400.avatar_gravatar_hash` | 400 | — | `fix_input` | El avatar de Gravatar debe ser un hash de correo electrónico (32 o 64 caracteres hexadecimales) |
 | `error.400.avatar_not_found` | 400 | — | `fix_input` | Avatar no encontrado en el CDN |
 | `error.400.avatar_source_mismatch` | 400 | — | `fix_input` | La referencia del avatar es una referencia de CDN, pero avatar_source indica otra cosa: envía avatar_source="cdn" junto a ella, u omite avatar_source y se derivará de la referencia |
+| `error.400.avatar_url_host` | 400 | — | `fix_input` | El host de la URL del avatar no está permitido aquí. |
+| `error.400.avatar_url_scheme` | 400 | `schemes` | `fix_input` | La URL del avatar debe usar uno de: {schemes} |
 | `error.400.bad_request` | 400 | — | `fix_input` | Solicitud incorrecta |
 | `error.400.cannot_block_self` | 400 | — | `fix_input` | No puedes bloquearte a ti mismo |
 | `error.400.cannot_follow_self` | 400 | — | `fix_input` | No puedes seguirte a ti mismo |

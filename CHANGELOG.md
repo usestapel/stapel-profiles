@@ -1,5 +1,37 @@
 # Changelog
 
+## [Unreleased]
+
+### Added — the avatar URL boundary, a public visibility policy, enumeration limits
+
+Security audit PROFILE-01: the avatar was a free-form user-controlled value
+handed to every consumer, and the public profile surface had no written-down
+answer to "what does it expose" or "how much of the user base may one caller
+walk".
+
+- **URL boundary.** `avatar_source=url` is accepted only for the schemes a
+  deployment allows (`PROFILES_AVATAR_URL_ALLOWED_SCHEMES`, https by
+  default) and, optionally, only from allowlisted hosts
+  (`PROFILES_AVATAR_URL_ALLOWED_HOSTS`); `avatar_source=gravatar` must be an
+  email hash, not a path interpolated into a gravatar URL. The read path
+  holds the same line: a stored value today's policy would refuse is no
+  longer emitted (it degrades to "no avatar"), so a legacy row cannot turn
+  into a write failure and cannot reach a client either. New keys
+  `error.400.avatar_url_scheme`, `error.400.avatar_url_host`,
+  `error.400.avatar_gravatar_hash` (en/ru/es).
+- **Referrer policy.** Profile responses declare `PROFILES_REFERRER_POLICY`
+  (default `no-referrer`); MODULE.md states the client half of the contract.
+- **Public visibility policy.** `PROFILES_PUBLIC_FIELDS` and
+  `PROFILES_PUBLIC_FIELDS_ANONYMOUS` (None = the same set; may only narrow)
+  govern what `GET .../<user_id>` and `POST .../batch` expose — both go
+  through one serializer, so the two doors cannot disagree. Defaults are the
+  historical field set: the policy landed, deployments' answers did not
+  change.
+- **Enumeration limits.** Per-caller throttles over the existing batching
+  cap: `PROFILES_LOOKUP_RATE` (default `120/min`) and the deliberately
+  tighter `PROFILES_BATCH_RATE` (default `30/min`), keyed by user when
+  authenticated and by IP otherwise; `None` switches one off.
+
 ## [0.12.5] — 2026-08-10
 
 ### Fixed — the error reference is gated as reproducible, not merely as present

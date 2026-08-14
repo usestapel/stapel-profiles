@@ -103,6 +103,30 @@
       "kind": "gate_function",
       "intent": "This module's display-name canon — minimum length, control/invisible characters and emoji, raising StapelValidationError with the module's own error keys so the frontend gets a translatable key rather than a sentence. Any host onboarding form, admin action or importer that writes a name must run it through here instead of inventing a second, differently-strict regex; the user.registered pre-fill already does."
     },
+    "validate_avatar_url": {
+      "kind": "gate_function",
+      "intent": "The import half of the avatar URL boundary: refuses an external avatar whose scheme this deployment does not accept (https only by default) or whose host is outside PROFILES_AVATAR_URL_ALLOWED_HOSTS. Any writer that stores an avatar without passing through this module's serializer must call it, or a user-controlled active-scheme string reaches every consumer that renders a profile."
+    },
+    "is_safe_avatar_url": {
+      "kind": "gate_function",
+      "intent": "The read half of the same boundary, as a predicate: whether a stored avatar URL may still be handed to a client. Use it before rendering an avatar reference that did not come from this module's serializers — an old row is not evidence that today's policy allows it."
+    },
+    "avatar_url_allowed_schemes": {
+      "kind": "factory",
+      "intent": "The schemes this deployment accepts for external avatars (PROFILES_AVATAR_URL_ALLOWED_SCHEMES, normalized). Read the policy from here rather than hardcoding \"https\" in a second place that will not follow when a host changes it."
+    },
+    "avatar_url_allowed_hosts": {
+      "kind": "factory",
+      "intent": "The external avatar host allowlist (PROFILES_AVATAR_URL_ALLOWED_HOSTS, normalized; empty = any host). Same reason as the schemes accessor: one reading of the policy, not two."
+    },
+    "validate_gravatar_hash": {
+      "kind": "gate_function",
+      "intent": "Refuse a gravatar avatar that is not an email hash. The value is interpolated into a gravatar URL, so a 'hash' carrying a path or a query is an arbitrary destination wearing a hash's name."
+    },
+    "is_gravatar_hash": {
+      "kind": "factory",
+      "intent": "Predicate form of the gravatar rule, for read paths deciding whether a stored value may be turned into a URL."
+    },
     "publish_profile_changed": {
       "kind": "factory",
       "intent": "Emit profile.changed for a mutated profile row — the payload shape (schemas/emits/profile.changed.json) and the best-effort savepoint isolation that keeps a broker failure from 500-ing the request both live inside. Call it after ANY profile write that does not go through this module's serializers (a data migration, an admin action, a product's own service function), or every downstream consumer of the event quietly desyncs.",

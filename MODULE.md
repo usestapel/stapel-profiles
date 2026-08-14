@@ -37,12 +37,35 @@ environment variable → default.
 |---|---|---|---|
 | `PROFILES_AVATAR_CHECK` | `"comm"` | `"comm"` \| `"off"` | How `validate_avatar` verifies the CDN reference: `"comm"` = name-addressed function call `stapel_core.comm.call("cdn.media_exists", {"ref": ...})`; `"off"` = skip existence check (format still validated). Fail-closed: an unverifiable reference is rejected. |
 | `PROFILES_BATCH_MAX_IDS` | `100` | positive int | How many ids one `POST batch` may carry. Over the ceiling the request is **refused** with `error.400.too_many_ids` carrying `requested` + `limit` — never silently truncated, which would surface in the UI as "some people have no name" with nothing saying why. A numeric ceiling, not a behaviour toggle, so it is not a capability axis. |
+| `PROFILES_AVATAR_URL_ALLOWED_SCHEMES` | `["https"]` | list of schemes | Schemes an `avatar_source=url` avatar may use, on import **and** on read. An active scheme (`javascript:`, `data:`) is code, not a picture reference; plain `http` downgrades the page and leaks the referrer. Refusal: `error.400.avatar_url_scheme`. |
+| `PROFILES_AVATAR_URL_ALLOWED_HOSTS` | `[]` (any) | exact hosts / `.suffix` entries | Hosts external avatars may point at. Without one, every profile view fetches from a host the profile's owner chose — a cross-site beacon carrying the viewer's IP and user agent. Refusal: `error.400.avatar_url_host`. |
+| `PROFILES_REFERRER_POLICY` | `"no-referrer"` | header value \| `""` | `Referrer-Policy` this service declares on its profile responses (`""` = leave it to the host's middleware). The client half of the contract is below. |
+| `PROFILES_PUBLIC_FIELDS` | the full public set | list of field names | What a public lookup (`GET .../<user_id>`, `POST .../batch`) exposes to an authenticated caller. Both endpoints serialize through the same class, so they cannot disagree about a person's privacy. |
+| `PROFILES_PUBLIC_FIELDS_ANONYMOUS` | `None` (= same) | list \| `None` | What an UNAUTHENTICATED caller sees. It may only ever narrow `PROFILES_PUBLIC_FIELDS` — a field hidden from members cannot reappear for the internet. |
+| `PROFILES_LOOKUP_RATE` | `"120/min"` | DRF rate string \| `None` | Per-caller ceiling on single public lookups (`ProfileLookupThrottle`), keyed by user when authenticated and by IP otherwise. `None` disables it — a deployment's explicit choice. |
+| `PROFILES_BATCH_RATE` | `"30/min"` | DRF rate string \| `None` | Per-caller ceiling on batch resolution. Deliberately tighter than the lookup budget: one batch request answers for up to `PROFILES_BATCH_MAX_IDS` people. |
 
 This module currently declares **no `import_strings` keys** (no dotted-path
 settings that swap in app-layer classes). `stapel_core.conf.AppSettings`
 supports them, so a new pluggable seam (e.g. a custom avatar checker backend)
 is a natural **upstream contribution**: add the key + default to `conf.py`
 with `import_strings=(...)`.
+
+### Client contract — profile media (security audit PROFILE-01)
+
+An avatar is a value ONE user controls and EVERY consumer renders, so the
+boundary has two halves and the backend can only hold one of them:
+
+* **this service** accepts only safe schemes/hosts on import, and never
+  emits a stored reference that today's policy would refuse (a legacy row
+  degrades to "no avatar" rather than being handed out) — so a client never
+  receives an active-scheme URL from here;
+* **a client** must still refuse to navigate or execute anything but an
+  image load for these fields, and should render profile media under a
+  restrictive referrer policy (`no-referrer` / `strict-origin`), so the page
+  a viewer is on never travels to whatever host an avatar points at. The
+  service declares its own policy on profile responses via
+  `PROFILES_REFERRER_POLICY`.
 
 ### Swappable models
 

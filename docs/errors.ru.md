@@ -1,11 +1,14 @@
 # Errors — Русский
 
-`53` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.ru.json`.
+`56` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.ru.json`.
 
 | Код | Статус | Параметры | Действие | Текст |
 |---|---|---|---|---|
+| `error.400.avatar_gravatar_hash` | 400 | — | `fix_input` | Аватар Gravatar должен быть хешем адреса электронной почты (32 или 64 шестнадцатеричных символа) |
 | `error.400.avatar_not_found` | 400 | — | `fix_input` | Аватар не найден на CDN |
 | `error.400.avatar_source_mismatch` | 400 | — | `fix_input` | Ссылка на аватар — это CDN-ссылка, но avatar_source говорит иное. Передайте avatar_source="cdn" вместе с ней либо не передавайте avatar_source вовсе — источник будет выведен из самой ссылки |
+| `error.400.avatar_url_host` | 400 | — | `fix_input` | Этот хост URL аватара здесь не разрешён. |
+| `error.400.avatar_url_scheme` | 400 | `schemes` | `fix_input` | URL аватара должен использовать одну из схем: {schemes} |
 | `error.400.bad_request` | 400 | — | `fix_input` | Некорректный запрос |
 | `error.400.cannot_block_self` | 400 | — | `fix_input` | Нельзя заблокировать самого себя |
 | `error.400.cannot_follow_self` | 400 | — | `fix_input` | Нельзя подписаться на самого себя |

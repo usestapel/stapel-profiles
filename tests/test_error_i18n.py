@@ -71,6 +71,13 @@ _FIXTURES = Path(
 #: cross-cutting network/verification domain, kept verbatim for terminology
 #: consistency across the framework.)
 _MACHINE_RU = {
+    "error.400.avatar_url_scheme":
+        "URL аватара должен использовать одну из схем: {schemes}",
+    "error.400.avatar_url_host":
+        "Этот хост URL аватара здесь не разрешён.",
+    "error.400.avatar_gravatar_hash":
+        "Аватар Gravatar должен быть хешем адреса электронной почты "
+        "(32 или 64 шестнадцатеричных символа)",
     "error.403.network_blocked":
         "Запросы из этой сети не разрешены.",
     "error.403.verification_enrollment_required":
@@ -78,6 +85,13 @@ _MACHINE_RU = {
 }
 
 _MACHINE_ES = {
+    "error.400.avatar_url_scheme":
+        "La URL del avatar debe usar uno de: {schemes}",
+    "error.400.avatar_url_host":
+        "El host de la URL del avatar no está permitido aquí.",
+    "error.400.avatar_gravatar_hash":
+        "El avatar de Gravatar debe ser un hash de correo electrónico "
+        "(32 o 64 caracteres hexadecimales)",
     "error.400.too_many_ids":
         "Demasiados identificadores: {requested} solicitados, como máximo "
         "{limit} por solicitud por lotes",

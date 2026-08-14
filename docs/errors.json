@@ -1,5 +1,12 @@
 [
   {
+    "code": "error.400.avatar_gravatar_hash",
+    "status": 400,
+    "params": [],
+    "remediation": "fix_input",
+    "en": "Gravatar avatar must be an email hash (32 or 64 hex characters)"
+  },
+  {
     "code": "error.400.avatar_not_found",
     "status": 400,
     "params": [],
@@ -12,6 +19,22 @@
     "params": [],
     "remediation": "fix_input",
     "en": "Avatar reference is a CDN reference but avatar_source says otherwise — send avatar_source=\"cdn\" with it, or omit avatar_source and it will be derived from the reference"
+  },
+  {
+    "code": "error.400.avatar_url_host",
+    "status": 400,
+    "params": [],
+    "remediation": "fix_input",
+    "en": "Avatar URL host is not allowed here"
+  },
+  {
+    "code": "error.400.avatar_url_scheme",
+    "status": 400,
+    "params": [
+      "schemes"
+    ],
+    "remediation": "fix_input",
+    "en": "Avatar URL must use one of: {schemes}"
   },
   {
     "code": "error.400.bad_request",
