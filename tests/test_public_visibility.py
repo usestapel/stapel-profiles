@@ -55,10 +55,51 @@ def _batch(client, ids):
 # ── Visibility ───────────────────────────────────────────────────────
 
 
-def test_default_policy_is_the_historical_field_set(api_client, profile):
-    """The policy landed without changing any deployment's answers."""
-    body = api_client.get(f"/{profile.user_id}").json()
+NARROW_ANONYMOUS_FIELDS = {
+    "user_id",
+    "display_name",
+    "avatar_source",
+    "avatar",
+    "avatar_image",
+}
+
+
+def test_members_see_the_full_public_field_set(api_client, authed_client, profile):
+    """The member-facing default is unchanged: the full public set."""
+    del api_client  # the anonymous half is pinned by the tests below
+    body = authed_client.get(f"/{profile.user_id}").json()
     assert set(body) == FULL_PUBLIC_FIELDS
+
+
+def test_anonymous_default_is_narrower_than_the_member_view(anon_client, profile):
+    """Closed by default (audit 2026-08-11).
+
+    `GET /<user_id>` and `POST /batch` are AllowAny and answer for any user
+    id, so THIS is what an unauthenticated scraper gets out of the box. It
+    must not include whereabouts or the social graph.
+    """
+    body = anon_client.get(f"/{profile.user_id}").json()
+
+    assert set(body) == NARROW_ANONYMOUS_FIELDS
+    assert not {f for f in body if f.startswith("location_")}
+    assert "followers_count" not in body
+    assert "following_count" not in body
+
+
+def test_the_batch_endpoint_has_the_same_anonymous_default(anon_client, profile):
+    """The bulk door is the one worth scraping — it must not be wider."""
+    body = _batch(anon_client, [profile.user_id]).json()
+    assert set(body["profiles"][0]) == NARROW_ANONYMOUS_FIELDS
+
+
+def test_the_member_view_for_anonymous_is_an_explicit_opt_out(anon_client, profile):
+    """The pre-0.12.6 answer stays reachable — as a stated decision."""
+    for value in (None, ["*"]):
+        with override_settings(
+            STAPEL_PROFILES={"PROFILES_PUBLIC_FIELDS_ANONYMOUS": value}
+        ):
+            body = anon_client.get(f"/{profile.user_id}").json()
+        assert set(body) == FULL_PUBLIC_FIELDS, value
 
 
 def test_host_can_narrow_what_a_public_lookup_exposes(api_client, profile):

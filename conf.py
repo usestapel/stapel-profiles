@@ -54,10 +54,15 @@ DEFAULTS = {
     # references, they are code; plain http downgrades the page and leaks
     # the referrer in clear text.
     "PROFILES_AVATAR_URL_ALLOWED_SCHEMES": ["https"],
-    # Hosts external avatars may point at; [] = any host. An entry is an
-    # exact host ("cdn.example.com") or a dot-prefixed suffix
-    # (".example.com"). A host that lists them turns the avatar from a
-    # cross-site tracking pixel into a reference to storage it trusts.
+    # Hosts external avatars may point at. CLOSED BY DEFAULT: [] names no
+    # trusted host, so an `avatar_source=url` avatar is refused on import and
+    # suppressed on read until this deployment says where such an avatar may
+    # come from. An entry is an exact host ("cdn.example.com") or a
+    # dot-prefixed suffix (".example.com"); listing them turns the avatar
+    # from a cross-site tracking pixel into a reference to storage the host
+    # trusts. The single entry ["*"] reopens "any host" — the pre-0.12.6
+    # behaviour, restored as one explicit, greppable act rather than as the
+    # silent consequence of never having configured anything.
     "PROFILES_AVATAR_URL_ALLOWED_HOSTS": [],
     # Referrer policy this service declares on its own responses, and the
     # policy its clients are asked to render avatars under (MODULE.md
@@ -81,10 +86,24 @@ DEFAULTS = {
         "following_count",
         "relationship_status",
     ],
-    # What an UNAUTHENTICATED caller sees; None = the same set. A host that
-    # does not want its member directory readable by the internet sets a
-    # narrower list (or []) here without touching the authenticated view.
-    "PROFILES_PUBLIC_FIELDS_ANONYMOUS": None,
+    # What an UNAUTHENTICATED caller sees. NARROW BY DEFAULT: the two public
+    # endpoints are AllowAny and answer for any user id, so this list is what
+    # the open internet may walk the member directory for. Identity and
+    # avatar are what a name-next-to-a-message needs; whereabouts
+    # (location_*) and the social graph (followers/following counts) are not
+    # needed to render a stranger's name and are exactly what makes a bulk
+    # scrape worth running. relationship_status has no meaning without a
+    # viewer. A host that wants the pre-0.12.6 answer sets this to None (or
+    # ["*"]) — "anonymous callers see everything members see" is a decision
+    # a deployment states, not one it inherits. A narrower list (or []) still
+    # narrows further; it may never widen past PROFILES_PUBLIC_FIELDS.
+    "PROFILES_PUBLIC_FIELDS_ANONYMOUS": [
+        "user_id",
+        "display_name",
+        "avatar_source",
+        "avatar",
+        "avatar_image",
+    ],
     # ── Enumeration limits ───────────────────────────────────────────
     # Public lookups are the enumeration surface of the whole user base:
     # DRF rate strings ("120/min"), None/"" disables one of them.

@@ -117,7 +117,7 @@
     },
     "avatar_url_allowed_hosts": {
       "kind": "factory",
-      "intent": "The external avatar host allowlist (PROFILES_AVATAR_URL_ALLOWED_HOSTS, normalized; empty = any host). Same reason as the schemes accessor: one reading of the policy, not two."
+      "intent": "The external avatar host allowlist (PROFILES_AVATAR_URL_ALLOWED_HOSTS, normalized; empty = no external host trusted, [\"*\"] = any host). Same reason as the schemes accessor: one reading of the policy, not two."
     },
     "validate_gravatar_hash": {
       "kind": "gate_function",

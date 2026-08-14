@@ -187,7 +187,11 @@ class TestBatchSocialFields:
     """Batched social fields must agree with the per-row ones, and must not
     cost a query per row."""
 
-    def test_counts_match_the_single_endpoint(self, api_client):
+    def test_counts_match_the_single_endpoint(self, authed_client):
+        # Authenticated on purpose: the social graph is not in the anonymous
+        # field policy (PROFILES_PUBLIC_FIELDS_ANONYMOUS), so an anonymous
+        # caller has no counts to compare.
+        api_client = authed_client
         a, b, c = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
         for uid in (a, b, c):
             Profile.objects.create(user_id=uid, display_name="x")

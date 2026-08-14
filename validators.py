@@ -95,10 +95,11 @@ def validate_display_name(value: str) -> str:
 #            active scheme (javascript:, data:, vbscript:) is not a picture
 #            reference, it is code a careless client would execute; plain
 #            http downgrades the page and leaks the referrer in clear text.
-#   host   — an optional allowlist. Without one, every profile view fetches
-#            from a host the profile's owner chose: a cross-site beacon with
-#            the viewer's IP, user agent and (without a referrer policy) the
-#            page they were on.
+#   host   — an allowlist, closed by default. Without one, every profile
+#            view fetches from a host the profile's owner chose: a cross-site
+#            beacon with the viewer's IP, user agent and (without a referrer
+#            policy) the page they were on. So an empty allowlist refuses
+#            external avatars outright; ["*"] is the explicit reopening.
 #
 # Written values are REFUSED (below); values already stored are simply not
 # emitted (`serializers.avatar_image`), because a legacy row must not turn
@@ -112,6 +113,12 @@ def avatar_url_allowed_schemes() -> list[str]:
         str(scheme).strip().lower().rstrip(":")
         for scheme in (profiles_settings.PROFILES_AVATAR_URL_ALLOWED_SCHEMES or [])
     ]
+
+
+#: The one entry that means "any host" in PROFILES_AVATAR_URL_ALLOWED_HOSTS.
+#: Not a wildcard pattern — a whole-policy opt-out, spelled so that grepping
+#: a deployment's settings for it finds every place the boundary is open.
+HOST_ALLOWLIST_ANY = "*"
 
 
 def avatar_url_allowed_hosts() -> list[str]:
@@ -139,6 +146,13 @@ def is_safe_avatar_url(value: str) -> bool:
         return False
     allowed = avatar_url_allowed_hosts()
     if not allowed:
+        # No allowlist = no host this deployment has decided to trust, so
+        # there is nothing to accept. An unlisted external avatar is fetched
+        # by every viewer of the profile, which makes it a beacon its OWNER
+        # chose and the viewer never consented to.
+        return False
+    if HOST_ALLOWLIST_ANY in allowed:
+        # The explicit reopening (see conf.py) — "any host", stated once.
         return True
     return any(
         host == entry or (entry.startswith(".") and host.endswith(entry))

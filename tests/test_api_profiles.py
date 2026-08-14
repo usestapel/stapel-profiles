@@ -47,11 +47,18 @@ class TestMyProfilePatch:
         assert resp.status_code in (401, 403)
 
     def test_patch_updates_fields(self, authed_client, user):
-        resp = authed_client.patch(
-            "/me",
-            {"avatar_source": "url", "avatar": "https://example.com/me.png"},
-            format="json",
-        )
+        from django.test import override_settings
+
+        # The avatar here is incidental payload; the URL boundary itself is
+        # pinned in test_avatar_url_boundary.py.
+        with override_settings(
+            STAPEL_PROFILES={"PROFILES_AVATAR_URL_ALLOWED_HOSTS": ["example.com"]}
+        ):
+            resp = authed_client.patch(
+                "/me",
+                {"avatar_source": "url", "avatar": "https://example.com/me.png"},
+                format="json",
+            )
         assert resp.status_code == 200, resp.content
         data = resp.json()
         assert data["avatar_source"] == "url"
@@ -169,7 +176,9 @@ class TestProfileDetail:
         assert resp.status_code == 200, resp.content
         data = resp.json()
         assert data["avatar"] == "https://example.com/me.png"
-        assert data["relationship_status"] is None
+        # relationship_status is not in the anonymous field policy — it has
+        # no meaning without a viewer (PROFILES_PUBLIC_FIELDS_ANONYMOUS).
+        assert "relationship_status" not in data
         # Private fields must not leak through the public serializer
         assert "email_messages" not in data
         assert "essential_cookies_accepted" not in data

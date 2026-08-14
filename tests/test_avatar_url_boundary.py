@@ -51,7 +51,39 @@ def test_plain_http_avatar_is_refused():
 
 
 def test_https_avatar_is_accepted():
-    assert _validate("https://example.com/me.png", AvatarSource.URL) == []
+    """...from a host this deployment named. The allowlist is not optional."""
+    with override_settings(
+        STAPEL_PROFILES={"PROFILES_AVATAR_URL_ALLOWED_HOSTS": ["example.com"]}
+    ):
+        assert _validate("https://example.com/me.png", AvatarSource.URL) == []
+
+
+def test_external_avatar_is_refused_when_no_host_is_allowlisted():
+    """The host allowlist is CLOSED by default (audit 2026-08-11).
+
+    An empty allowlist names no host this deployment trusts, so there is
+    nothing to accept: an unlisted external avatar is fetched by every
+    viewer of the profile, which makes it a beacon the profile's owner
+    chose and the viewer never agreed to.
+    """
+    assert ERR_400_AVATAR_URL_HOST in _validate(
+        "https://tracker.example.net/a.png", AvatarSource.URL
+    )
+    assert ERR_400_AVATAR_URL_HOST in _validate(
+        "https://example.com/me.png", AvatarSource.URL
+    )
+
+
+def test_any_host_is_reachable_only_as_an_explicit_opt_out():
+    """["*"] restores the pre-0.12.6 "any host" behaviour — as a stated act."""
+    with override_settings(
+        STAPEL_PROFILES={"PROFILES_AVATAR_URL_ALLOWED_HOSTS": ["*"]}
+    ):
+        assert _validate("https://tracker.example.net/a.png", AvatarSource.URL) == []
+        # Opening the host policy never opens the scheme policy.
+        assert ERR_400_AVATAR_URL_SCHEME in _validate(
+            "javascript:alert(1)", AvatarSource.URL
+        )
 
 
 def test_schemeless_and_hostless_values_are_refused():
@@ -78,7 +110,10 @@ def test_host_allowlist_is_enforced():
 def test_scheme_policy_is_configuration():
     """A deployment may widen the schemes — deliberately, and visibly."""
     with override_settings(
-        STAPEL_PROFILES={"PROFILES_AVATAR_URL_ALLOWED_SCHEMES": ["https", "http"]}
+        STAPEL_PROFILES={
+            "PROFILES_AVATAR_URL_ALLOWED_SCHEMES": ["https", "http"],
+            "PROFILES_AVATAR_URL_ALLOWED_HOSTS": ["example.com"],
+        }
     ):
         assert _validate("http://example.com/me.png", AvatarSource.URL) == []
     # Widening never reaches active schemes unless a host names them.
@@ -136,8 +171,14 @@ def test_stored_disallowed_host_avatar_is_not_emitted():
         STAPEL_PROFILES={"PROFILES_AVATAR_URL_ALLOWED_HOSTS": ["cdn.example.com"]}
     ):
         assert avatar_image(profile) is None
-    # Same row, no host policy: emitted normally.
-    assert avatar_image(profile) is not None
+    # Same row, no host policy at all: still not emitted — an empty
+    # allowlist is "no host is trusted", not "every host is".
+    assert avatar_image(profile) is None
+    # Same row under the explicit opt-out: emitted.
+    with override_settings(
+        STAPEL_PROFILES={"PROFILES_AVATAR_URL_ALLOWED_HOSTS": ["*"]}
+    ):
+        assert avatar_image(profile) is not None
 
 
 @pytest.mark.django_db

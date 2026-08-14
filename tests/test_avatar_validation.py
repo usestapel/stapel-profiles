@@ -96,8 +96,14 @@ class TestAvatarValidationViaComm:
         serializer = _validate("")
         assert serializer.errors == {}
 
+    @override_settings(
+        STAPEL_PROFILES={"PROFILES_AVATAR_URL_ALLOWED_HOSTS": ["example.com"]}
+    )
     def test_url_source_skips_cdn_checks(self):
-        """A non-cdn source is a free-form string — no format/existence check."""
+        """A non-cdn source skips the CDN format/existence check.
+
+        It still passes the URL boundary — hence the allowlisted host here.
+        """
         serializer = _validate("https://example.com/me.png", source="url")
         assert serializer.errors == {}
         assert serializer.validated_data["avatar"] == "https://example.com/me.png"

@@ -39,7 +39,7 @@ This is the answer to "does Stapel already have something for X?". `instead of` 
   instead of: stapel_core.media.image
   The renderable StapelImage for a profile's avatar — variant ladder plus blur-up — mapping this module's avatar_source taxonomy onto the matching media provider. A custom profile presenter or serializer seam must call this rather than hand the raw ref to the media builder with a guessed provider: a pil-default deployment describing CDN refs is how meettoday shipped an empty variant ladder.
 - avatar_url_allowed_hosts — stapel_profiles.validators.avatar_url_allowed_hosts
-  The external avatar host allowlist (PROFILES_AVATAR_URL_ALLOWED_HOSTS, normalized; empty = any host). Same reason as the schemes accessor: one reading of the policy, not two.
+  The external avatar host allowlist (PROFILES_AVATAR_URL_ALLOWED_HOSTS, normalized; empty = no external host trusted, ["*"] = any host). Same reason as the schemes accessor: one reading of the policy, not two.
 - avatar_url_allowed_schemes — stapel_profiles.validators.avatar_url_allowed_schemes
   The schemes this deployment accepts for external avatars (PROFILES_AVATAR_URL_ALLOWED_SCHEMES, normalized). Read the policy from here rather than hardcoding "https" in a second place that will not follow when a host changes it.
 - build_profile_model — stapel_profiles.field_defs.build_profile_model

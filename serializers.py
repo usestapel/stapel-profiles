@@ -249,6 +249,12 @@ CTX_FOLLOWERS = "batch_followers"
 CTX_FOLLOWING = "batch_following"
 CTX_RELATIONSHIPS = "batch_relationships"
 
+#: The one entry that reopens the anonymous view to the full member set in
+#: PROFILES_PUBLIC_FIELDS_ANONYMOUS. Not a wildcard over field names — a
+#: whole-policy opt-out, expressible where a flat setting or env var cannot
+#: carry `None`.
+ANONYMOUS_FIELDS_SAME_AS_MEMBERS = "*"
+
 
 class ProfilePublicSerializer(serializers.ModelSerializer):
     """Compact serializer for viewing other user's profile.
@@ -265,14 +271,17 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
     # VISIBILITY (security audit PROFILE-01). What a public lookup exposes
     # is a declared policy, not an accident of which fields this class
     # happens to list: PROFILES_PUBLIC_FIELDS is the set an authenticated
-    # caller sees and PROFILES_PUBLIC_FIELDS_ANONYMOUS (None = the same set)
-    # the one the internet sees. Both public entry points — GET .../<user_id>
-    # and POST .../batch — serialize through this class, so they cannot
-    # disagree about a person's privacy. The defaults are the historical full
-    # set: this landed the policy, it did not change any deployment's
-    # answers. (Kept out of the docstring on purpose: the docstring is the
-    # emitted OpenAPI component description, byte-compared against the
-    # monolith aggregate's slice.)
+    # caller sees and PROFILES_PUBLIC_FIELDS_ANONYMOUS the one the internet
+    # sees. Both public entry points — GET .../<user_id> and POST .../batch —
+    # serialize through this class, so they cannot disagree about a person's
+    # privacy. The anonymous default is deliberately NARROWER than the member
+    # set (identity + avatar, no whereabouts and no social graph): these
+    # endpoints are AllowAny and answer for any user id, so their default
+    # answer is what an unauthenticated scraper gets. `None` (or ["*"])
+    # restores "anonymous sees what members see" as a stated decision.
+    # (Kept out of the docstring on purpose: the docstring is the emitted
+    # OpenAPI component description, byte-compared against the monolith
+    # aggregate's slice.)
 
     followers_count = serializers.SerializerMethodField()
     following_count = serializers.SerializerMethodField()
@@ -308,11 +317,22 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
 
         visible = list(profiles_settings.PROFILES_PUBLIC_FIELDS or [])
         request = self.context.get("request")
+        if request is None:
+            # No caller at all: schema emission and internal construction.
+            # The DECLARED surface of both endpoints is the member policy —
+            # narrowing here would publish the anonymous subset as the
+            # contract every client codegens against. Every HTTP path builds
+            # this serializer with the request in context (views.py), so this
+            # branch is never how a real caller is answered.
+            return visible
         user = getattr(request, "user", None)
         if user is not None and getattr(user, "is_authenticated", False):
             return visible
         anonymous = profiles_settings.PROFILES_PUBLIC_FIELDS_ANONYMOUS
-        if anonymous is None:
+        if anonymous is None or ANONYMOUS_FIELDS_SAME_AS_MEMBERS in anonymous:
+            # The explicit reopening: this deployment states that anonymous
+            # callers get the member view. `None` says it in a settings dict,
+            # ["*"] says it in a form a flat setting / env var can carry.
             return visible
         # An anonymous policy may only ever narrow: a field the host hid from
         # members must not reappear for the internet through this list.

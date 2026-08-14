@@ -37,11 +37,17 @@ def captured_events():
 
 def _update_profile(**data):
     profile = Profile.objects.create(user_id=uuid.uuid4())
-    serializer = ProfileCreateUpdateSerializer(
-        instance=profile, data=data, partial=True
-    )
-    assert serializer.is_valid(), serializer.errors
-    serializer.save()
+    # External avatar hosts are refused unless allowlisted; these tests use an
+    # `url` avatar as incidental payload, not as a boundary case (that boundary
+    # is pinned in test_avatar_url_boundary.py).
+    with override_settings(
+        STAPEL_PROFILES={"PROFILES_AVATAR_URL_ALLOWED_HOSTS": ["example.com"]}
+    ):
+        serializer = ProfileCreateUpdateSerializer(
+            instance=profile, data=data, partial=True
+        )
+        assert serializer.is_valid(), serializer.errors
+        serializer.save()
     return profile
 
 
