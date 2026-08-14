@@ -69,6 +69,18 @@ what an existing deployment returns — read this before upgrading.**
 The emitted OpenAPI contract is unchanged: it describes the endpoints'
 declared surface (the member policy), not one caller's subset.
 
+### Added — `checks.py`, so an opened switch is never silent
+
+`manage.py check` now reports every security switch a deployment has opened
+(same genre as `stapel_gdpr.checks` W003 / `stapel_cdn.checks`). Warnings,
+not errors — a host is allowed to open them, it just may not do so quietly:
+`profiles.W001` (`PROFILES_AVATAR_CHECK="off"` — an avatar reference stored
+without confirming the CDN object exists), `profiles.W002`
+(`PROFILES_AVATAR_URL_ALLOWED_HOSTS=["*"]`), `profiles.W003` (anonymous
+callers given the full member field set) and `profiles.W004`
+(`PROFILES_LOOKUP_RATE` / `PROFILES_BATCH_RATE` disabled, so one caller may
+enumerate the user base as fast as the service answers).
+
 ## [0.12.5] — 2026-08-10
 
 ### Fixed — the error reference is gated as reproducible, not merely as present

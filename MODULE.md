@@ -45,6 +45,13 @@ environment variable → default.
 | `PROFILES_LOOKUP_RATE` | `"120/min"` | DRF rate string \| `None` | Per-caller ceiling on single public lookups (`ProfileLookupThrottle`), keyed by user when authenticated and by IP otherwise. `None` disables it — a deployment's explicit choice. |
 | `PROFILES_BATCH_RATE` | `"30/min"` | DRF rate string \| `None` | Per-caller ceiling on batch resolution. Deliberately tighter than the lookup budget: one batch request answers for up to `PROFILES_BATCH_MAX_IDS` people. |
 
+Every one of these switches is **closed by default**, and every one of them
+announces itself when a deployment opens it: `checks.py` registers
+`manage.py check` warnings `profiles.W001` (avatar existence check off),
+`W002` (`["*"]` avatar host allowlist), `W003` (anonymous callers given the
+member field set) and `W004` (a public-lookup throttle disabled). A switch
+nobody can see is a switch nobody revisits.
+
 This module currently declares **no `import_strings` keys** (no dotted-path
 settings that swap in app-layer classes). `stapel_core.conf.AppSettings`
 supports them, so a new pluggable seam (e.g. a custom avatar checker backend)
