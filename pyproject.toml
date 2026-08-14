@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stapel-profiles"
-version = "0.12.5"
+version = "0.13.0"
 description = "User profiles Django app for the Stapel framework"
 readme = "README.md"
 license = { text = "MIT" }
@@ -25,7 +25,20 @@ classifiers = [
     "Typing :: Typed",
 ]
 dependencies = [
-    "stapel-core>=0.23.1,<1.0",
+    # Floor raised to 0.24.0 by the visibility split this release introduces.
+    # Both new policies branch on the caller being authenticated: anonymous
+    # callers get PROFILES_PUBLIC_FIELDS_ANONYMOUS instead of the member
+    # field set, and the lookup/batch throttles key on `user:<pk>` rather
+    # than the shared `ip:<addr>` bucket. The identity behind that branch
+    # comes from stapel_core.django.jwt.authentication (see the
+    # DEFAULT_AUTHENTICATION_CLASSES this module emits its contract with),
+    # whose `is_user_blacklisted()` before 0.24.0 answered False on any
+    # non-django_redis cache backend and swallowed every store error — so a
+    # banned or force-logged-out user kept authenticating, and with that
+    # kept the wider field set and their own throttle budget. 0.24.0 makes
+    # the ban enforceable on every cache backend and fail-closed, which is
+    # what turns "authenticated" into something these policies may rest on.
+    "stapel-core>=0.24.0,<1.0",
     # _codegen.py boots an eager Celery app before Django setup (contract
     # emission harness, exercised by test_contract.py's drift gate) — needs
     # celery installed as a real dependency, not just pulled in transitively.

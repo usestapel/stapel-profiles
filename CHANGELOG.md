@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+## [0.13.0] — 2026-08-14
+
+### Changed — requires stapel-core >= 0.24.0 (was `>=0.23.1`)
+
+Both policies below branch on the caller being authenticated: anonymous
+callers get `PROFILES_PUBLIC_FIELDS_ANONYMOUS` instead of the member field
+set, and the new throttles key on `user:<pk>` rather than the shared
+`ip:<addr>` bucket. That identity comes from
+`stapel_core.django.jwt.authentication`, whose `is_user_blacklisted()`
+before core 0.24.0 answered `False` on any non-django_redis cache backend
+and swallowed every store error — so a banned or force-logged-out user kept
+authenticating, and with that kept the wider field set and a private
+throttle budget. Core 0.24.0 makes the ban enforceable on every cache
+backend and fail-closed, which is what lets these policies rest on
+"authenticated" at all.
+
 ### Added — the avatar URL boundary, a public visibility policy, enumeration limits
 
 Security audit PROFILE-01: the avatar was a free-form user-controlled value
