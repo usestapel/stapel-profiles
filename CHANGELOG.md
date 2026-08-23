@@ -2,6 +2,75 @@
 
 ## [Unreleased]
 
+## [0.15.0] — 2026-08-24
+
+Minor, not patch: `user.registered` now provisions, and a public read that
+used to 404 now answers. The wire shape did not change; when it answers did.
+
+### Fixed — a marketplace with no names on it
+
+Live symptom: no names anywhere. Not on the seller block of a listing, not
+next to a chat message, not on a review. The accounts existed and were fine;
+the product simply had nowhere to read them from.
+
+The profile row was created **lazily, by the OWNER's first `GET .../me`**.
+Everything that renders a person *to somebody else* reads
+`GET .../<user_id>` instead — and for a registered user who had never opened
+their own profile that read was `404 error.404.profile_not_found`. A user who
+signed up and went straight to browsing was, to every other user, nobody.
+
+This is a class defect, not three bugs: every consumer that names a second
+person hits it, and each of them was individually "working as written". So
+both halves are closed here rather than special-cased in the pairs.
+
+**1. Registration provisions the row** (`actions._provision_profile`).
+`handle_user_registered` already consumed auth's `user.registered`
+(`schemas/emits/user.registered.json`) for the display-name hint and the
+OAuth avatar — both *enrichments*, both no-ops for a plain email/OTP
+registration, which is why the common case still had no row. Provisioning now
+runs FIRST and unconditionally: registration is the event that says a person
+exists in this product, so it is the event that creates their row. The row is
+empty — the honest state of someone who has typed nothing — but it exists.
+
+Idempotent by construction (`get_or_create`), so at-least-once redelivery
+cannot disturb a row the human has since filled in, and same
+swallow-not-retry contract as the enrichments: a failure to provision falls
+back to the old lazy creation rather than making the outbox replay the whole
+registration through every other subscriber.
+
+**2. The public read answers for a registered person with no row**
+(`views.ProfileDetailView`, `views.ProfileBatchView`). A missing row for an
+id that names a real user is answered with that person's empty-but-renderable
+profile. `404` keeps exactly one meaning: **this id names nobody**. Existence
+is read through `get_user_model()` (`views._existing_users`) — a read, not a
+relation: `user_id` stays a bare UUID and this module still holds **no FK
+across modules**. In a microservice the shadow user table (JWT materialisation
++ auth's `user.created` / `user.updated` projection) answers it; a user that
+table has not heard of yet degrades to the historical 404, never to something
+worse.
+
+Synthesised, **not** get-or-create (`views._unwritten_profile`). These
+endpoints are `AllowAny` over every user id, so a get-or-create here would let
+unauthenticated traffic write one row per UUID it invents — and this module
+already refuses on the write side to create "a row nobody asked for". A read
+does not manufacture stored state. The synthesised answer goes through the
+same `ProfilePublicSerializer` over the model's own defaults, so there is one
+wire contract, not two.
+
+`POST .../batch` moves with it, because the two public endpoints may never
+disagree about a person: a registered user with no row is now answered there
+too, and `missing` narrows to its true meaning — ids that name nobody.
+
+### Unchanged on purpose — the wire stays honest about an empty name
+
+No `fallback_label`, no synthesized "User 1234", no email local-part promoted
+to a public display name. `display_name` is `""` when the person has typed
+nothing, and the clients render their own fallback from that (they already
+do). The alternative would publish, on an `AllowAny` endpoint answering for
+any id, a label the user never chose — and an address they never chose to
+publish — while teaching every client that a name it did not get is a name
+somebody set. Empty is a fact; a manufactured name is not.
+
 ## [0.14.0] — 2026-08-23
 
 Minor, not patch: two new consumed actions and two new emitted ones. No

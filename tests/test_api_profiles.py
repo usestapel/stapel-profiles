@@ -202,6 +202,62 @@ class TestProfileDetail:
 
 
 @pytest.mark.django_db
+class TestProfileOfSomebodyWhoNeverLoggedIn:
+    """The class defect (0.15.0): a marketplace with no names on it.
+
+    A user registers and goes straight to browsing. They never open their
+    own profile, so before 0.15.0 no row existed — and every place that
+    renders them TO SOMEBODY ELSE (seller block, chat, review author) reads
+    this endpoint and got a 404. The account existed; the product had
+    nowhere to read it from.
+    """
+
+    def test_registered_but_never_logged_in_reads_200(self, api_client, user):
+        assert not Profile.objects.filter(user_id=user.id).exists()
+        resp = api_client.get(f"/{user.id}")
+        assert resp.status_code == 200, resp.content
+        assert resp.json()["user_id"] == str(user.id)
+
+    def test_the_wire_stays_honest_about_an_empty_name(self, api_client, user):
+        """No `fallback_label`, no invented placeholder: empty is empty and
+        the client renders its own fallback (which the pairs already do)."""
+        data = api_client.get(f"/{user.id}").json()
+        assert data["display_name"] == ""
+        assert "fallback_label" not in data
+
+    def test_a_read_never_writes_a_row(self, api_client, user):
+        """These endpoints are AllowAny over every user id. Answering must
+        not be a way for unauthenticated traffic to grow this database."""
+        api_client.get(f"/{user.id}")
+        assert not Profile.objects.filter(user_id=user.id).exists()
+
+    def test_unknown_uuid_still_404s(self, api_client, db):
+        """404 keeps exactly one meaning: this id names nobody."""
+        resp = api_client.get(f"/{uuid.uuid4()}")
+        assert resp.status_code == 404
+        assert resp.json()["localizable_error"] == ERR_404_PROFILE_NOT_FOUND
+
+    def test_the_shape_matches_a_real_row(self, api_client, user, other_user):
+        """One wire contract, not two: the synthesised answer is the same
+        serializer over the model's own defaults."""
+        Profile.objects.create(user_id=other_user.id)
+        real = api_client.get(f"/{other_user.id}").json()
+        synthesised = api_client.get(f"/{user.id}").json()
+        assert set(real) == set(synthesised)
+
+    def test_batch_agrees_with_the_single_lookup(self, api_client, user):
+        """The two public endpoints may never disagree about a person."""
+        unknown = uuid.uuid4()
+        resp = api_client.post(
+            "/batch", {"user_ids": [str(user.id), str(unknown)]}, format="json"
+        )
+        assert resp.status_code == 200, resp.content
+        data = resp.json()
+        assert [p["user_id"] for p in data["profiles"]] == [str(user.id)]
+        assert data["missing"] == [str(unknown)]
+
+
+@pytest.mark.django_db
 class TestLanguages:
     def test_list_returns_only_active(self, api_client):
         Language.objects.create(code="en", name="English")

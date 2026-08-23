@@ -156,6 +156,44 @@ def handle_user_deleted(event):
     logger.info("profiles erased for deleted user %s: %s", user_id, counts)
 
 
+def _provision_profile(user_id) -> None:
+    """Create the profile row the moment the account is born.
+
+    **The defect this closes.** Until 0.15.0 a profile row was created
+    lazily, by the OWNER's first ``GET .../me``. Everything that renders a
+    person to SOMEBODY ELSE — a seller block on a listing, a name next to a
+    chat message, the author of a review — reads
+    ``GET .../<user_id>`` instead, and for a registered user who had simply
+    never opened their own profile that read was a 404. On a live
+    marketplace that showed up as no names anywhere: the account existed,
+    the product just had nowhere to read it from.
+
+    Registration is the event that says a person now exists in this product,
+    so it is the event that provisions their row. The row is EMPTY — the
+    honest state of a person who has typed nothing yet — but it exists, so
+    the public read answers 200 with a renderable shape instead of an error
+    every consumer has to special-case.
+
+    Idempotent by construction (``get_or_create``): delivery is at-least-once
+    and a redelivery must not disturb a row the human has since filled in.
+
+    Known interaction with erasure: :func:`~stapel_profiles.erasure.
+    erase_account` DELETES the row, so a broker replay of a very old
+    ``user.registered`` would re-create an empty one. It carries no personal
+    data beyond the id, and the account it names is gone from auth — so the
+    public read gates on the user still existing (``views._existing_users``)
+    and answers 404 for it either way. Deliberately not defended with a
+    tombstone table: that would be new permanent storage about erased people
+    to protect against a stale empty row.
+    """
+    from .models import get_profile_model
+
+    Profile = get_profile_model()
+    _, created = Profile.objects.get_or_create(user_id=user_id)
+    if created:
+        logger.info("provisioned profile row for user %s at registration", user_id)
+
+
 def _prefill_display_name(user_id, hint) -> None:
     """Pre-fill a new profile's display name from the registration hint.
 
@@ -213,9 +251,8 @@ def _prefill_display_name(user_id, hint) -> None:
 
     name = hint.strip()
     if not name:
-        # Whitespace-only hint. Not an error, but not a name either — and
-        # writing it would CREATE an empty profile row for a user who has
-        # not touched the product yet, which is a row nobody asked for.
+        # Whitespace-only hint. Not an error, but not a name either — leave
+        # the (already provisioned) row's empty display_name alone.
         return
 
     max_length = getattr(field, "max_length", None)
@@ -258,11 +295,17 @@ def _prefill_display_name(user_id, hint) -> None:
 
 @on_action("user.registered")
 def handle_user_registered(event):
-    """Pre-fill the display name and import an OAuth provider avatar.
+    """Provision the profile row, pre-fill the name, import a provider avatar.
 
     Contract (``schemas/emits/user.registered.json`` in auth):
     ``{user_id, auth_type, email, avatar_url, language, display_name}``
     where ``avatar_url`` and ``display_name`` are ``str | null``.
+
+    Provisioning comes FIRST and unconditionally — see
+    :func:`_provision_profile` for why a registered user must have a row
+    before they ever open the product. The two enrichments below (name
+    hint, provider avatar) then fill that row in when the payload carries
+    something to fill it with; neither is required for the row to exist.
 
     ``display_name`` is the pre-fill hint — see
     :func:`_prefill_display_name` for the "a person owns their own name"
@@ -302,6 +345,18 @@ def handle_user_registered(event):
     if not user_id:
         logger.error("user.registered event without user_id: %s", event.event_id)
         return
+
+    try:
+        _provision_profile(user_id)
+    except Exception:
+        # Same swallow-not-retry contract as the two enrichments below. A
+        # user whose row failed to provision is back to the pre-0.15.0
+        # lazy-creation behaviour (their first GET /me makes it), not a
+        # failed registration — and re-running every other subscriber of
+        # this event to retry it would be a far worse trade.
+        logger.warning(
+            "failed to provision profile row for user %s", user_id, exc_info=True
+        )
 
     try:
         _prefill_display_name(user_id, payload.get("display_name"))

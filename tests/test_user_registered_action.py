@@ -1,4 +1,9 @@
-"""Tests for the ``user.registered`` handler (display-name pre-fill + avatar).
+"""Tests for the ``user.registered`` handler (provisioning + name + avatar).
+
+Provisioning half (0.15.0): registration is what creates the profile row.
+Before it, the row appeared only on the OWNER's first ``GET .../me``, so a
+registered user who had never opened their own profile was a 404 to
+everybody else — no seller name, no chat name, no review author.
 
 Avatar half: the no-op cases (no avatar_url, no user_id, already-set
 avatar), the happy path (mocked ``cdn.import_from_url`` comm call),
@@ -41,13 +46,14 @@ def mock_import(monkeypatch):
 
 @pytest.mark.django_db
 class TestNoOpCases:
-    def test_no_avatar_url_is_noop(self, mock_import):
+    def test_no_avatar_url_imports_nothing(self, mock_import):
+        """No avatar to fetch — but the ROW is still provisioned (0.15.0)."""
         user_id = uuid.uuid4()
         handle_user_registered(
             _event({"user_id": str(user_id), "auth_type": "email"})
         )
         assert mock_import == []
-        assert not Profile.objects.filter(user_id=user_id).exists()
+        assert Profile.objects.filter(user_id=user_id).exists()
 
     def test_null_avatar_url_is_noop(self, mock_import):
         user_id = uuid.uuid4()
@@ -166,10 +172,12 @@ class TestDisplayNamePrefill:
         )
         assert Profile.objects.get(user_id=user_id).display_name == "Ada"
 
-    def test_no_hint_creates_no_profile(self, mock_import):
+    def test_no_hint_still_provisions_an_empty_row(self, mock_import):
+        """The common registration carries no hint. The row exists anyway —
+        empty is the honest state, missing was the defect."""
         user_id = uuid.uuid4()
         handle_user_registered(_event({"user_id": str(user_id), "auth_type": "email"}))
-        assert not Profile.objects.filter(user_id=user_id).exists()
+        assert Profile.objects.get(user_id=user_id).display_name == ""
 
     def test_null_hint_is_a_noop(self, mock_import):
         user_id = uuid.uuid4()
@@ -179,14 +187,14 @@ class TestDisplayNamePrefill:
         )
         assert Profile.objects.get(user_id=user_id).display_name == "Ada"
 
-    def test_whitespace_only_hint_creates_no_row(self, mock_import):
-        """A blank hint is not a name — and must not conjure a profile row
-        for a user who has not touched the product yet."""
+    def test_whitespace_only_hint_writes_no_name(self, mock_import):
+        """A blank hint is not a name. The row is provisioned regardless;
+        its display_name stays empty rather than becoming whitespace."""
         user_id = uuid.uuid4()
         handle_user_registered(
             _event({"user_id": str(user_id), "display_name": "   "})
         )
-        assert not Profile.objects.filter(user_id=user_id).exists()
+        assert Profile.objects.get(user_id=user_id).display_name == ""
 
 
 @pytest.mark.django_db
@@ -236,8 +244,9 @@ class TestDisplayNameHintIsUntrusted:
         handle_user_registered(
             _event({"user_id": str(user_id), "display_name": long_name})
         )
-        # Declined outright: no truncated "xxx…x" name, and no row at all.
-        assert not Profile.objects.filter(user_id=user_id).exists()
+        # Declined outright: no truncated "xxx…x" name. The row is still
+        # provisioned — a bad hint costs the name, never the profile.
+        assert Profile.objects.get(user_id=user_id).display_name == ""
         assert "declined" in caplog.text
 
     def test_hint_violating_the_name_canon_is_declined(self, mock_import, caplog):
@@ -246,7 +255,7 @@ class TestDisplayNameHintIsUntrusted:
             _event({"user_id": str(user_id), "display_name": "<script>"})
         )
         # Declined outright — never sanitized into something nobody typed.
-        assert not Profile.objects.filter(user_id=user_id).exists()
+        assert Profile.objects.get(user_id=user_id).display_name == ""
         assert "declined" in caplog.text
 
     def test_prefill_failure_never_costs_the_avatar(self, mock_import):
@@ -295,4 +304,68 @@ class TestBestEffortFailure:
             _event({"user_id": str(user_id), "avatar_url": "https://p/a.png"})
         )
         assert "no ref" in caplog.text
-        assert not Profile.objects.filter(user_id=user_id).exists()
+        # The row is provisioned regardless; only the avatar is missing.
+        assert not Profile.objects.get(user_id=user_id).avatar
+
+
+@pytest.mark.django_db
+class TestProvisioning:
+    """Registration creates the row — the class defect this release closes.
+
+    The lazy row (owner's first ``GET /me``) meant a marketplace rendered no
+    names anywhere for anyone who had signed up and gone straight to
+    browsing. These pin that the row now exists from registration onward,
+    for every registration shape, idempotently.
+    """
+
+    def test_plain_registration_provisions_a_row(self, mock_import):
+        user_id = uuid.uuid4()
+        handle_user_registered(_event({"user_id": str(user_id), "auth_type": "email"}))
+        profile = Profile.objects.get(user_id=user_id)
+        assert profile.display_name == ""
+
+    def test_provisioning_is_idempotent_under_redelivery(self, mock_import):
+        user_id = uuid.uuid4()
+        payload = {"user_id": str(user_id), "auth_type": "phone"}
+        handle_user_registered(_event(payload))
+        Profile.objects.filter(user_id=user_id).update(display_name="Ada")
+        handle_user_registered(_event(payload))  # redelivery
+        handle_user_registered(_event(payload))  # and again
+        assert Profile.objects.filter(user_id=user_id).count() == 1
+        # Redelivery must not reset the row it finds.
+        assert Profile.objects.get(user_id=user_id).display_name == "Ada"
+
+    def test_seeded_name_survives_alongside_provisioning(self, mock_import):
+        user_id = uuid.uuid4()
+        handle_user_registered(
+            _event(
+                {
+                    "user_id": str(user_id),
+                    "auth_type": "login",
+                    "display_name": "Ada Lovelace",
+                }
+            )
+        )
+        assert Profile.objects.get(user_id=user_id).display_name == "Ada Lovelace"
+
+    def test_email_is_never_seeded_into_the_public_name(self, mock_import):
+        """The payload carries an email; the public display name is not the
+        place for it. An address the user never chose to publish must not
+        become the label the open internet reads off an AllowAny endpoint."""
+        user_id = uuid.uuid4()
+        handle_user_registered(
+            _event(
+                {
+                    "user_id": str(user_id),
+                    "auth_type": "email",
+                    "email": "ada.lovelace@example.com",
+                }
+            )
+        )
+        assert Profile.objects.get(user_id=user_id).display_name == ""
+
+    def test_unparseable_user_id_is_swallowed(self, mock_import, caplog):
+        """Swallow-not-retry: a malformed id must not make the outbox replay
+        the whole registration through every other subscriber."""
+        handle_user_registered(_event({"user_id": "not-a-uuid", "auth_type": "email"}))
+        assert Profile.objects.count() == 0

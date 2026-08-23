@@ -16,8 +16,8 @@ registries). Everything below is customizable **without forking**.
 | Surface | Contents |
 |---|---|
 | Models | `Profile` (PK `user_id: UUID`, links to auth by id — no FK across modules), `Language` (PK `code`), `UserRelationship` (follow/block, unique per pair, no self-relation). Choices: `MeasurementUnit`, `Theme`, `RelationshipStatus`. |
-| HTTP API (`urls.py`) | `me` (GET/PATCH), `me/followers`, `me/following`, `me/blocked`, `<uuid:user_id>` (public profile), `batch` (POST, many public profiles at once — missing ids come back in `missing`, never as 404s), `<uuid:user_id>/{follow,unfollow,block,unblock,relationship}`, `languages` (read-only viewset), `notifications/unsubscribe` (RFC 8058 one-click, HMAC token). |
-| Events | Emits `profile.changed` and the GDPR receipt/probe answer; consumes `gdpr.erasure.requested`, `gdpr.owner.probe` and (deprecated) `user.deleted` — see below. |
+| HTTP API (`urls.py`) | `me` (GET/PATCH), `me/followers`, `me/following`, `me/blocked`, `<uuid:user_id>` (public profile — a registered user with no row yet is answered with an empty-but-renderable profile; `404` means the id names nobody), `batch` (POST, many public profiles at once — same three-way reading, `missing` = ids that name nobody, never a 404), `<uuid:user_id>/{follow,unfollow,block,unblock,relationship}`, `languages` (read-only viewset), `notifications/unsubscribe` (RFC 8058 one-click, HMAC token). |
+| Events | Emits `profile.changed` and the GDPR receipt/probe answer; consumes `user.registered` (**provisions the profile row** — 0.15.0 — plus the display-name pre-fill and the OAuth avatar import), `gdpr.erasure.requested`, `gdpr.owner.probe` and (deprecated) `user.deleted` — see below. |
 | GDPR | `ProfilesGDPRProvider` (section `profile`): export of profile + relationships, hard delete. Auto-registered in `apps.ProfilesConfig.ready()` via `stapel_core.gdpr.gdpr_registry`. |
 | Validation | `validate_display_name` (control chars, emoji, invisible chars, min length); avatar reference validation against the CDN contract `avatar/<hash>` with existence check (mode-selectable, see settings). |
 | Error keys | `errors.PROFILES_ERRORS` — `error.404.profile_not_found`, `error.400.cannot_follow_self`, `error.400.cannot_block_self`, `error.400.display_name_*`, `error.400.invalid_avatar_format`, `error.400.avatar_not_found`, `error.400.too_many_ids`. Registered via `stapel_core` `register_service_errors`. |
@@ -73,6 +73,26 @@ boundary has two halves and the backend can only hold one of them:
   a viewer is on never travels to whatever host an avatar points at. The
   service declares its own policy on profile responses via
   `PROFILES_REFERRER_POLICY`.
+
+### Client contract — an empty name is an answer
+
+`display_name` is `""` for a person who has not typed one, and this service
+will not invent one for them. There is no `fallback_label` field, no
+`"User 1234"`, and no email local-part promoted to a public name — these
+endpoints are `AllowAny` and answer for any user id, so a manufactured label
+would publish, to the open internet, something the person never chose.
+
+The client renders the fallback: initials, an avatar-only tile, "Seller",
+whatever that surface calls a nameless person. The two states it must tell
+apart are on the wire already:
+
+* `200` with `display_name: ""` — a real person who has filled nothing in.
+  Render them with your fallback. Since 0.15.0 this is the answer for a user
+  who registered and never opened their own profile; before it, this case
+  was a `404` and it is why a live marketplace showed no names anywhere.
+* `404 error.404.profile_not_found` (or an id in `missing` from
+  `POST .../batch`) — the id names nobody. Render nothing, and treat it as
+  data that has gone stale rather than as a request that failed.
 
 ### Swappable models
 
@@ -130,6 +150,7 @@ in `schemas/`.
 | Direction | Name | Where | Contract / notes |
 |---|---|---|---|
 | Emits | `profile.changed` | `events.publish_profile_changed(instance)` — called on every create/update via `ProfileCreateUpdateSerializer` and on unsubscribe; keyed by `user_id` | `schemas/emits/profile.changed.json`. App layer can subscribe with `@on_action("profile.changed")` to react to profile mutations — this is the primary hook for syncing derived data. |
+| Consumes | `user.registered` | `actions.handle_user_registered` (`@on_action`, registered in `apps.ready()`) | **Provisions the profile row** (`_provision_profile`, `get_or_create` — 0.15.0). Registration is what says a person exists in this product, so it is what creates their row; the row is empty but it EXISTS, which is what makes the public read answerable for someone who has never opened their own profile. Also pre-fills `display_name` from the payload hint (a pre-fill, never an assignment — see `_prefill_display_name`) and imports `avatar_url` through `cdn.import_from_url`; both are enrichments and neither is required for the row. Idempotent under at-least-once redelivery; every part is best-effort/swallow-not-retry. Contract: `schemas/consumes/user.registered.json`. |
 | Consumes | `gdpr.erasure.requested` | `actions.handle_erasure_requested` | Erases the named subject and receipts with counts — see **Erasure** below. Contract: `schemas/consumes/gdpr.erasure.requested.json`. |
 | Consumes | `gdpr.owner.probe` | `actions.handle_owner_probe` | Answers `gdpr.owner.alive` from the same module as the eraser — see **Erasure** below. Contract: `schemas/consumes/gdpr.owner.probe.json`. |
 | Consumes | `user.deleted` | `actions.handle_user_deleted` (`@on_action`, registered in `apps.ready()`) | Deprecated upstream (stapel-gdpr removes it in 0.6.0). Same `erasure.erase_account` as the erasure path, and it receipts too when the payload carries a `correlation_id`. Handlers are idempotent; delivery is at-least-once. Contract: `schemas/consumes/user.deleted.json`. |

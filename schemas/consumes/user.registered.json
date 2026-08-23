@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "user.registered",
+  "description": "A new user account completed registration (email/phone OTP, OAuth, or password). Profiles provisions the profile row on it, and pre-fills display_name / imports avatar_url when the payload carries them. Mirrors stapel-auth's schemas/emits/user.registered.json.",
+  "type": "object",
+  "required": ["user_id", "auth_type"],
+  "properties": {
+    "user_id":      { "type": "string", "format": "uuid" },
+    "auth_type":    { "type": "string" },
+    "email":        { "type": ["string", "null"] },
+    "avatar_url":   { "type": ["string", "null"] },
+    "language":     { "type": ["string", "null"] },
+    "display_name": { "type": ["string", "null"] }
+  },
+  "additionalProperties": false
+}

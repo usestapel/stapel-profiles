@@ -30,6 +30,7 @@ header reads the same view for the guest session). It is explicitly
 
 import logging
 
+from django.core.exceptions import ValidationError
 from django.db.models import Count
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -328,6 +329,66 @@ class MyProfileView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
         return response
 
 
+def _existing_users(user_ids):
+    """Of these ids, the ones that name a user this deployment knows about.
+
+    The seam that makes "no profile row" tellable from "no such person".
+    This module stores ``user_id`` as a bare UUID and keeps **no FK across
+    modules** (MODULE.md) — that stays true: this is a READ of
+    ``get_user_model()``, the reference every feature module is told to use
+    (``stapel_core.django.users.models.AbstractStapelUser``), not a
+    relation, not a migration, and not a second copy of anything.
+
+    Deployment shapes and how this degrades:
+
+    * Monolith — the auth user table itself. Exact answer.
+    * Microservice — the shadow user table, filled by
+      ``JWT_CREATE_USERS_FROM_TOKEN`` and by auth's ``user.created`` /
+      ``user.updated`` projection (``stapel_auth.projection``). A user the
+      shadow table has not heard of yet reads as unknown and gets the
+      historical 404 — never worse than the pre-0.15.0 behaviour.
+
+    A host whose user pk is not UUID-shaped (a swapped ``AUTH_USER_MODEL``
+    over an integer pk) makes the lookup unanswerable rather than wrong: the
+    empty set means "cannot vouch for anyone", i.e. the old 404.
+    """
+    if not user_ids:
+        return set()
+    from django.contrib.auth import get_user_model
+
+    try:
+        return set(
+            get_user_model()
+            ._default_manager.filter(pk__in=list(user_ids))
+            .values_list("pk", flat=True)
+        )
+    except (ValueError, TypeError, ValidationError):
+        return set()
+
+
+def _unwritten_profile(user_id):
+    """The profile of a registered person who has typed nothing yet.
+
+    An UNSAVED instance, deliberately. A public read must not manufacture
+    stored state: these endpoints are ``AllowAny`` and answer for any id, so
+    a get-or-create here would let unauthenticated traffic write a row per
+    UUID it invents — and the module already refuses to create "a row nobody
+    asked for" on the write side (``actions._prefill_display_name``). The
+    row that SHOULD exist is created at registration
+    (``actions._provision_profile``); this synthesises the same answer for
+    the accounts that registered before that existed, without backfilling a
+    database from a GET.
+
+    The shape is the model's own defaults through the same
+    ``ProfilePublicSerializer`` every other public answer goes through, so
+    there is no second wire contract to keep in step — an empty
+    ``display_name`` is reported honestly as empty, and the pairs render
+    their own fallback label from it exactly as they already do for a
+    freshly created row.
+    """
+    return Profile(user_id=user_id)
+
+
 @extend_schema(tags=["Profile"])
 class ProfileDetailView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
     """View other user's profile (compact public view).
@@ -345,7 +406,7 @@ class ProfileDetailView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
     @extend_schema(
         operation_id="get_profile",
         summary="Get user profile",
-        description="Get compact profile of a specific user by UUID. Includes relationship status with current user if authenticated.",
+        description="Get compact profile of a specific user by UUID. Includes relationship status with current user if authenticated. A registered user who has never filled anything in answers 200 with an empty-but-renderable profile; 404 means the id names no user.",
         parameters=[
             OpenApiParameter(
                 name="user_id",
@@ -364,7 +425,13 @@ class ProfileDetailView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
         try:
             profile = Profile.objects.get(user_id=user_id)
         except Profile.DoesNotExist:
-            return StapelErrorResponse(404, ERR_404_PROFILE_NOT_FOUND)
+            # A registered person who has never opened their own profile is
+            # not an error — they are a person with nothing filled in yet.
+            # 404 is reserved for an id that names nobody (see
+            # `_existing_users` / `_unwritten_profile`).
+            if user_id not in _existing_users([user_id]):
+                return StapelErrorResponse(404, ERR_404_PROFILE_NOT_FOUND)
+            profile = _unwritten_profile(user_id)
         serializer = self.get_response_serializer_class()(
             profile, context={"request": request}
         )
@@ -449,9 +516,12 @@ class ProfileBatchView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
         summary="Get many user profiles at once",
         description=(
             "Resolve up to PROFILES_BATCH_MAX_IDS (default 100) public "
-            "profiles in one call. Ids with no profile row come back in "
-            "`missing` — a normal state, never a 404. Ids in neither list "
-            "were not part of the request. Over the limit the request is "
+            "profiles in one call. A registered user who has never filled "
+            "anything in is answered with an empty-but-renderable profile, "
+            "exactly as `GET .../<user_id>` answers them. Ids that name no "
+            "user come back in `missing` — a normal state, never a 404. Ids "
+            "in neither list were not part of the request. "
+            "Over the limit the request is "
             "refused with `error.400.too_many_ids` carrying both numbers; "
             "the list is never silently truncated."
         ),
@@ -492,6 +562,13 @@ class ProfileBatchView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
         requested = list(dict.fromkeys(request_serializer.validated_data.user_ids))
 
         found = {p.user_id: p for p in Profile.objects.filter(user_id__in=requested)}
+        # Parity with the single lookup, which is the whole reason this
+        # endpoint's permissions mirror it: a registered person with no row
+        # yet is answered, not reported missing. `missing` keeps its exact
+        # meaning — an id that names nobody — so a grid still renders
+        # everyone it asked about and still learns which ids are dead.
+        for uid in _existing_users([uid for uid in requested if uid not in found]):
+            found[uid] = _unwritten_profile(uid)
         profiles = [found[uid] for uid in requested if uid in found]
         missing = [uid for uid in requested if uid not in found]
 
