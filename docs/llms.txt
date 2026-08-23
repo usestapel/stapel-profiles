@@ -1,8 +1,8 @@
-# stapel-profiles 0.13.1
+# stapel-profiles 0.14.0
 
 User profiles and social graph: display name, avatar, locale/currency/measurement preferences, notification opt-outs, and follow/unfollow/block relationships between users, with a relationship-status lookup.
 
-Contract: axes 1 · surface 17 · extension points 3 · operations 16 · error codes 56.
+Contract: axes 1 · surface 17 · extension points 3 · operations 16 · error codes 57.
 Generated from docs/capabilities.json by `stapel-llms-txt` — do not edit; drift-gated by `make contract-check`.
 
 ## Configuration axes — what a product switches on
@@ -93,7 +93,7 @@ Paths are relative to `/profiles/api/v1/`.
 - POST /{user_id}/unblock — unblock_user
 - POST /{user_id}/unfollow — unfollow_user
 
-## Error codes (56) — the StapelError envelope
+## Error codes (57) — the StapelError envelope
 Render `t(code, params)`; branch UX on the remediation. Localized text lives in docs/errors.<lang>.md, not here.
 - error.400.avatar_gravatar_hash [400] fix_input
 - error.400.avatar_not_found [400] fix_input
@@ -151,3 +151,4 @@ Render `t(code, params)`; branch UX on the remediation. Localized text lives in 
 - error.429.rate_limit [429] wait_and_retry {retry_after_minutes}
 - error.429.too_many_requests [429] wait_and_retry
 - error.500.internal [500] contact_support
+- error.503.mandate_unavailable [503] retry

@@ -2,6 +2,56 @@
 
 ## [Unreleased]
 
+## [0.14.0] — 2026-08-23
+
+Minor, not patch: two new consumed actions and two new emitted ones. No
+setting moved and no behaviour a host configured changed, but the comm
+contract grew, and a peer integrates against that.
+
+### Added — the owner stops being silent
+
+This module has erased on `user.deleted` since the beginning and has never
+said so. stapel-gdpr's orchestrator does not self-certify: an `ErasurePart`
+with no receipt keeps the request in `erasing` until it times out thirty days
+later, which is exactly what an owner whose consumer was never deployed looks
+like. That is the "silent owner" the ironmemo inventory found.
+
+`actions.handle_erasure_requested` consumes stapel-gdpr 0.5.0's
+`gdpr.erasure.requested` and answers `gdpr.section.erased` with the
+`correlation_id` it was asked with and the **counts** of what it removed,
+emitted in the same transaction as the deletions. `user.deleted` receipts too
+for as long as gdpr keeps emitting it (through 0.5.x); the orchestrator flips
+the part once and ignores the second, so the two paths cannot disagree.
+
+`actions.handle_owner_probe` answers `gdpr.owner.probe` with
+`gdpr.owner.alive {owner, subject_types}` **from the same module** — that
+co-location is the point of the probe: it makes "alive" evidence that the
+erasure path is consumed rather than that a container is running. It is what
+`gdpr.W006` and `GET /gdpr/api/v1/owners/health` read.
+
+### Added — `erasure.py`, one implementation for every caller
+
+The in-process provider, the deprecated `user.deleted` subscriber and the new
+erasure subscriber all land in `erasure.erase_account`, so a deployment cannot
+get a different erasure depending on which participation mode it happens to
+use. It is idempotent and it counts: the profile row, and the user's
+relationships in **both** directions — somebody else's follow row naming this
+person is just as much their data.
+
+The claimed subject list is `["account"]` and only that: a profile is not
+partitioned by workspace and does not outlive the person it describes.
+Claiming a subject this module cannot erase would be worse than claiming
+none, because the orchestrator would wait on a receipt that means nothing.
+
+New contracts: `schemas/consumes/gdpr.erasure.requested.json`,
+`schemas/consumes/gdpr.owner.probe.json`,
+`schemas/emits/gdpr.section.erased.json`, `schemas/emits/gdpr.owner.alive.json`.
+
+### Fixed — the committed contract artifacts were stale
+
+`docs/errors.json` and `docs/errors.en.md` had drifted from a fresh
+regeneration and three drift tests were red on a clean checkout. Regenerated.
+
 ## [0.13.1] — 2026-08-15
 
 ### Changed — `stapel-core` floor raised to 0.26.0

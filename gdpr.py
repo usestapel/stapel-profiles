@@ -1,8 +1,13 @@
 from stapel_core.gdpr import GDPRProvider
 
+from .erasure import GDPR_OWNER
+
 
 class ProfilesGDPRProvider(GDPRProvider):
-    section = 'profile'
+    #: Same name the comm receipts and probe answers carry — one owner, one
+    #: declaration in ``STAPEL_GDPR["DATA_OWNERS"]``, whichever of the two
+    #: participation modes a deployment uses.
+    section = GDPR_OWNER
 
     def export(self, user_id: int) -> dict:
         from .models import UserRelationship, get_profile_model
@@ -50,16 +55,17 @@ class ProfilesGDPRProvider(GDPRProvider):
         }
 
     def delete(self, user_id: int) -> None:
-        from .models import UserRelationship, get_profile_model
+        """Erase the account slice — one implementation, three callers.
 
-        Profile = get_profile_model()
+        The in-process provider, the deprecated ``user.deleted`` subscriber
+        and the ``gdpr.erasure.requested`` subscriber all reach
+        :func:`~stapel_profiles.erasure.erase_account`, so a deployment
+        cannot get a different erasure depending on which participation
+        mode it happens to use.
+        """
+        from .erasure import erase_account
 
-        UserRelationship.objects.filter(follower_id=user_id).delete()
-        UserRelationship.objects.filter(following_id=user_id).delete()
-        # avatar is a reference string (source-dependent); any CDN-hosted
-        # binary lives in the CDN service and is erased by its own GDPR
-        # provider/consumer.
-        Profile.objects.filter(user_id=user_id).delete()
+        erase_account(user_id)
 
     def anonymize(self, user_id: int) -> None:
         # Profile is hard-deleted; public-facing references (reviews etc.)
