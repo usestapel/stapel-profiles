@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "profiles.public_cards",
+  "description": "Payload for the profiles.public_cards comm Function — the PUBLIC profile card for a page of user ids. Returns {\"profiles\": {user_id: card}, \"missing\": [user_id, ...]} where a card is exactly {user_id, display_name, avatar, member_since, seller_type}: the marketplace's public projection and never more, gated by the same PROFILES_PUBLIC_FIELDS policy that governs GET /profiles/api/v1/<user_id> and POST /profiles/api/v1/batch. `avatar` is null or the fleet's one image object — {ref, mime, ext, bytes, width, height, aspect, square, animated, preview_b64, preview_kind, variants, meta_status, meta_reason} — filled from cdn.describe_many, the same contract chat attachments and classified listing cards use, and degraded (ref kept, numbers null, meta_reason naming the gap) rather than failed when the CDN cannot be reached. `member_since` is a date (YYYY-MM-DD), not a timestamp. Same three-way reading as POST /batch: a card from a row, a card for a registered person who has typed nothing (empty display_name, no avatar, no member_since), and `missing` for an id that names nobody — never a 404, never an invented name.",
+  "type": "object",
+  "required": ["user_ids"],
+  "properties": {
+    "user_ids": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  },
+  "additionalProperties": false
+}

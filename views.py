@@ -30,7 +30,6 @@ header reads the same view for the guest session). It is explicitly
 
 import logging
 
-from django.core.exceptions import ValidationError
 from django.db.models import Count
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -52,6 +51,7 @@ from stapel_core.django.api.permissions import (
     ANONYMOUS_ALLOWED,
     IsNotAnonymousUser,
 )
+from stapel_core.django.api.views import StapelAPIView
 from stapel_core.notifications.tokens import verify_unsubscribe_token
 
 logger = logging.getLogger(__name__)
@@ -62,6 +62,8 @@ from stapel_profiles.errors import (
     ERR_404_PROFILE_NOT_FOUND,
 )
 
+from . import relationships
+from .cards import existing_users
 from .conf import profiles_settings
 
 from .dto import (
@@ -100,26 +102,6 @@ from .throttles import ProfileBatchThrottle, ProfileLookupThrottle
 #: Views must never `from .models import Profile` directly — that is exactly
 #: what SWAP001 (stapel_tools.swap_lint) flags.
 Profile = get_profile_model()
-
-
-class SerializerSeamsMixin:
-    """Overridable serializer seams for API views.
-
-    Subclasses (or downstream projects) can swap the request/response
-    serializers without copying method bodies:
-
-        class MyProfileViewV2(MyProfileView):
-            response_serializer_class = MyProfileSerializer
-    """
-
-    request_serializer_class = None
-    response_serializer_class = None
-
-    def get_request_serializer_class(self):
-        return self.request_serializer_class
-
-    def get_response_serializer_class(self):
-        return self.response_serializer_class
 
 
 class PrivacyHeadersMixin:
@@ -265,7 +247,7 @@ def _update_auto_detected_language(request, profile):
 
 
 @extend_schema(tags=["Profile"])
-class MyProfileView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
+class MyProfileView(PrivacyHeadersMixin, StapelAPIView):
     """Current user's profile management."""
 
     permission_classes = [IsAuthenticated]
@@ -329,43 +311,6 @@ class MyProfileView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
         return response
 
 
-def _existing_users(user_ids):
-    """Of these ids, the ones that name a user this deployment knows about.
-
-    The seam that makes "no profile row" tellable from "no such person".
-    This module stores ``user_id`` as a bare UUID and keeps **no FK across
-    modules** (MODULE.md) — that stays true: this is a READ of
-    ``get_user_model()``, the reference every feature module is told to use
-    (``stapel_core.django.users.models.AbstractStapelUser``), not a
-    relation, not a migration, and not a second copy of anything.
-
-    Deployment shapes and how this degrades:
-
-    * Monolith — the auth user table itself. Exact answer.
-    * Microservice — the shadow user table, filled by
-      ``JWT_CREATE_USERS_FROM_TOKEN`` and by auth's ``user.created`` /
-      ``user.updated`` projection (``stapel_auth.projection``). A user the
-      shadow table has not heard of yet reads as unknown and gets the
-      historical 404 — never worse than the pre-0.15.0 behaviour.
-
-    A host whose user pk is not UUID-shaped (a swapped ``AUTH_USER_MODEL``
-    over an integer pk) makes the lookup unanswerable rather than wrong: the
-    empty set means "cannot vouch for anyone", i.e. the old 404.
-    """
-    if not user_ids:
-        return set()
-    from django.contrib.auth import get_user_model
-
-    try:
-        return set(
-            get_user_model()
-            ._default_manager.filter(pk__in=list(user_ids))
-            .values_list("pk", flat=True)
-        )
-    except (ValueError, TypeError, ValidationError):
-        return set()
-
-
 def _unwritten_profile(user_id):
     """The profile of a registered person who has typed nothing yet.
 
@@ -390,7 +335,7 @@ def _unwritten_profile(user_id):
 
 
 @extend_schema(tags=["Profile"])
-class ProfileDetailView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
+class ProfileDetailView(PrivacyHeadersMixin, StapelAPIView):
     """View other user's profile (compact public view).
 
     `AllowAny` over every user id is the enumeration surface of the whole
@@ -428,8 +373,8 @@ class ProfileDetailView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
             # A registered person who has never opened their own profile is
             # not an error — they are a person with nothing filled in yet.
             # 404 is reserved for an id that names nobody (see
-            # `_existing_users` / `_unwritten_profile`).
-            if user_id not in _existing_users([user_id]):
+            # `cards.existing_users` / `_unwritten_profile`).
+            if user_id not in existing_users([user_id]):
                 return StapelErrorResponse(404, ERR_404_PROFILE_NOT_FOUND)
             profile = _unwritten_profile(user_id)
         serializer = self.get_response_serializer_class()(
@@ -488,7 +433,7 @@ def _batch_social_context(request, profiles):
 
 
 @extend_schema(tags=["Profile"])
-class ProfileBatchView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
+class ProfileBatchView(PrivacyHeadersMixin, StapelAPIView):
     """Resolve many public profiles in one request (#111).
 
     A contact grid used to fire one `GET .../<id>` per tile and take a 404
@@ -567,7 +512,7 @@ class ProfileBatchView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
         # yet is answered, not reported missing. `missing` keeps its exact
         # meaning — an id that names nobody — so a grid still renders
         # everyone it asked about and still learns which ids are dead.
-        for uid in _existing_users([uid for uid in requested if uid not in found]):
+        for uid in existing_users([uid for uid in requested if uid not in found]):
             found[uid] = _unwritten_profile(uid)
         profiles = [found[uid] for uid in requested if uid in found]
         missing = [uid for uid in requested if uid not in found]
@@ -585,7 +530,7 @@ class ProfileBatchView(PrivacyHeadersMixin, SerializerSeamsMixin, APIView):
 
 
 @extend_schema(tags=["Relationships"])
-class FollowView(SerializerSeamsMixin, APIView):
+class FollowView(StapelAPIView):
     """Follow a user."""
 
     # A follow is a durable edge; an anonymous account is throwaway. The edge
@@ -634,7 +579,7 @@ class FollowView(SerializerSeamsMixin, APIView):
 
 
 @extend_schema(tags=["Relationships"])
-class UnfollowView(SerializerSeamsMixin, APIView):
+class UnfollowView(StapelAPIView):
     """Unfollow a user."""
 
     # Mirror of FollowView: a session that cannot follow has nothing to undo.
@@ -684,7 +629,7 @@ class UnfollowView(SerializerSeamsMixin, APIView):
 
 
 @extend_schema(tags=["Relationships"])
-class BlockView(SerializerSeamsMixin, APIView):
+class BlockView(StapelAPIView):
     """Block a user."""
 
     # Same durable edge as FollowView, and worse if left open: a block placed
@@ -718,18 +663,18 @@ class BlockView(SerializerSeamsMixin, APIView):
         if str(follower_id) == str(user_id):
             return StapelErrorResponse(400, ERR_400_CANNOT_BLOCK_SELF)
 
-        relationship, created = UserRelationship.objects.update_or_create(
-            follower_id=follower_id,
-            following_id=user_id,
-            defaults={"status": RelationshipStatus.BLOCKED},
-        )
+        # One implementation of the write, shared with anything else that
+        # ever places a block, next to the read every server in the fleet
+        # asks (`profiles.relationships`). It deletes nothing — not the
+        # other party's rows, not any history.
+        status_after = relationships.block(follower_id, user_id)
 
-        dto = RelationshipActionResponse(success=True, status=relationship.status)
+        dto = RelationshipActionResponse(success=True, status=status_after)
         return StapelResponse(self.get_response_serializer_class()(dto))
 
 
 @extend_schema(tags=["Relationships"])
-class UnblockView(SerializerSeamsMixin, APIView):
+class UnblockView(StapelAPIView):
     """Unblock a user."""
 
     # Mirror of BlockView: a session that cannot block has nothing to undo.
@@ -758,28 +703,17 @@ class UnblockView(SerializerSeamsMixin, APIView):
         """Unblock a user."""
         follower_id = request.user.id
 
-        # Only clear a BLOCKED relationship; do not create rows for users
-        # who were never blocked.
-        UserRelationship.objects.filter(
-            follower_id=follower_id,
-            following_id=user_id,
-            status=RelationshipStatus.BLOCKED,
-        ).delete()
-
-        current = (
-            UserRelationship.objects.filter(
-                follower_id=follower_id, following_id=user_id
-            )
-            .values_list("status", flat=True)
-            .first()
-        ) or RelationshipStatus.NEUTRAL
+        # Clears the caller's OWN block and only that: a block the other
+        # person placed is theirs, survives this call, and keeps the pair
+        # blocked for the symmetric check.
+        current = relationships.unblock(follower_id, user_id)
 
         dto = RelationshipActionResponse(success=True, status=current)
         return StapelResponse(self.get_response_serializer_class()(dto))
 
 
 @extend_schema(tags=["Relationships"])
-class RelationshipStatusView(SerializerSeamsMixin, APIView):
+class RelationshipStatusView(StapelAPIView):
     """Get relationship status with a user."""
 
     permission_classes = [IsAuthenticated]
@@ -825,7 +759,7 @@ class RelationshipStatusView(SerializerSeamsMixin, APIView):
 
 
 @extend_schema(tags=["Relationships"])
-class MyFollowersView(SerializerSeamsMixin, APIView):
+class MyFollowersView(StapelAPIView):
     """List current user's followers."""
 
     permission_classes = [IsAuthenticated]
@@ -857,7 +791,7 @@ class MyFollowersView(SerializerSeamsMixin, APIView):
 
 
 @extend_schema(tags=["Relationships"])
-class MyFollowingView(SerializerSeamsMixin, APIView):
+class MyFollowingView(StapelAPIView):
     """List users the current user is following."""
 
     permission_classes = [IsAuthenticated]
@@ -888,7 +822,7 @@ class MyFollowingView(SerializerSeamsMixin, APIView):
 
 
 @extend_schema(tags=["Relationships"])
-class MyBlockedView(SerializerSeamsMixin, APIView):
+class MyBlockedView(StapelAPIView):
     """List profiles of users the current user has blocked."""
 
     permission_classes = [IsAuthenticated]
@@ -910,9 +844,7 @@ class MyBlockedView(SerializerSeamsMixin, APIView):
         """Get profiles of blocked users."""
         user_id = request.user.id
 
-        blocked_ids = UserRelationship.objects.filter(
-            follower_id=user_id, status=RelationshipStatus.BLOCKED
-        ).values_list("following_id", flat=True)
+        blocked_ids = relationships.blocks_of(user_id)
 
         profiles = Profile.objects.filter(user_id__in=blocked_ids)
         # Public serializer only: these are other users' profiles — the

@@ -104,6 +104,22 @@ DEFAULTS = {
         "avatar",
         "avatar_image",
     ],
+    # ── The block check (profiles.relationships) ─────────────────────
+    # How many pairs one call may carry. Structural config, not a
+    # capability axis (a numeric ceiling, not a behaviour toggle). Over the
+    # ceiling the call is REFUSED, never truncated: a short answer would
+    # report the dropped pairs as unblocked, and this is the one read in the
+    # module where being wrong has a direction — an uncheckable block must
+    # fail closed at the caller (503), not open.
+    "PROFILES_PAIRS_MAX": 500,
+    # ── The public card (profiles.public_cards) ──────────────────────
+    # The name-addressed CDN function that fills a card avatar's render
+    # metadata. The default is the fleet's one answer about a picture — the
+    # same call chat attachments and classified listing cards make, so one
+    # image has one shape everywhere. "" disables the enrichment: cards then
+    # carry the ref with null numbers and meta_reason="cdn_unavailable",
+    # which is a degraded card, never a failed one.
+    "PROFILES_CARD_MEDIA_FUNCTION": "cdn.describe_many",
     # ── Enumeration limits ───────────────────────────────────────────
     # Public lookups are the enumeration surface of the whole user base:
     # DRF rate strings ("120/min"), None/"" disables one of them.

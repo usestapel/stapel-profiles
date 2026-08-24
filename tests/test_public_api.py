@@ -15,6 +15,8 @@ class TestPublicAPI:
                 "publish_profile_changed",
                 "validate_display_name",
                 "ProfilesGDPRProvider",
+                "blocked_pairs",
+                "is_blocked",
             ]
         )
 
@@ -22,12 +24,15 @@ class TestPublicAPI:
         from stapel_profiles.conf import profiles_settings
         from stapel_profiles.events import publish_profile_changed
         from stapel_profiles.gdpr import ProfilesGDPRProvider
+        from stapel_profiles.relationships import blocked_pairs, is_blocked
         from stapel_profiles.validators import validate_display_name
 
         assert stapel_profiles.profiles_settings is profiles_settings
         assert stapel_profiles.publish_profile_changed is publish_profile_changed
         assert stapel_profiles.validate_display_name is validate_display_name
         assert stapel_profiles.ProfilesGDPRProvider is ProfilesGDPRProvider
+        assert stapel_profiles.blocked_pairs is blocked_pairs
+        assert stapel_profiles.is_blocked is is_blocked
 
     def test_dir_lists_exports(self):
         assert set(stapel_profiles.__all__) <= set(dir(stapel_profiles))

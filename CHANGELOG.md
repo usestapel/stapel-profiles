@@ -2,6 +2,144 @@
 
 ## [Unreleased]
 
+## [0.16.0] — 2026-08-24
+
+Minor: two comm Functions the fleet has been building against, and the end of
+client-side blocking.
+
+### Added — `profiles.relationships`: a block a SERVER can enforce
+
+Until now this module owned every block in the fleet (`UserRelationship` with
+a `blocked` status, `POST .../<user_id>/block`, `me/blocked`) and published no
+way for anything but a browser to consult one. Every block in every product
+was therefore enforced by a client hiding a button; anything that spoke to the
+API directly — another client, a script, a curl — was not blocked at all.
+
+    call("profiles.relationships", {"pairs": [[a, b], [a, c]]})
+    # -> {"blocked": [[a, b]]}
+
+Which of these pairs have a block between them, **in either direction**,
+echoed in the orientation the caller asked. Batch, because the caller checks a
+page of conversations; one query serves the page whatever its size (the
+existing `(follower_id, status)` / `(following_id, status)` indexes serve it,
+so there is **no migration** in this release).
+
+**Directionality — stored as an intent, answered as an effect.** The row keeps
+its direction (`follower_id` = blocker), because the write side needs it (my
+unblock may only remove *my* block), the owner's own screen needs it
+(`me/blocked` is a list of people *I* chose) and GDPR needs it (the row names
+two people and each direction is counted separately). The answer has no
+direction at all, because a block that stopped one arrow would be a block in
+name only — B's inbox would stay a channel A could still use.
+
+**Non-disclosure is structural.** There is no field in the answer that *could*
+name a blocker, so no consumer can render one and no consumer needs a policy
+about who may be told what. Pinned end to end: the answer is byte-identical
+whichever party placed the block and whichever way the pair is asked; its key
+set is exactly `{"blocked"}`; a blocked person's own `GET .../<blocker_id>`
+response is byte-identical before and after the block (not a 403, not a 404,
+not a changed count); `.../relationship` still says `neutral`; `me/blocked`
+stays empty; and their GDPR export says nothing about the block placed on
+them. There is deliberately no accessor for the incoming direction — "who
+blocked me" is the one question this module must never answer to the person
+asking about themselves.
+
+**An uncheckable block raises.** Over `PROFILES_PAIRS_MAX` (new, default 500)
+pairs, or on an id that cannot name a user, the call fails rather than
+answering a short or optimistic list. Refusals here are NOT structural like
+the display-name providers': an invalid name is a user typing, an uncheckable
+block is an outage, and an outage is not consent. The caller turns it into a
+503 — which is what stapel-classified's `BLOCK_ENFORCEMENT` already does.
+
+**No new model, and nothing is deleted.** Blocks reuse `UserRelationship`; a
+second table would have been two answers to one question. A block writes one
+row and deletes nothing — not the counterparty's follow row, not their
+profile, and (they live elsewhere) no message, thread, listing or review.
+Unblock deletes exactly one row: the caller's own, so a block the other person
+placed survives and the pair stays blocked.
+
+**The write stays on the HTTP edge.** `block`/`unblock`/`me/blocked` are not
+published as comm Functions. `profiles.set_display_name` exists because
+another module can hold legitimate *authority* over a name; a block has no
+such authority anywhere — it is the subject's own act about their own safety,
+and nothing in the fleet may place one on somebody's behalf. The three views
+now share one implementation (`relationships.py`), which is also what
+`blocked_pairs` / `is_blocked` (new `__all__` exports) answer in-process.
+
+Consumers: stapel-classified 0.2.1 already calls this exact name and its
+`auto` mode stops degrading; stapel-chat enforces at send against the same
+contract.
+
+### Added — `profiles.public_cards`: the person, as a stranger sees them
+
+    call("profiles.public_cards", {"user_ids": [a, b]})
+    # -> {"profiles": {a: {user_id, display_name, avatar, member_since,
+    #                      seller_type}}, "missing": [b]}
+
+The public profile card for a page of ids: display name, avatar with CDN
+render metadata, member-since, seller type where the deployment's profile
+carries one. stapel-classified renders an initials placeholder with
+`meta_reason: "profile_unavailable"` today and switches to this with no
+release of its own.
+
+**Never more than the public projection.** The caller is a server, and a
+server is not an exemption — the person on the other end is a stranger to the
+person reading. Every profile field in a card is gated by
+`PROFILES_PUBLIC_FIELDS`, the same setting the public HTTP lookups obey, so a
+host that hid the display name from public reads hid it here too without ever
+hearing of this function. The card is built key by key from a frozen tuple
+(`cards.CARD_KEYS`), never by serializing a model, so a field added to
+`Profile` tomorrow cannot leak through this path. `member_since` is a **date**,
+not a timestamp — "joined March 2024" is what a marketplace shows; the exact
+second is a fingerprint nobody needs.
+
+**One picture, one answer.** The avatar carries the same object chat
+attachments and classified listing cards carry, filled from `cdn.describe_many`
+(stapel-cdn 0.16+) in ONE call per page: `{ref, mime, ext, bytes, width,
+height, aspect, square, animated, preview_b64, preview_kind, variants,
+meta_status, meta_reason}`. Degradation is data — a CDN outage keeps the ref,
+nulls the numbers and names the gap (`cdn_unavailable`, `unknown_ref`,
+`external_avatar`); a conversation never fails to open because the CDN blinked.
+The module's avatar READ boundary (audit PROFILE-01) applies here too: a
+stored reference today's policy would refuse degrades to "no avatar" rather
+than reaching a consumer. New `PROFILES_CARD_MEDIA_FUNCTION` (default
+`cdn.describe_many`, `""` disables the enrichment).
+
+Same three-way reading as `POST .../batch`, for the same 0.15.0 reason: a
+registered person who has typed nothing gets a renderable card, and `missing`
+keeps its one meaning — this id names nobody.
+
+### Changed — the serializer seam comes from the core now
+
+`views.SerializerSeamsMixin` (a local copy of a primitive that existed in
+twenty-four modules) is **deleted**; every view derives
+`stapel_core.django.api.views.StapelAPIView`. The seam is unchanged for a host
+— same two attributes, same two getters, same subclass-and-remount recipe —
+and the emitted contract is byte-identical. Floor raised to
+`stapel-core>=0.45.0` for it.
+
+### GDPR — shipped with the feature, not after it
+
+A block references two people and either may erase. `erase_account` already
+removed relationships in **both** directions and counts them, so the block is
+erasable from either end (`relationships_outgoing` / `relationships_incoming`
+in the receipt) and the `gdpr.owner.alive` probe answers from the same module
+— now pinned by tests that use a block rather than a follow. The subject's
+export carries the blocks *they* placed and stays silent about a block placed
+*on* them: the incoming row is erased with them, but disclosing it in an
+access answer would identify the person who took a protective measure and
+defeat the measure.
+
+### Tests
+
+351 passing (309 before): 27 new for the block check — symmetry,
+non-disclosure across comm, HTTP and GDPR surfaces, fail-closed refusals, the
+write side's "deletes nothing" rule and erasure from either end — and 15 for
+the card — the frozen key set, the public-field policy, the three-way reading
+and every avatar degradation path. Both suites use **registered fakes** for
+`cdn.describe_many` rather than importing a sibling: a test that imports
+stapel-cdn passes in the workspace venv and dies on a clean runner.
+
 ## [0.15.0] — 2026-08-24
 
 Minor, not patch: `user.registered` now provisions, and a public read that

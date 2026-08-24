@@ -65,6 +65,8 @@ SET_DISPLAY_NAME = "profiles.set_display_name"
 VALIDATE_DISPLAY_NAME = "profiles.validate_display_name"
 DISPLAY_NAMES = "profiles.display_names"
 LANGUAGE = "profiles.language"
+RELATIONSHIPS = "profiles.relationships"
+PUBLIC_CARDS = "profiles.public_cards"
 
 #: Structural refusal reasons that are NOT a bad name: the deployment's
 #: active profile model carries no ``display_name`` at all (§66 moved it out
@@ -88,6 +90,8 @@ SET_DISPLAY_NAME_SCHEMA = _load_schema(SET_DISPLAY_NAME)
 VALIDATE_DISPLAY_NAME_SCHEMA = _load_schema(VALIDATE_DISPLAY_NAME)
 DISPLAY_NAMES_SCHEMA = _load_schema(DISPLAY_NAMES)
 LANGUAGE_SCHEMA = _load_schema(LANGUAGE)
+RELATIONSHIPS_SCHEMA = _load_schema(RELATIONSHIPS)
+PUBLIC_CARDS_SCHEMA = _load_schema(PUBLIC_CARDS)
 
 
 def _reason_of(error_key: str) -> str:
@@ -278,6 +282,60 @@ def language(payload: dict) -> dict:
     }
 
 
+def relationships(payload: dict) -> dict:
+    """Provider for ``profiles.relationships`` — the fleet's block check.
+
+    Payload: ``{"pairs": [[user_a, user_b], ...]}``
+    Returns: ``{"blocked": [[user_a, user_b], ...]}``
+
+    Which of the asked pairs have a block between them **in either
+    direction**, echoed in the order and orientation they were asked. Batch,
+    because the caller is checking a page of conversations, and one query
+    serves the whole page.
+
+    **Direction is not in the answer, and cannot be.** A block is stored as
+    an intent (who blocked whom) and answered as an effect (these two must
+    not reach each other) — see :mod:`stapel_profiles.relationships`. The
+    blocked party must never learn they are blocked, and the way to hold that
+    property is to make it structural: there is no field here that could name
+    a blocker, so no consumer can render one and no consumer needs a policy
+    about who may be told what.
+
+    **Raises rather than lies.** Over ``PROFILES_PAIRS_MAX`` pairs, or an id
+    that cannot name a user, this raises — the caller (stapel-classified's
+    ``BLOCK_ENFORCEMENT``, stapel-chat's send path) turns a failed check into
+    a 503 rather than into contact. Refusals here are NOT structural, unlike
+    the display-name providers: an invalid name is a user typing, but an
+    uncheckable block is an outage, and an outage is not consent.
+    """
+    from .relationships import blocked_pairs
+
+    return {"blocked": [list(pair) for pair in blocked_pairs(payload.get("pairs"))]}
+
+
+def public_cards(payload: dict) -> dict:
+    """Provider for ``profiles.public_cards`` — the person, as a stranger sees them.
+
+    Payload: ``{"user_ids": [str, ...]}``
+    Returns: ``{"profiles": {user_id: card}, "missing": [user_id, ...]}``
+
+    where a card is exactly ``{user_id, display_name, avatar, member_since,
+    seller_type}`` — the marketplace's PUBLIC projection and never more,
+    gated by the same ``PROFILES_PUBLIC_FIELDS`` policy the public HTTP
+    lookups obey (:mod:`stapel_profiles.cards`). ``avatar`` is ``null`` or the
+    fleet's one image object: the ref plus ``cdn.describe_many`` render
+    metadata, with ``meta_status``/``meta_reason`` naming any gap.
+
+    Same three-way reading as ``POST .../batch``: a card for a person with a
+    row, a card for a registered person who has typed nothing, and
+    ``missing`` for an id that names nobody. Never an error, never a
+    placeholder name.
+    """
+    from .cards import public_cards as build_cards
+
+    return build_cards(payload.get("user_ids") or [])
+
+
 def register() -> None:
     """Register this module's Function providers.
 
@@ -294,3 +352,5 @@ def register() -> None:
     )
     register_function(DISPLAY_NAMES, display_names, schema=DISPLAY_NAMES_SCHEMA)
     register_function(LANGUAGE, language, schema=LANGUAGE_SCHEMA)
+    register_function(RELATIONSHIPS, relationships, schema=RELATIONSHIPS_SCHEMA)
+    register_function(PUBLIC_CARDS, public_cards, schema=PUBLIC_CARDS_SCHEMA)

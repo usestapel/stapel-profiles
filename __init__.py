@@ -9,6 +9,11 @@ Public API (see ``__all__``):
 - ``validate_display_name`` — display-name validation helper (raises
   ``StapelValidationError``).
 - ``ProfilesGDPRProvider`` — GDPR export/delete provider for profile data.
+- ``blocked_pairs`` / ``is_blocked`` — the block check, in-process. The comm
+  form is the Function ``profiles.relationships``; this is the same answer
+  for a host in a monolith. Reach for it instead of querying
+  ``UserRelationship`` yourself: the direction rules (a block is stored as
+  an intent and answered as an effect) live behind it.
 
 Signal usage (``profile_updated``) stays in ``stapel_core.signals``.
 
@@ -21,6 +26,8 @@ _EXPORTS = {
     "publish_profile_changed": ".events",
     "validate_display_name": ".validators",
     "ProfilesGDPRProvider": ".gdpr",
+    "blocked_pairs": ".relationships",
+    "is_blocked": ".relationships",
 }
 
 __all__ = list(_EXPORTS)

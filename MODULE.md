@@ -15,14 +15,14 @@ registries). Everything below is customizable **without forking**.
 
 | Surface | Contents |
 |---|---|
-| Models | `Profile` (PK `user_id: UUID`, links to auth by id — no FK across modules), `Language` (PK `code`), `UserRelationship` (follow/block, unique per pair, no self-relation). Choices: `MeasurementUnit`, `Theme`, `RelationshipStatus`. |
+| Models | `Profile` (PK `user_id: UUID`, links to auth by id — no FK across modules), `Language` (PK `code`), `UserRelationship` (follow/block, unique per pair, no self-relation — **also the block store the fleet's `profiles.relationships` check reads**; there is no second model for blocks). Choices: `MeasurementUnit`, `Theme`, `RelationshipStatus`. |
 | HTTP API (`urls.py`) | `me` (GET/PATCH), `me/followers`, `me/following`, `me/blocked`, `<uuid:user_id>` (public profile — a registered user with no row yet is answered with an empty-but-renderable profile; `404` means the id names nobody), `batch` (POST, many public profiles at once — same three-way reading, `missing` = ids that name nobody, never a 404), `<uuid:user_id>/{follow,unfollow,block,unblock,relationship}`, `languages` (read-only viewset), `notifications/unsubscribe` (RFC 8058 one-click, HMAC token). |
 | Events | Emits `profile.changed` and the GDPR receipt/probe answer; consumes `user.registered` (**provisions the profile row** — 0.15.0 — plus the display-name pre-fill and the OAuth avatar import), `gdpr.erasure.requested`, `gdpr.owner.probe` and (deprecated) `user.deleted` — see below. |
 | GDPR | `ProfilesGDPRProvider` (section `profile`): export of profile + relationships, hard delete. Auto-registered in `apps.ProfilesConfig.ready()` via `stapel_core.gdpr.gdpr_registry`. |
 | Validation | `validate_display_name` (control chars, emoji, invisible chars, min length); avatar reference validation against the CDN contract `avatar/<hash>` with existence check (mode-selectable, see settings). |
 | Error keys | `errors.PROFILES_ERRORS` — `error.404.profile_not_found`, `error.400.cannot_follow_self`, `error.400.cannot_block_self`, `error.400.display_name_*`, `error.400.invalid_avatar_format`, `error.400.avatar_not_found`, `error.400.too_many_ids`. Registered via `stapel_core` `register_service_errors`. |
 | Management commands | `sync_languages` (seed/refresh `Language` from bundled fixture, preserving flags), `publish_all_profiles` (backfill `profile.changed` for all rows). |
-| Public API (`__all__`) | `profiles_settings`, `publish_profile_changed`, `validate_display_name`, `ProfilesGDPRProvider` — lazily exported (PEP 562); importing `stapel_profiles` does not require configured Django. Anything not in `__all__` is internal and may change without notice. |
+| Public API (`__all__`) | `profiles_settings`, `publish_profile_changed`, `validate_display_name`, `ProfilesGDPRProvider`, `blocked_pairs`, `is_blocked` — lazily exported (PEP 562); importing `stapel_profiles` does not require configured Django. Anything not in `__all__` is internal and may change without notice. |
 
 ## Extension points (fork-free)
 
@@ -42,6 +42,8 @@ environment variable → default.
 | `PROFILES_REFERRER_POLICY` | `"no-referrer"` | header value \| `""` | `Referrer-Policy` this service declares on its profile responses (`""` = leave it to the host's middleware). The client half of the contract is below. |
 | `PROFILES_PUBLIC_FIELDS` | the full public set | list of field names | What a public lookup (`GET .../<user_id>`, `POST .../batch`) exposes to an authenticated caller. Both endpoints serialize through the same class, so they cannot disagree about a person's privacy. |
 | `PROFILES_PUBLIC_FIELDS_ANONYMOUS` | identity + avatar only | list \| `None` \| `["*"]` | What an UNAUTHENTICATED caller sees. **Narrow by default:** `user_id`, `display_name`, `avatar_source`, `avatar`, `avatar_image` — no `location_*`, no follower/following counts, no `relationship_status` (which has no meaning without a viewer). Both public endpoints are `AllowAny`, so this is the answer the open internet gets. `None` or `["*"]` restores "anonymous callers see what members see". It may only ever narrow `PROFILES_PUBLIC_FIELDS` — a field hidden from members cannot reappear for the internet. |
+| `PROFILES_PAIRS_MAX` | `500` | positive int | How many pairs one `profiles.relationships` call may carry. Over the ceiling the call **raises** — refused, never truncated. A short answer would report the dropped pairs as *unblocked*, and this is the one read here where being wrong has a direction: an uncheckable block must fail closed at the caller (503), not open. A numeric ceiling, not a behaviour toggle, so it is not a capability axis. |
+| `PROFILES_CARD_MEDIA_FUNCTION` | `"cdn.describe_many"` | function name \| `""` | The name-addressed CDN read that fills a public card's avatar with render metadata. The default is the fleet's ONE answer about a picture — the same call chat attachments and classified listing cards make. `""` disables the enrichment: cards then carry the ref with null numbers and `meta_reason: "cdn_unavailable"` — a degraded card, never a failed one. |
 | `PROFILES_LOOKUP_RATE` | `"120/min"` | DRF rate string \| `None` | Per-caller ceiling on single public lookups (`ProfileLookupThrottle`), keyed by user when authenticated and by IP otherwise. `None` disables it — a deployment's explicit choice. |
 | `PROFILES_BATCH_RATE` | `"30/min"` | DRF rate string \| `None` | Per-caller ceiling on batch resolution. Deliberately tighter than the lookup budget: one batch request answers for up to `PROFILES_BATCH_MAX_IDS` people. |
 
@@ -114,10 +116,13 @@ class ProfileExtras(models.Model):
 how this module links to auth). Expose the extra fields through the serializer
 seams below. Making a model swappable is an upstream contribution.
 
-### Serializer seams (`views.SerializerSeamsMixin`)
+### Serializer seams (`stapel_core.django.api.views.StapelAPIView`)
 
-Every profile/relationship view mixes in `SerializerSeamsMixin` with two
-class attributes and two hooks — subclass the view, set the attribute (or
+Every profile/relationship view derives `StapelAPIView` — the canonical
+`SerializerSeamMixin` + `APIView` from stapel-core (0.45.0). The local copy
+of the mixin that used to live in `views.py` is **deleted**: twenty-four
+identical copies across the fleet were a missing core primitive, not a
+pattern. The seam is unchanged for a host — two class attributes and two hooks — subclass the view, set the attribute (or
 override `get_request_serializer_class()` / `get_response_serializer_class()`),
 and remount the URL in your project's `urls.py`. No method bodies need copying.
 
@@ -162,9 +167,77 @@ in `schemas/`.
 | Provides (function) | `profiles.display_names` | `functions.display_names` | Payload `{user_ids: [...]}` → `{display_names: {user_id: name}}`. The comm form of `POST /batch` narrowed to one field; ids without a non-empty name are absent, never placeholders. Contract: `schemas/functions/profiles.display_names.json`. |
 | Provides (function) | `profiles.language` | `functions.language` | Payload `{user_id}` → `{app_language, auto_detected_language}` — the language the user **chose** and the one merely **observed** from an Accept-Language header, each `null` when absent (a user with no profile row answers `null`/`null`). Ask this at send time instead of mirroring the field: a mirror cannot distinguish "chose nothing" from "the sync never ran", and stapel-notifications' mirror of exactly this field stood empty for its whole lifetime. Contract: `schemas/functions/profiles.language.json`. |
 
+| Provides (function) | `profiles.relationships` | `functions.relationships`, registered in `apps.ready()` | Payload `{pairs: [[a, b], ...]}` → `{blocked: [[a, b], ...]}`. **The fleet's server-side block check** — which of these pairs have a block between them, in EITHER direction, echoed in the orientation they were asked. Batch, because the caller checks a page of conversations; one query serves the page. Refusals are NOT structural here (unlike the display-name providers): over `PROFILES_PAIRS_MAX`, or on an id that cannot name a user, it **raises**, and the caller turns that into a 503. An outage is not consent. See **Blocks** below. Contract: `schemas/functions/profiles.relationships.json`. |
+| Provides (function) | `profiles.public_cards` | `functions.public_cards` | Payload `{user_ids: [...]}` → `{profiles: {user_id: card}, missing: [...]}` where a card is exactly `{user_id, display_name, avatar, member_since, seller_type}`. The PUBLIC projection and never more — gated by the same `PROFILES_PUBLIC_FIELDS` policy the public HTTP lookups obey. `avatar` is `null` or the fleet's one image object (`ref` + `cdn.describe_many` render metadata + `meta_status`/`meta_reason`); `member_since` is a **date**, not a timestamp. Same three-way reading as `POST /batch`: a card from a row, a card for a registered person who has typed nothing, `missing` for an id that names nobody. Contract: `schemas/functions/profiles.public_cards.json`. |
+| Calls (function) | `cdn.describe_many` | `cards._describe`, for the avatars on a card page | One call per page, name-addressed, guarded: a failure degrades the avatar (ref kept, numbers null, `meta_reason` naming the gap) and never fails the card. |
+
 Declared-but-unconsumed: `schemas/consumes/user.deletion_initiated.json`
 exists but no handler subscribes to it yet (grace-period handling is a
 candidate upstream contribution).
+
+### Blocks — what is stored, what is answered, and who is never told
+
+A block is **asymmetric as an intent** and **symmetric as an effect**, and
+each fact lives where it belongs.
+
+**Stored: the intent.** One `UserRelationship` row,
+`follower_id = blocker`, `following_id = blocked`, `status = "blocked"`.
+There is **no new model** — this concept already existed here and a second
+table would have been two answers to one question. The direction is needed
+by the write side (my unblock may only remove *my* block), by the owner's
+own screen (`GET me/blocked` is a list of people *I* chose) and by GDPR (the
+row names two people, and the receipt counts each direction separately).
+
+**Answered: the effect.** `profiles.relationships` answers one boolean per
+pair with **no direction in it**. A block that stopped only one arrow would
+be a block in name only: if A blocks B, B must not receive A's messages
+either, or B's inbox stays a channel A can still use — and A's own act would
+have handed B a reason to notice.
+
+**Non-disclosure is structural, not a rule callers must remember.** There is
+no field in the answer that *could* name a blocker, so no consumer can
+render one and no consumer needs a policy about who may be told what. The
+property is pinned end to end in `tests/test_relationships.py`:
+
+* the answer is byte-identical whichever party placed the block, and
+  whichever orientation the pair is asked in;
+* the answer's key set is exactly `{"blocked"}` — no status, no timestamp,
+  no author;
+* a blocked person's own reads do not change: their `GET .../<blocker_id>`
+  response is byte-identical before and after the block (not a 403, not a
+  404, not a changed count), `GET .../<blocker_id>/relationship` still says
+  `neutral` (it reports the CALLER's own edge), and `GET me/blocked` stays
+  empty;
+* their GDPR export says nothing about the block placed on them (see
+  **Erasure**).
+
+The one place direction stays readable is the blocker's own authenticated
+surface — their own data. There is deliberately **no accessor for the
+incoming direction**: "who blocked me" is the one question this module must
+never answer to the person asking it about themselves.
+
+**A block deletes nothing.** Not the counterparty's follow row, not their
+profile, and — since those live in other modules — no message, thread,
+listing or review. Blocking writes one row; unblocking deletes exactly one
+row, the caller's own. A product that wants a blocked conversation to
+disappear from a list filters its own view with this check; it does not ask
+this module to erase the past (stapel-classified's rule, and the one
+stapel-chat builds against).
+
+**The write side stays on the authenticated HTTP edge** (`POST
+.../<user_id>/block`, `.../unblock`, `GET me/blocked`, one implementation in
+`relationships.py`) and is deliberately **not** published as a comm
+Function. `profiles.set_display_name` exists because another module can hold
+legitimate *authority* over a name (a workspace owner correcting a member on
+the roster). A block has no such authority anywhere: it is the subject's own
+act about their own safety, and nothing in the fleet may place one on
+somebody's behalf. Siblings get the read.
+
+**Consumers.** stapel-classified 0.2.1 already calls this name
+(`BLOCK_FUNCTION = "profiles.relationships"`, `BLOCK_ENFORCEMENT`
+`auto`/`required`/`off`); with this release its `auto` mode stops degrading
+and its default may flip to `required`. stapel-chat enforces at send against
+the same contract.
 
 ### Erasure
 
@@ -188,7 +261,21 @@ means nothing.
 `erasure.erase_account(user_id)` is idempotent and returns the `counts` its
 receipt carries: the profile row, and the user's relationships in **both**
 directions — somebody else's follow row naming this person is just as much
-their data. The avatar is a reference string; whatever it points at lives in
+their data. That is what makes a **block erasable from either end**: a block
+references two people, and whichever of them erases, the row goes and the
+receipt counts it (`relationships_outgoing` for the blocker's erasure,
+`relationships_incoming` for the blocked party's). Both are pinned in
+`tests/test_relationships.py::TestErasure`, alongside the `gdpr.owner.alive`
+probe answer — this module ships the erasure and the probe *with* the
+feature, not after it.
+
+**Erasure yes, disclosure no.** The subject's GDPR **export** carries the
+blocks *they* placed and says nothing about a block placed *on* them. The
+incoming row is their personal data and is erased with them; disclosing it
+in an access answer would identify the person who took a protective measure
+and defeat the measure itself — the rights-of-others limit on access, and
+the same non-disclosure property the whole block design rests on. Pinned by
+`test_the_gdpr_export_does_not_disclose_an_incoming_block`. The avatar is a reference string; whatever it points at lives in
 the CDN and is erased by that module's own receipt for the same request.
 
 **The receipt and the probe are one subscriber.** `actions.py` handles
@@ -306,9 +393,13 @@ carriers):
   reference (`avatar/<hash>`, no bytes), not a credential.
 - `Language` — reference/config data (codes, flags, active flag), analogous
   to `Category` in the admin-suite table — not a journal or credential store.
-- `UserRelationship` — user-facing follow/block state. It is durable domain
+- `UserRelationship` — user-facing follow/block state, and since 0.16.0 the
+  store behind the fleet's server-side block check. It is durable domain
   data staff may need to inspect for abuse/dispute handling, not a
   delivery/audit log or TTL-expiring record, so it does not fit `ops`.
+  (Staff visibility is unchanged by the check: non-disclosure is a property
+  of what this module answers to *users and siblings*, not of what an
+  administrator handling an abuse report may read.)
 
 No decorator changes were made and `admin.py` (`LanguageAdmin`,
 `ProfileAdmin`, `UserRelationshipAdmin`) is untouched — there is no
@@ -326,6 +417,9 @@ ops/secret model here to route through `StapelModelAdmin`.
 | Mutate `Profile` rows programmatically without notifying downstream | Go through `ProfileCreateUpdateSerializer`, or call `publish_profile_changed(profile)` and send `profile_updated` yourself |
 | Subscribe to broker topics / transport primitives directly | `@on_action("profile.changed")` — transport is `STAPEL_COMM` deployment config, not code |
 | Override `validate_avatar` to accept unverified references ("fail open") | Use `PROFILES_AVATAR_CHECK="off"` explicitly if you truly don't run a CDN; the check is fail-closed by design |
+| Enforce a block by hiding a button, or by querying `UserRelationship` / mirroring block state in your own table | Call `profiles.relationships` (comm) or `stapel_profiles.blocked_pairs` (in-process). A client-side block is not a block, and a mirror cannot tell "not blocked" from "the sync never ran" |
+| Tell the blocked party anything — an error code, a different response shape, a missing button that used to be there, a "you have been blocked" screen | Answer them exactly as before. The refusal a user sees must be the one they would see if the other person had simply gone away |
+| Delete a thread, message or listing when somebody blocks | A block is not a deletion: it stops future contact and touches no history. Filter your own view with the check |
 | Depend on internals not in `__all__` (DTOs, private helpers) from app code and expect stability | Treat `__all__` + the seams above as the contract; if you need something else stable, that's an upstream request |
 
 ## App-layer override vs upstream contribution — rule of thumb

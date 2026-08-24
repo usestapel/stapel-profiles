@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "profiles.relationships",
+  "description": "Payload for the profiles.relationships comm Function — the fleet's server-side block check. Ask about a page of pairs at once; the answer is {\"blocked\": [[a, b], ...]} listing the pairs that have a block between them IN EITHER DIRECTION, echoed in the order and orientation they were asked. A block is stored as an intent (who blocked whom) and answered as an effect (these two must not reach each other): the direction is deliberately absent from the answer so that no consumer can disclose to the blocked party that they are blocked. Over PROFILES_PAIRS_MAX pairs (default 500), or on an id that cannot name a user, the call RAISES rather than answering a short or optimistic list — a check that cannot run must not read as 'allowed'.",
+  "type": "object",
+  "required": ["pairs"],
+  "properties": {
+    "pairs": {
+      "type": "array",
+      "description": "Pairs of user ids to check. A pair of somebody with themselves is dropped (nobody can block themselves); a pair asked twice, in either orientation, is answered once.",
+      "items": {
+        "type": "array",
+        "items": { "type": "string" },
+        "minItems": 2,
+        "maxItems": 2
+      }
+    }
+  },
+  "additionalProperties": false
+}
