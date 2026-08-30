@@ -52,9 +52,16 @@ def erase_account(user_id) -> dict[str, int]:
     # erased account is not erased.
     followers, _ = UserRelationship.objects.filter(following_id=user_id).delete()
     profiles, _ = Profile.objects.filter(user_id=user_id).delete()
+    # Profiles archived INTO this account (``actions.handle_user_merged``)
+    # are this person's rows too: the merge said so. Leaving them would
+    # keep a row whose ``merged_into`` names an account we just swore was
+    # gone — the account it points at is exactly the subject of this
+    # erasure.
+    merged, _ = Profile.objects.filter(merged_into=user_id).delete()
 
     return {
         "profiles": int(profiles),
+        "profiles_merged_in": int(merged),
         "relationships_outgoing": int(following),
         "relationships_incoming": int(followers),
     }

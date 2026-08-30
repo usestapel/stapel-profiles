@@ -99,6 +99,7 @@ class TestErasure:
         assert UserRelationship.objects.count() == 0
         assert counts == {
             "profiles": 1,
+            "profiles_merged_in": 0,
             "relationships_outgoing": 1,
             "relationships_incoming": 1,
         }
@@ -131,6 +132,7 @@ class TestTheReceipt:
         assert payload["subject_key"] == str(user_id)
         assert payload["counts"] == {
             "profiles": 1,
+            "profiles_merged_in": 0,
             "relationships_outgoing": 1,
             "relationships_incoming": 1,
         }
@@ -151,6 +153,7 @@ class TestTheReceipt:
         assert len(receipts) == 2
         assert receipts[1].payload["counts"] == {
             "profiles": 0,
+            "profiles_merged_in": 0,
             "relationships_outgoing": 0,
             "relationships_incoming": 0,
         }

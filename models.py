@@ -217,6 +217,23 @@ class ProfileCore(models.Model):
         primary_key=True, help_text="User UUID from auth service"
     )
 
+    # Archival marker for an account that was folded into another one
+    # (auth's `user.merged`). A profile is keyed by the user id, which is
+    # also its primary key, so two profiles cannot become one row: the
+    # survivor's profile stays live and the merged one is kept beside it,
+    # flagged, because it is still a record of what that person wrote.
+    merged_into = models.UUIDField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text=(
+            "The surviving account this profile's owner was folded into. "
+            "Non-NULL means the row is ARCHIVED: the survivor's own profile "
+            "is the live one and this row is history, kept rather than "
+            "deleted. NULL for every live profile."
+        ),
+    )
+
     # Avatar — source+ref (§66 prep for §67). Kept hard in core: no
     # inventoried product turns it off (owner directive).
     avatar_source = models.CharField(

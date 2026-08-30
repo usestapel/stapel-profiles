@@ -8,6 +8,11 @@ lives in this one file on purpose. The probe is answered from the same
 subscriber that erases, so ``gdpr.owner.alive`` is evidence that the
 erasure path is *consumed*, not merely that a container is deployed
 (stapel-gdpr MODULE.md, "Erasure parts", option 2).
+
+Both halves of an account's life cycle are answered here too:
+``user.deleted`` erases, ``user.merged`` RE-PARENTS. Subscribing to one
+and not the other is not neutral about the other — it is a silent, wrong
+answer for it, which is what ``stapel_core.lifecycle.E001`` reports.
 """
 import logging
 
@@ -154,6 +159,133 @@ def handle_user_deleted(event):
         if correlation_id:
             _receipt(correlation_id, "account", user_id, counts)
     logger.info("profiles erased for deleted user %s: %s", user_id, counts)
+
+
+def _merge_profiles(from_user_id, into_user_id) -> dict[str, int]:
+    """Fold one account's profile rows into the surviving account.
+
+    Callers hold the transaction; this returns what it touched, which is
+    what makes a redelivery's ``0`` visible instead of silent.
+    """
+    from .models import UserRelationship, get_profile_model
+
+    Profile = get_profile_model()
+    counts = {
+        "profiles_archived": 0,
+        "relationships_moved": 0,
+        "relationships_dropped": 0,
+    }
+
+    counts["profiles_archived"] = int(
+        Profile.objects.filter(
+            user_id=from_user_id, merged_into__isnull=True
+        ).update(merged_into=into_user_id)
+    )
+
+    # Both directions: a relationship is somebody's row about a person, and
+    # the merged account appears on either side of it.
+    for side, other in (("follower_id", "following_id"), ("following_id", "follower_id")):
+        taken = set(
+            UserRelationship.objects.filter(**{side: into_user_id}).values_list(
+                other, flat=True
+            )
+        )
+        for rel in UserRelationship.objects.filter(**{side: from_user_id}):
+            counterpart = getattr(rel, other)
+            if counterpart == into_user_id or counterpart in taken:
+                # Moving this row would either point the survivor at itself
+                # (`no_self_relationship`) or duplicate one it already holds
+                # (`unique_relationship`). The survivor's own row wins; this
+                # one carries nothing the survivor does not already have.
+                rel.delete()
+                counts["relationships_dropped"] += 1
+            else:
+                setattr(rel, side, into_user_id)
+                rel.save(update_fields=[side])
+                taken.add(counterpart)
+                counts["relationships_moved"] += 1
+    return counts
+
+
+@on_action("user.merged")
+def handle_user_merged(event):
+    """Fold a merged account's profile rows onto the survivor.
+
+    ``user.merged`` (stapel-auth 0.30.0) fires when a guest account is
+    folded into an account that already exists: ``from_user_id`` stops
+    existing and every row that named it belongs to ``into_user_id`` now.
+    It is the opposite of :func:`handle_user_deleted` above — nothing is
+    erased — and an app that answered only the deletion half would leave
+    the guest's profile and every follow and block naming it pointing at an
+    id that can no longer sign in (``stapel_core.lifecycle.E001``).
+
+    **Merge policy — the survivor's profile wins, the merged one is
+    archived.** A profile's primary key IS the user id, so two profiles
+    cannot become one row and something has to lose. The survivor loses
+    nothing: its row is not read, not written and not created here. The
+    merged row is kept and flagged (``ProfileCore.merged_into``), never
+    deleted — it is still a record of what that person wrote, and the
+    public read already gates on the account existing in auth
+    (``cards.existing_users``), which the merged one no longer does.
+
+    Nothing is copied across. A guest's display name or avatar landing on
+    an established account would be the same violation
+    :func:`_prefill_display_name` exists to prevent: the owner of a name is
+    the person it names, and signing in to a real account is a statement
+    about which identity the person means to keep. A survivor with no
+    profile row at all therefore stays without one — a merge is not a
+    registration, and ``user.registered`` is what provisions rows.
+
+    Relationships DO move: a follow or a block is a decision about another
+    person, and losing it would silently un-block somebody. Rows that would
+    collide with one the survivor already holds, or would point the
+    survivor at itself, are dropped instead — the survivor's own row wins.
+
+    Idempotent: the profile update filters on ``merged_into IS NULL`` and
+    the relationship walk filters on the merged id, neither of which
+    matches after the first run, so a redelivery reports zeroes.
+    """
+    import uuid
+
+    from django.db import transaction
+
+    payload = event.payload or {}
+    from_user_id = payload.get("from_user_id")
+    into_user_id = payload.get("into_user_id")
+    if not from_user_id or not into_user_id:
+        logger.error(
+            "user.merged event without both account ids: %s",
+            getattr(event, "event_id", "?"),
+        )
+        return
+
+    try:
+        # Normalised here, not in the queryset: the relationship walk
+        # compares ids in Python, and a string never equals the UUID a
+        # UUIDField hands back.
+        merged_id = uuid.UUID(str(from_user_id))
+        survivor_id = uuid.UUID(str(into_user_id))
+        if merged_id == survivor_id:
+            logger.error(
+                "user.merged names one account twice (%s): %s",
+                from_user_id, getattr(event, "event_id", "?"),
+            )
+            return
+        with transaction.atomic():
+            counts = _merge_profiles(merged_id, survivor_id)
+    except (TypeError, ValueError, ValidationError):
+        # ValidationError is in the list on purpose: a UUIDField rejects a
+        # malformed key with ValidationError, which is NOT a ValueError,
+        # and a handler that caught only the latter would raise into the
+        # bus and be redelivered forever for a payload that can never work.
+        logger.error(
+            "user.merged with unusable ids (from=%r into=%r): %s",
+            from_user_id, into_user_id, getattr(event, "event_id", "?"),
+        )
+        return
+    logger.info(
+        "profiles merged %s into %s: %s", from_user_id, into_user_id, counts,
+    )
 
 
 def _provision_profile(user_id) -> None:

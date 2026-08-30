@@ -2,6 +2,66 @@
 
 ## [Unreleased]
 
+## [0.17.0] — 2026-08-30
+
+Minor: the other half of an account's life cycle.
+
+### Added — a merged guest's profile is archived, not stranded
+
+This module subscribed `user.deleted` and nothing else, so it had a silent,
+wrong answer for the opposite event. `user.merged` (stapel-auth 0.30.0)
+fires when a guest account is folded into an account that already exists on
+sign-in: `from_user_id` stops existing, and every row that named it belongs
+to `into_user_id` now. Nothing is erased. Until this release the guest's
+profile — and every follow and block naming it — kept pointing at an id
+that can no longer sign in, invisible to the person and beyond the reach of
+any erasure they could later request, because nobody ever requests an
+erasure for an id nobody holds.
+
+The failure had no symptom at the seam: nothing raised, nothing retried,
+nothing was logged. `stapel_core.lifecycle.E001` (stapel-core 0.52.1)
+reports exactly that silence, and `tests/test_user_merged.py` keeps the
+check wired to this suite so the answer cannot go missing again.
+
+**Merge policy — the survivor's profile wins, the merged one is archived.**
+A profile is keyed by the user id, which is also its primary key, so two
+profiles cannot become one row and something has to lose. The survivor
+loses nothing: `actions.handle_user_merged` does not read, write or create
+the survivor's row. The merged row is kept and flagged with the new
+`ProfileCore.merged_into` (migration `0018`), never deleted — it is still a
+record of what that person wrote, and the public read already gates on the
+account existing in auth (`cards.existing_users`), which a merged account
+no longer does.
+
+**Nothing is copied across.** A guest's display name or avatar landing on an
+established account would be the same violation `_prefill_display_name`
+exists to prevent: the owner of a name is the person it names, and signing
+in to a real account is a statement about which identity the person means
+to keep. A survivor with no profile row at all therefore stays without one —
+a merge is not a registration, and `user.registered` is what provisions
+rows.
+
+**Relationships do move.** A follow or a block is a decision about another
+person, and dropping it would silently un-block somebody. Rows that would
+collide with one the survivor already holds (`unique_relationship`) or
+point the survivor at itself (`no_self_relationship`) are dropped instead —
+the survivor's own row wins, and neither constraint is ever reached.
+
+Idempotent by construction: the profile update filters on `merged_into IS
+NULL` and the relationship walk filters on the merged id, so the second
+delivery of an at-least-once event reports zeroes rather than doing the
+work twice. A payload missing an id, naming one account twice, or carrying
+an id no column can parse is logged and dropped — a raise would make the
+bus redeliver a message that can never succeed.
+
+### Fixed — erasing a survivor now takes the rows merged into them
+
+`erasure.erase_account` deleted the subject's own profile and left any row
+archived INTO them behind, whose `merged_into` would then name an account
+we had just sworn was gone. The merge said those rows are this person's, so
+the erasure takes them too; the receipt gains a `profiles_merged_in` count
+so the work is stated rather than assumed.
+
 ## [0.16.0] — 2026-08-24
 
 Minor: two comm Functions the fleet has been building against, and the end of
