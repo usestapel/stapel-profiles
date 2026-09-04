@@ -7,6 +7,7 @@ import logging
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from stapel_core.django.api.errors import StapelValidationError
+from stapel_core.django.api.permissions import IsNotAnonymousUser
 from stapel_core.django.api.serializers import StapelDataclassSerializer
 from stapel_core.media import image as build_image
 from stapel_core.media.drf import StapelImageSerializer
@@ -279,6 +280,9 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
     # endpoints are AllowAny and answer for any user id, so their default
     # answer is what an unauthenticated scraper gets. `None` (or ["*"])
     # restores "anonymous sees what members see" as a stated decision.
+    # A GUEST session reads the anonymous set, not the member one (0.18.0):
+    # it is `is_authenticated` and nobody has registered, so treating it as a
+    # member would sell the whole policy for one POST.
     # (Kept out of the docstring on purpose: the docstring is the emitted
     # OpenAPI component description, byte-compared against the monolith
     # aggregate's slice.)
@@ -325,8 +329,16 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
             # this serializer with the request in context (views.py), so this
             # branch is never how a real caller is answered.
             return visible
-        user = getattr(request, "user", None)
-        if user is not None and getattr(user, "is_authenticated", False):
+        # An ACCOUNT, not merely an authenticated request. With
+        # AUTH_ANONYMOUS on, a guest session is `is_authenticated` (see the
+        # views module docstring), and a storefront mints one from the first
+        # tap on "message the seller" — so keying the member view on
+        # authentication publishes whereabouts and the social graph to the
+        # open internet at the cost of one POST, which is precisely the
+        # scrape this policy exists to stop. The predicate is the one the
+        # write views already enforce, so "who counts as a member" has one
+        # definition in this module.
+        if IsNotAnonymousUser().has_permission(request, None):
             return visible
         anonymous = profiles_settings.PROFILES_PUBLIC_FIELDS_ANONYMOUS
         if anonymous is None or ANONYMOUS_FIELDS_SAME_AS_MEMBERS in anonymous:

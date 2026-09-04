@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [0.18.0] — 2026-09-04
+
+Minor: the visibility policy learns the difference between a session and an
+account.
+
+### Fixed — a guest session read the member view of every user id
+
+`PROFILES_PUBLIC_FIELDS_ANONYMOUS` exists so the open internet cannot walk
+the member directory for whereabouts and the social graph. It was selected
+on `is_authenticated`, and a **guest** — the user a storefront mints from
+the first tap on "message the seller" (`POST /auth/api/v1/anonymous/`) — is
+`is_authenticated`. So one POST bought the full member view of any user id,
+at scrape rate, from a session nobody had registered. Reproduced on a live
+stand: anonymous read four fields, the same read behind a guest cookie
+returned nine, including `location_*` and the follower counts.
+
+The policy now selects on `IsNotAnonymousUser` — the same predicate the
+follow/block views already enforce, so "who counts as a member" has one
+definition in this module. A registered caller is unchanged; an opt-out
+(`PROFILES_PUBLIC_FIELDS_ANONYMOUS = None` / `["*"]`) still covers every
+caller without an account.
+
+Minor, not patch: a guest that used to read `location_*`,
+`followers_count`, `following_count` and `relationship_status` now reads the
+anonymous set. The module's guest stance is unchanged where it was written
+down — a guest still reads its own graph, and still may not write to
+anyone's.
+
+
 ## [0.17.0] — 2026-08-30
 
 Minor: the other half of an account's life cycle.

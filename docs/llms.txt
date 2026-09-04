@@ -1,4 +1,4 @@
-# stapel-profiles 0.17.0
+# stapel-profiles 0.18.0
 
 User profiles and social graph: display name, avatar, locale/currency/measurement preferences, notification opt-outs, and follow/unfollow/block relationships between users, with a relationship-status lookup. Publishes the fleet's server-side block check (profiles.relationships — is there a block between these two, in either direction) and the public profile card (profiles.public_cards — name, avatar with CDN render metadata, member-since, seller type), so blocks are enforced by servers rather than by clients hiding a button, and a counterparty renders the same way everywhere.
 

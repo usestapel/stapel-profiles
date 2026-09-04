@@ -131,6 +131,57 @@ def test_anonymous_callers_can_be_given_a_narrower_view(anon_client, authed_clie
     assert set(member) == FULL_PUBLIC_FIELDS
 
 
+@pytest.fixture
+def guest_client(api_client):
+    """A guest session — what `POST /auth/api/v1/anonymous/` mints.
+
+    Not a second anonymous client: this one IS `is_authenticated`, which is
+    the whole point of the class of caller and the reason the defect below
+    was invisible to a permission check.
+    """
+    from stapel_core.django.users.models import User
+
+    api_client.force_authenticate(user=User.create_anonymous_user())
+    return api_client
+
+
+def test_a_guest_session_reads_the_anonymous_view_not_the_member_one(
+    guest_client, profile
+):
+    """The stand defect (2026-09-04): a storefront mints a guest from the
+    first tap on "message the seller", and that one POST used to buy the
+    member view of every user id — whereabouts and the social graph, at
+    scrape rate, from a session nobody registered."""
+    body = guest_client.get(f"/{profile.user_id}").json()
+
+    assert set(body) == NARROW_ANONYMOUS_FIELDS
+    assert not {f for f in body if f.startswith("location_")}
+    assert "followers_count" not in body
+    assert "relationship_status" not in body
+
+
+def test_the_batch_door_answers_a_guest_the_same_way(guest_client, profile):
+    body = _batch(guest_client, [profile.user_id]).json()
+    assert set(body["profiles"][0]) == NARROW_ANONYMOUS_FIELDS
+
+
+def test_a_member_still_reads_the_member_view(authed_client, profile):
+    """The narrowing is about accounts, not about sessions: a registered
+    caller is unchanged."""
+    body = authed_client.get(f"/{profile.user_id}").json()
+    assert set(body) == FULL_PUBLIC_FIELDS
+
+
+def test_a_deployment_that_opens_the_anonymous_view_opens_it_for_guests_too(
+    guest_client, profile
+):
+    """One policy, one answer: the opt-out is stated once and covers every
+    caller without an account."""
+    with override_settings(STAPEL_PROFILES={"PROFILES_PUBLIC_FIELDS_ANONYMOUS": None}):
+        body = guest_client.get(f"/{profile.user_id}").json()
+    assert set(body) == FULL_PUBLIC_FIELDS
+
+
 def test_the_anonymous_policy_can_only_narrow(api_client, profile):
     """A field hidden from members must not reappear for the internet."""
     with override_settings(

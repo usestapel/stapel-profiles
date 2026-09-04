@@ -86,7 +86,10 @@ DEFAULTS = {
         "following_count",
         "relationship_status",
     ],
-    # What an UNAUTHENTICATED caller sees. NARROW BY DEFAULT: the two public
+    # What a caller WITHOUT AN ACCOUNT sees — the unsigned internet and a
+    # guest session alike (0.18.0: a guest is `is_authenticated` and nobody
+    # registered, so it reads this list, not the member one). NARROW BY
+    # DEFAULT: the two public
     # endpoints are AllowAny and answer for any user id, so this list is what
     # the open internet may walk the member directory for. Identity and
     # avatar are what a name-next-to-a-message needs; whereabouts
