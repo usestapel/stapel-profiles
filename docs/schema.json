@@ -49,8 +49,8 @@
                       "location_display_name_broad": "LU - Differdange",
                       "followers_count": 120,
                       "following_count": 30,
-                      "rating": 4.5,
-                      "relationship_status": "following"
+                      "relationship_status": "following",
+                      "seller_type": "business"
                     }
                   }
                 }
@@ -648,7 +648,6 @@
                       "initial_setup_passed": true,
                       "followers_count": 42,
                       "following_count": 15,
-                      "rating": 4.8,
                       "created_at": "2025-01-15T12:00:00Z",
                       "updated_at": "2025-01-20T14:30:00Z"
                     }
@@ -732,7 +731,6 @@
                       "initial_setup_passed": true,
                       "followers_count": 42,
                       "following_count": 15,
-                      "rating": 4.8,
                       "created_at": "2025-01-15T12:00:00Z",
                       "updated_at": "2025-01-20T14:30:00Z"
                     }
@@ -1312,6 +1310,12 @@
             "nullable": true,
             "description": "Get relationship status with current user.",
             "readOnly": true
+          },
+          "seller_type": {
+            "type": "string",
+            "nullable": true,
+            "description": "The self-declared trading capacity, or `None` when unset.\n\n`None` covers both \"this deployment's profile model carries no\n`seller_type` field at all\" and \"it carries one and nobody filled it\nin\" — a caller cannot tell the two apart from this response, which is\ncorrect: neither means anything the caller should act on.",
+            "readOnly": true
           }
         },
         "required": [
@@ -1319,6 +1323,7 @@
           "followers_count",
           "following_count",
           "relationship_status",
+          "seller_type",
           "user_id"
         ]
       },
@@ -1380,17 +1385,17 @@
             "description": "Number of users followed",
             "example": 30
           },
-          "rating": {
-            "type": "number",
-            "format": "double",
-            "description": "User rating",
-            "example": 4.5
-          },
           "relationship_status": {
             "type": "string",
             "nullable": true,
             "description": "Relationship to current user",
             "example": "following"
+          },
+          "seller_type": {
+            "type": "string",
+            "nullable": true,
+            "description": "Self-declared trading capacity (\"private\"/\"business\"), or null when this deployment's profile carries no such field or the person never declared one",
+            "example": "business"
           }
         },
         "required": [
@@ -1403,8 +1408,8 @@
           "location_display_name_broad",
           "location_display_name_narrow",
           "location_id",
-          "rating",
           "relationship_status",
+          "seller_type",
           "user_id"
         ]
       },
@@ -1533,12 +1538,6 @@
             "description": "Number of users followed",
             "example": 15
           },
-          "rating": {
-            "type": "number",
-            "format": "double",
-            "description": "User rating",
-            "example": 4.8
-          },
           "created_at": {
             "type": "string",
             "description": "ISO 8601 creation time",
@@ -1570,7 +1569,6 @@
           "location_id",
           "push_messages",
           "push_system",
-          "rating",
           "theme",
           "understands",
           "updated_at",

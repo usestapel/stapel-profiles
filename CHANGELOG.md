@@ -2,6 +2,36 @@
 
 ## [Unreleased]
 
+## [0.19.0] — 2026-09-05
+
+Minor: a storefront seller panel can tell "Частное лицо" from "Компания"
+without a second lookup.
+
+### Added — `seller_type` on the public profile reads
+
+`GET /profiles/api/v1/<user_id>` and `POST .../batch` now carry
+`seller_type` — the same self-declared trading capacity
+(`profiles.public_cards` already answers with it, `cards._card`, 0.17.0's
+sibling addition to the comm-layer projection) exposed on the HTTP surface
+those two endpoints share. `null` when this deployment's profile model
+carries no such field, or when nobody has declared one — a caller cannot
+tell the two apart, which is correct: neither means anything it should act
+on. Gated by the existing `PROFILES_PUBLIC_FIELDS`/`_ANONYMOUS` policy like
+every other field on this serializer, and added to both lists' defaults —
+identity-adjacent disclosure, not whereabouts or the social graph.
+
+### Fixed — `rating` removed from the OpenAPI schema (doc correction only)
+
+`ProfileResponse`/`ProfilePublicResponse` declared a `rating: float` that
+named no live field: `rating_average`/`rating_count` were added in
+migration `0012` and dropped again in `0013`, both inside this package's
+first release — no version of `stapel-profiles` ever shipped a model that
+had the field, and neither response serializer's real
+(`ProfileSerializer`/`ProfilePublicSerializer`) `Meta.fields` ever listed
+it. The schema promised a field the API has never returned. No runtime
+behaviour changes; `make contract`'s regenerated `docs/schema.json` drops
+`rating` from both components.
+
 ## [0.18.0] — 2026-09-04
 
 Minor: the visibility policy learns the difference between a session and an

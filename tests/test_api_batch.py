@@ -67,6 +67,19 @@ class TestBatchHappyPath:
         assert resp.status_code == 200, resp.content
         assert resp.json() == {"profiles": [], "missing": []}
 
+    def test_seller_type_is_null_when_this_model_carries_no_such_field(
+        self, api_client
+    ):
+        """Same contract as the single lookup: `seller_type` rides along on
+        every card, `null` when this deployment's profile model carries no
+        such field (the base, unswapped `Profile`)."""
+        uid = uuid.uuid4()
+        Profile.objects.create(user_id=uid, display_name="Ada")
+
+        data = _post(api_client, [uid]).json()
+
+        assert data["profiles"][0]["seller_type"] is None
+
     def test_payload_matches_the_single_profile_endpoint(self, api_client):
         """The batch must not be a second, subtly different profile shape."""
         uid = uuid.uuid4()

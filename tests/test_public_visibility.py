@@ -27,6 +27,7 @@ FULL_PUBLIC_FIELDS = {
     "followers_count",
     "following_count",
     "relationship_status",
+    "seller_type",
 }
 
 
@@ -61,6 +62,7 @@ NARROW_ANONYMOUS_FIELDS = {
     "avatar_source",
     "avatar",
     "avatar_image",
+    "seller_type",
 }
 
 

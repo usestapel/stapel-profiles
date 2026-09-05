@@ -85,6 +85,7 @@ DEFAULTS = {
         "followers_count",
         "following_count",
         "relationship_status",
+        "seller_type",
     ],
     # What a caller WITHOUT AN ACCOUNT sees — the unsigned internet and a
     # guest session alike (0.18.0: a guest is `is_authenticated` and nobody
@@ -100,12 +101,18 @@ DEFAULTS = {
     # ["*"]) — "anonymous callers see everything members see" is a decision
     # a deployment states, not one it inherits. A narrower list (or []) still
     # narrows further; it may never widen past PROFILES_PUBLIC_FIELDS.
+    # `seller_type` rides along with identity/avatar rather than with
+    # whereabouts or the social graph: it is a self-declared trading
+    # capacity a buyer is entitled to see before contacting, in most
+    # jurisdictions — the same call `cards._card` already made for the
+    # comm-layer projection (profiles.public_cards).
     "PROFILES_PUBLIC_FIELDS_ANONYMOUS": [
         "user_id",
         "display_name",
         "avatar_source",
         "avatar",
         "avatar_image",
+        "seller_type",
     ],
     # ── The block check (profiles.relationships) ─────────────────────
     # How many pairs one call may carry. Structural config, not a

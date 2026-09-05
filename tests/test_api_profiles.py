@@ -200,6 +200,17 @@ class TestProfileDetail:
         assert resp.status_code == 404
         assert resp.json()["localizable_error"] == ERR_404_PROFILE_NOT_FOUND
 
+    def test_seller_type_is_null_when_this_model_carries_no_such_field(
+        self, api_client, user
+    ):
+        """The base (unswapped) `Profile` model never carries `seller_type` —
+        the field is only ever added by a deployment's own extended model
+        (`field_defs`, §66). This is the "unset" half of the contract."""
+        Profile.objects.create(user_id=user.id)
+        resp = api_client.get(f"/{user.id}")
+        assert resp.status_code == 200, resp.content
+        assert resp.json()["seller_type"] is None
+
 
 @pytest.mark.django_db
 class TestProfileOfSomebodyWhoNeverLoggedIn:

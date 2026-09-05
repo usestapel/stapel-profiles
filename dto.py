@@ -50,7 +50,6 @@ class ProfileResponse:
         initial_setup_passed: Whether onboarding is complete. Example: true
         followers_count: Number of followers. Example: 42
         following_count: Number of users followed. Example: 15
-        rating: User rating. Example: 4.8
         created_at: ISO 8601 creation time. Example: 2025-01-15T12:00:00Z
         updated_at: ISO 8601 last update time. Example: 2025-01-20T14:30:00Z
     """
@@ -81,7 +80,6 @@ class ProfileResponse:
     initial_setup_passed: bool
     followers_count: int
     following_count: int
-    rating: float
     created_at: str
     updated_at: str
 
@@ -99,8 +97,8 @@ class ProfilePublicResponse:
         location_display_name_broad: Broad location. Example: LU - Differdange
         followers_count: Number of followers. Example: 120
         following_count: Number of users followed. Example: 30
-        rating: User rating. Example: 4.5
         relationship_status: Relationship to current user. Example: following
+        seller_type: Self-declared trading capacity ("private"/"business"), or null when this deployment's profile carries no such field or the person never declared one. Example: business
     """
     user_id: UUID
     #: Hard-core again (owner 2026-07-22) — shown on other users' profiles too.
@@ -114,8 +112,10 @@ class ProfilePublicResponse:
     location_display_name_broad: str
     followers_count: int
     following_count: int
-    rating: float
     relationship_status: Optional[str]
+    #: Same field, same defensive read, as `cards._card`'s `seller_type` —
+    #: present only when this deployment's profile model carries it.
+    seller_type: Optional[str]
 
 
 @dataclass

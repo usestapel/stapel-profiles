@@ -293,6 +293,14 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
     #: Renderable descriptor for OTHER users' avatars (participant lists,
     #: waiting rooms) — same denormalize-next-to-the-ref rule as /me.
     avatar_image = serializers.SerializerMethodField()
+    #: Self-declared trading capacity ("private"/"business"), read the same
+    #: defensive way `cards._card` reads it: present only when this
+    #: deployment's swapped-in profile model actually carries the field
+    #: (`field_defs`/§66), `None` otherwise or when the person never
+    #: declared one. Gated by the same visibility policy as every other
+    #: field here — a host that narrows `PROFILES_PUBLIC_FIELDS` narrows
+    #: this too.
+    seller_type = serializers.SerializerMethodField()
 
     class Meta:
         model = get_profile_model()
@@ -308,6 +316,7 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
             "followers_count",
             "following_count",
             "relationship_status",
+            "seller_type",
         ]
 
     def __init__(self, *args, **kwargs):
@@ -371,6 +380,17 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
     @extend_schema_field(StapelImageSerializer)
     def get_avatar_image(self, obj):
         return avatar_image(obj)
+
+    def get_seller_type(self, obj) -> str | None:
+        """The self-declared trading capacity, or `None` when unset.
+
+        `None` covers both "this deployment's profile model carries no
+        `seller_type` field at all" and "it carries one and nobody filled it
+        in" — a caller cannot tell the two apart from this response, which is
+        correct: neither means anything the caller should act on.
+        """
+        value = getattr(obj, "seller_type", None)
+        return str(value) if value else None
 
     def get_relationship_status(self, obj) -> str | None:
         """Get relationship status with current user."""
