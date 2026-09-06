@@ -2,6 +2,20 @@
 
 ## [Unreleased]
 
+## [0.19.1] — 2026-09-06
+
+### `stapel-core` floor raised to 0.60.6 — field-validator `params` now survives DRF's re-raise
+
+`serializers.py`'s `validate_avatar()` field validator raises
+`StapelValidationError(ERR_400_AVATAR_URL_SCHEME, params={"schemes": ...})`
+(via `validators.validate_avatar_url()`). Below core 0.60.6, DRF's own
+field-error collapse (`Serializer.to_internal_value`/`run_validation`)
+catches and re-raises that as a plain `ValidationError`, discarding
+everything but the error's text and `.code` — a caller below the floor got
+the error key with no `schemes` to act on. 0.60.6 packs `error_key`/`params`
+into the exception's `.code` itself, so `params` reaches the client through
+any depth of DRF re-wrapping. Floor-only; no behaviour here changes.
+
 ## [0.19.0] — 2026-09-05
 
 Minor: a storefront seller panel can tell "Частное лицо" from "Компания"
