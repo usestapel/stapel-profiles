@@ -20,13 +20,14 @@ fixed key set can appear in a card at all: the shape is built key by key from
 a frozen tuple (:data:`CARD_KEYS`), never by serializing a model, so a field
 added to ``Profile`` tomorrow cannot leak through this path.
 
-Two facts in the card have no counterpart in the HTTP public projection and
-are therefore card-only, stated here rather than inherited:
+Two facts in the card are shaped here rather than inherited verbatim from the
+HTTP public projection:
 
-* ``member_since`` — a **date**, not a timestamp. "Joined March 2024" is what
-  a marketplace shows to establish that an account is not brand new; the
-  exact second of registration is a behavioural fingerprint nobody needs, so
-  it is coarsened here rather than at every consumer.
+* ``member_since`` — a **date**, not a timestamp, and under its own name. The
+  HTTP reads carry the same fact as ``created_at`` (0.19.2), the full stored
+  timestamp; "Joined March 2024" is all a marketplace shows, and the exact
+  second of registration is a behavioural fingerprint nobody needs, so this
+  projection coarsens it rather than every consumer doing so.
 * ``seller_type`` — present only when this deployment's profile model
   actually carries the field (§66 made the profile a manifest), ``""``
   otherwise. It is a self-declared, publicly displayed trading capacity

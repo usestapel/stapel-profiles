@@ -2,6 +2,32 @@
 
 ## [Unreleased]
 
+## [0.19.2] — 2026-09-07
+
+Patch: a seller page can say how long the seller has been here.
+
+### Added — `created_at` on the public profile reads
+
+`GET /profiles/api/v1/<user_id>` and `POST .../batch` now carry
+`created_at`, the ISO 8601 time the **profile** was created. A storefront's
+seller panel renders "on the site since March 2024" from it. The fact was on the
+model all along and on `/me` only, so the one caller that could read it was
+the person themselves — the surface where it matters is somebody else's
+page. `profiles.public_cards` already answered with the same fact under the
+name `member_since`, coarsened to a date; that projection is unchanged, and
+this is the timestamp the model stores.
+
+It is **tenure, not PII**: it names nobody, locates nobody, and nothing
+about signing in moves it — `created_at` is not a last-seen or activity
+signal, and `updated_at` stays off the public projection. That is why it is
+in **both** default policy lists, `PROFILES_PUBLIC_FIELDS` and
+`PROFILES_PUBLIC_FIELDS_ANONYMOUS`: the storefront visitor reading a seller
+page is usually signed out, and a join date they cannot see is a join date
+the page cannot draw. Like every other field on this serializer it is
+removable by policy — drop it from `PROFILES_PUBLIC_FIELDS` and it is gone
+from both endpoints for everyone, drop it from the anonymous list alone and
+members keep it.
+
 ## [0.19.1] — 2026-09-06
 
 ### `stapel-core` floor raised to 0.60.6 — field-validator `params` now survives DRF's re-raise

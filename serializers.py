@@ -317,6 +317,11 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
             "following_count",
             "relationship_status",
             "seller_type",
+            # Tenure ("on the site since <month year>"), read straight off
+            # the model's auto_now_add column — read-only here by
+            # construction, and gated by the same policy as everything
+            # above it.
+            "created_at",
         ]
 
     def __init__(self, *args, **kwargs):

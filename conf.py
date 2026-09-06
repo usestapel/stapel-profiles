@@ -86,6 +86,13 @@ DEFAULTS = {
         "following_count",
         "relationship_status",
         "seller_type",
+        # Tenure, not PII: WHEN THE PROFILE ROW WAS CREATED. It identifies
+        # nobody, it moves for nobody (a sign-in does not touch it), and it
+        # is the one thing a buyer looks for before dealing with a stranger
+        # — "on the site since March 2024". Listed here like every other
+        # field, so a host that considers a join date too much still takes
+        # it out of this list and it is gone from both public endpoints.
+        "created_at",
     ],
     # What a caller WITHOUT AN ACCOUNT sees — the unsigned internet and a
     # guest session alike (0.18.0: a guest is `is_authenticated` and nobody
@@ -106,6 +113,12 @@ DEFAULTS = {
     # capacity a buyer is entitled to see before contacting, in most
     # jurisdictions — the same call `cards._card` already made for the
     # comm-layer projection (profiles.public_cards).
+    # `created_at` rides along for the same reason it is not withheld from
+    # the internet: a join date is tenure, not PII — it names nobody and
+    # locates nobody, and it is exactly what a signed-out buyer reads on a
+    # seller page to tell a three-year account from a three-day one. Hiding
+    # it from guests would leave the storefront's "on the site since ..."
+    # blank for every visitor who has not registered, which is most of them.
     "PROFILES_PUBLIC_FIELDS_ANONYMOUS": [
         "user_id",
         "display_name",
@@ -113,6 +126,7 @@ DEFAULTS = {
         "avatar",
         "avatar_image",
         "seller_type",
+        "created_at",
     ],
     # ── The block check (profiles.relationships) ─────────────────────
     # How many pairs one call may carry. Structural config, not a

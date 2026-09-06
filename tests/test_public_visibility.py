@@ -28,6 +28,7 @@ FULL_PUBLIC_FIELDS = {
     "following_count",
     "relationship_status",
     "seller_type",
+    "created_at",
 }
 
 
@@ -63,6 +64,7 @@ NARROW_ANONYMOUS_FIELDS = {
     "avatar",
     "avatar_image",
     "seller_type",
+    "created_at",
 }
 
 
@@ -194,6 +196,103 @@ def test_the_anonymous_policy_can_only_narrow(api_client, profile):
     ):
         body = api_client.get(f"/{profile.user_id}").json()
     assert set(body) == {"user_id"}
+
+
+# ── Tenure (`created_at`) ────────────────────────────────────────────
+#
+# A seller page renders "on the site since <month year>". The fact lived on
+# /me only, so a storefront could not draw it for anybody but the viewer
+# themselves. It is tenure — it names nobody, and nothing about signing in
+# moves it — so it is in BOTH default policy lists, and removable from
+# either like every other field.
+
+
+def _parsed(value):
+    from django.utils.dateparse import parse_datetime
+
+    parsed = parse_datetime(value)
+    assert parsed is not None, f"{value!r} is not an ISO 8601 datetime"
+    return parsed
+
+
+def test_a_member_reads_the_join_date(authed_client, profile):
+    body = authed_client.get(f"/{profile.user_id}").json()
+
+    assert "created_at" in body
+    assert _parsed(body["created_at"]) == profile.created_at
+
+
+def test_an_anonymous_caller_reads_the_join_date_too(anon_client, profile):
+    """The storefront's visitor is usually signed out — a join date they
+    cannot see is a join date the seller page cannot draw."""
+    body = anon_client.get(f"/{profile.user_id}").json()
+
+    assert "created_at" in body
+    assert _parsed(body["created_at"]) == profile.created_at
+
+
+def test_the_batch_door_carries_the_join_date(anon_client, profile):
+    body = _batch(anon_client, [profile.user_id]).json()
+
+    assert _parsed(body["profiles"][0]["created_at"]) == profile.created_at
+
+
+def test_the_join_date_is_the_profiles_creation_not_a_sign_in(
+    authed_client, profile
+):
+    """`created_at` answers "since when", never "when were they last here".
+
+    Signing in touches nothing on this row, and a later WRITE moves
+    `updated_at` — not this. A client that read tenure off something that
+    moves would be publishing an activity signal.
+    """
+    profile.display_name = "Ada Lovelace"
+    profile.save()
+    profile.refresh_from_db()
+    assert profile.updated_at > profile.created_at
+
+    body = authed_client.get(f"/{profile.user_id}").json()
+
+    assert _parsed(body["created_at"]) == profile.created_at
+    assert _parsed(body["created_at"]) != profile.updated_at
+    assert "updated_at" not in body
+
+
+def test_a_host_that_drops_the_join_date_from_the_policy_hides_it(
+    authed_client, anon_client, profile
+):
+    """Removable by policy like every other field — for members and for the
+    internet, through the two lists that already exist."""
+    members_only = [f for f in FULL_PUBLIC_FIELDS if f != "created_at"]
+    with override_settings(
+        STAPEL_PROFILES={"PROFILES_PUBLIC_FIELDS": sorted(members_only)}
+    ):
+        member = authed_client.get(f"/{profile.user_id}").json()
+        # Hidden from members means hidden from the internet: the anonymous
+        # list may only ever narrow.
+        anonymous = anon_client.get(f"/{profile.user_id}").json()
+        batched = _batch(authed_client, [profile.user_id]).json()
+
+    assert "created_at" not in member
+    assert "created_at" not in anonymous
+    assert "created_at" not in batched["profiles"][0]
+
+
+def test_the_join_date_can_be_hidden_from_the_internet_alone(
+    authed_client, anon_client, profile
+):
+    with override_settings(
+        STAPEL_PROFILES={
+            "PROFILES_PUBLIC_FIELDS_ANONYMOUS": sorted(
+                NARROW_ANONYMOUS_FIELDS - {"created_at"}
+            )
+        }
+    ):
+        anonymous = anon_client.get(f"/{profile.user_id}").json()
+        member = authed_client.get(f"/{profile.user_id}").json()
+
+    assert "created_at" not in anonymous
+    assert "created_at" in member
 
 
 # ── Enumeration limits ───────────────────────────────────────────────

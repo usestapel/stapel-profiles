@@ -50,7 +50,8 @@
                       "followers_count": 120,
                       "following_count": 30,
                       "relationship_status": "following",
-                      "seller_type": "business"
+                      "seller_type": "business",
+                      "created_at": "2025-01-15T12:00:00Z"
                     }
                   }
                 }
@@ -1316,10 +1317,16 @@
             "nullable": true,
             "description": "The self-declared trading capacity, or `None` when unset.\n\n`None` covers both \"this deployment's profile model carries no\n`seller_type` field at all\" and \"it carries one and nobody filled it\nin\" — a caller cannot tell the two apart from this response, which is\ncorrect: neither means anything the caller should act on.",
             "readOnly": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
           }
         },
         "required": [
           "avatar_image",
+          "created_at",
           "followers_count",
           "following_count",
           "relationship_status",
@@ -1396,12 +1403,18 @@
             "nullable": true,
             "description": "Self-declared trading capacity (\"private\"/\"business\"), or null when this deployment's profile carries no such field or the person never declared one",
             "example": "business"
+          },
+          "created_at": {
+            "type": "string",
+            "description": "ISO 8601 time this PROFILE was created — the tenure a seller page renders as \"on the site since March 2024\". Not a sign-in time and not an activity signal",
+            "example": "2025-01-15T12:00:00Z"
           }
         },
         "required": [
           "avatar",
           "avatar_image",
           "avatar_source",
+          "created_at",
           "display_name",
           "followers_count",
           "following_count",

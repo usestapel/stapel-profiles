@@ -99,6 +99,7 @@ class ProfilePublicResponse:
         following_count: Number of users followed. Example: 30
         relationship_status: Relationship to current user. Example: following
         seller_type: Self-declared trading capacity ("private"/"business"), or null when this deployment's profile carries no such field or the person never declared one. Example: business
+        created_at: ISO 8601 time this PROFILE was created — the tenure a seller page renders as "on the site since March 2024". Not a sign-in time and not an activity signal. Example: 2025-01-15T12:00:00Z
     """
     user_id: UUID
     #: Hard-core again (owner 2026-07-22) — shown on other users' profiles too.
@@ -116,6 +117,13 @@ class ProfilePublicResponse:
     #: Same field, same defensive read, as `cards._card`'s `seller_type` —
     #: present only when this deployment's profile model carries it.
     seller_type: Optional[str]
+    #: When the PROFILE row was created — tenure, the storefront's "on the
+    #: site since <month year>". The card projection coarsens the same fact
+    #: to a date (`cards._member_since`); this one is the full timestamp the
+    #: model stores. It is NOT a login/last-seen time: nothing here moves
+    #: when the person signs in, so it says nothing about whether they are
+    #: online now.
+    created_at: str
 
 
 @dataclass

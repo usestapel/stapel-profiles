@@ -30,6 +30,8 @@ INSTALLED_APPS = [
 ]
 ```
 
+Public reads (`GET /profiles/api/v1/<user_id>`, `POST .../batch`) carry `created_at` — when the profile was created, i.e. **tenure** ("on the site since March 2024"), not PII and not a sign-in time; drop it from `PROFILES_PUBLIC_FIELDS` / `PROFILES_PUBLIC_FIELDS_ANONYMOUS` to hide it, like any other field.
+
 ## Bus events
 
 ### Emits
