@@ -380,7 +380,7 @@ This module has erased on `user.deleted` since the beginning and has never
 said so. stapel-gdpr's orchestrator does not self-certify: an `ErasurePart`
 with no receipt keeps the request in `erasing` until it times out thirty days
 later, which is exactly what an owner whose consumer was never deployed looks
-like. That is the "silent owner" the ironmemo inventory found.
+like. That is the "silent owner" a client inventory found.
 
 `actions.handle_erasure_requested` consumes stapel-gdpr 0.5.0's
 `gdpr.erasure.requested` and answers `gdpr.section.erased` with the
@@ -594,7 +594,7 @@ declared `LANGUAGES = [("ru", …), ("en", …)]` and never ran it served an
 empty picker (the read side already intersects with `settings.LANGUAGES`)
 and answered 400 `does_not_exist` to every write.
 
-Measured on the meettoday sandbox, 2026-08: 0 `Language` rows, 0 of 66
+Measured on a client sandbox, 2026-08: 0 `Language` rows, 0 of 66
 profiles with an `app_language`, and `PATCH {"app_language": "en"}` rejected
 as nonexistent while `settings.LANGUAGES` declared exactly `en`. That is
 the answer to "did nobody choose, or could nobody choose": **nobody could**.
@@ -623,7 +623,7 @@ who has not accepted an invitation yet, and it is an *answer*, not a failure.
 
 The alternative is what it replaces. stapel-notifications mirrored
 `app_language` into a local table fed by a bus consumer, and the mirror was
-empty for its entire lifetime — 0 rows against 66 profiles on the meettoday
+empty for its entire lifetime — 0 rows against 66 profiles on a client
 sandbox — for two independent reasons: a monolith on the in-process bus cannot
 run a standalone consumer at all (core 0.14.2 now refuses instead of
 restart-looping), and the consumer listened on `stapel.profiles.profile-changed`
@@ -649,7 +649,7 @@ ALREADY said `cdn` — exactly the case that was already correct — so a client
 that PATCHed `{avatar: "avatar/<hash>"}` without a source got the model default
 (`file`) written next to a CDN ref, silently.
 
-On the meettoday sandbox that was not an edge case. **2 of 2** profiles that
+On a client sandbox that was not an edge case. **2 of 2** profiles that
 had ever set an avatar were stored this way, on two different people — a 100%
 failure rate of the manual upload path. Serializing such a row routed the ref
 to the PIL provider, which opened stapel-cdn's variant DIRECTORY as a plain
@@ -811,7 +811,7 @@ They now answer, and the answer is one rule:
   `stapel_anonymous_access = ANONYMOUS_ALLOWED`.
 - **`GET`/`PATCH /me` is load-bearing for guests, not merely tolerated.** It
   is the view a guest uses to name themselves *before* joining a call in
-  meettoday. Closing it would have broken a product in production, mid-call.
+  a meeting app. Closing it would have broken a product in production, mid-call.
   Its declaration is now the line that stops that from happening by accident.
 
 ### Changed (BREAKING for anonymous callers) — follow/block require a real account

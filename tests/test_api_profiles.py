@@ -84,7 +84,7 @@ class TestMyProfilePatch:
         """A language the deployment DECLARES is choosable even if nobody ran
         `sync_languages`.
 
-        This is the state the meettoday sandbox was in: LANGUAGES declared ru
+        This is the state a client sandbox was in: LANGUAGES declared ru
         and en, the Language table held zero rows, so the picker was empty and
         every write 400'd — app_language stayed NULL for all 66 profiles and
         every notification had to guess at the recipient's language.

@@ -136,7 +136,7 @@
     },
     "avatar_image": {
       "kind": "factory",
-      "intent": "The renderable StapelImage for a profile's avatar — variant ladder plus blur-up — mapping this module's avatar_source taxonomy onto the matching media provider. A custom profile presenter or serializer seam must call this rather than hand the raw ref to the media builder with a guessed provider: a pil-default deployment describing CDN refs is how meettoday shipped an empty variant ladder.",
+      "intent": "The renderable StapelImage for a profile's avatar — variant ladder plus blur-up — mapping this module's avatar_source taxonomy onto the matching media provider. A custom profile presenter or serializer seam must call this rather than hand the raw ref to the media builder with a guessed provider: a pil-default deployment describing CDN refs is how a client shipped an empty variant ladder.",
       "instead_of": [
         "stapel_core.media.image"
       ]

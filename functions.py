@@ -244,7 +244,7 @@ def language(payload: dict) -> dict:
     Published because the alternative — every sibling keeping a mirror of
     this field, fed by an event — is the shape that failed: stapel-notifications
     mirrored ``app_language`` into ``UserNotificationSettings`` and the table
-    stood empty for the mirror's whole lifetime (meettoday sandbox, 2026-08:
+    stood empty for the mirror's whole lifetime (a client sandbox, 2026-08:
     0 rows for 66 profiles), so every recipient silently got the SENDER's
     language. A mirror cannot tell "the user chose nothing" from "the sync
     never ran"; a call can — it either answers or raises.

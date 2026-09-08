@@ -54,7 +54,7 @@ class StapelProfileEnum(models.TextChoices):
     field-def registry (and future profile-enum tooling: admin filters,
     attribute projections) recognise "this choices class backs a profile
     field" via ``issubclass(x, StapelProfileEnum)`` rather than duck-typing
-    ``.choices``. A project's OWN enum for a custom field (e.g. ironmemo's
+    ``.choices``. A project's OWN enum for a custom field (e.g. a client's
     occupation) subclasses this too.
     """
 

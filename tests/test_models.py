@@ -157,7 +157,7 @@ class TestUserRelationshipModel:
 class TestAvatarPairInvariant:
     """`avatar` + `avatar_source` are one value in two columns.
 
-    Regression cover for the meettoday sandbox outage: both profiles that ever
+    Regression cover for a client sandbox outage: both profiles that ever
     had an avatar (2 of 2) stored a real stapel-cdn ref tagged `file`, because
     the writer sent only the ref and let the model default pick the tag.
     Serializing such a row routed the ref to the PIL provider, which opened the

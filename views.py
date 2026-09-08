@@ -22,7 +22,7 @@ session that made it and can never be managed by anyone. Those four views
 carry :class:`~stapel_core.django.api.permissions.IsNotAnonymousUser`.
 
 ``MyProfileView`` is the exception that proves the axis exists: it is on the
-live guest path of a real consumer (meettoday — a guest types their display
+live guest path of a real consumer (a meeting app — a guest types their display
 name at ``PATCH /profiles/api/v1/me`` *before* joining a call, and the app
 header reads the same view for the guest session). It is explicitly
 ``ANONYMOUS_ALLOWED``.
@@ -169,7 +169,7 @@ class LanguageViewSet(viewsets.ReadOnlyModelViewSet):
 
         # A declared language is offered even if nobody ran `sync_languages`:
         # an empty picker is indistinguishable from "this deployment speaks
-        # one language", and it is how meettoday's users came to have no
+        # one language", and it is how a client's users came to have no
         # stated language at all (see ensure_declared_languages).
         ensure_declared_languages()
 
@@ -252,7 +252,7 @@ class MyProfileView(PrivacyHeadersMixin, StapelAPIView):
 
     permission_classes = [IsAuthenticated]
     # A guest has a "me" too, and this is the view that gives them one: in
-    # meettoday the display-name prompt shown *before* a guest joins a call
+    # a meeting app the display-name prompt shown *before* a guest joins a call
     # is a PATCH here, and the app header reads the same view for the guest
     # session. Both halves are scoped to `request.user.id` — a guest can only
     # ever read and write their own row.

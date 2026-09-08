@@ -64,7 +64,7 @@ def avatar_image(profile):
     onto `stapel_core.media`'s source-agnostic builder:
 
     - CDN → the cdn provider (its own variant naming — the fix for the empty
-      ladder meettoday hit when a pil-default deployment described cdn refs);
+      ladder a client hit when a pil-default deployment described cdn refs);
     - FILE → the PIL provider over plain Django storage;
     - URL → an external link, subject to the URL boundary below;
     - GRAVATAR → the gravatar URL built from the stored email-hash (square).
@@ -119,7 +119,7 @@ class LanguageCodeField(serializers.SlugRelatedField):
     PATCH — so ``app_language`` stayed NULL for every user, forever, and
     every notification fell back to guessing at their language.
 
-    Measured on the meettoday sandbox 2026-08: 0 ``Language`` rows, 0 of 66
+    Measured on a client sandbox 2026-08: 0 ``Language`` rows, 0 of 66
     profiles with an ``app_language``, and ``{"app_language": "en"}``
     rejected as nonexistent while ``settings.LANGUAGES`` declared exactly
     that code.
@@ -509,7 +509,7 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
         `file`/`url`/`gravatar` are free-form strings this serializer does not
         police the shape of; `cdn` keeps the fixed `avatar/<64-hex>` wire
         format + existence check. What is NEW here (and what the live
-        meettoday outage cost): the check no longer only runs when the source
+        client outage cost): the check no longer only runs when the source
         already says `cdn` — i.e. only in the case that was already correct.
         A request whose ref is a CDN ref is now either tagged `cdn` by the
         caller, tagged `cdn` by derivation, or REJECTED. It can no longer end

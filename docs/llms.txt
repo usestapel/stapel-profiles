@@ -37,7 +37,7 @@ This is the answer to "does Stapel already have something for X?". `instead of` 
   The manifest → {field_name: Django field} primitive under build_profile_model, failing loudly at assembly time on an unknown identity preset or standard-field name instead of with a confusing system check later. Call it directly only when splicing profile fields into a model you already own; if you want a Profile, call build_profile_model.
 - avatar_image — stapel_profiles.serializers.avatar_image
   instead of: stapel_core.media.image
-  The renderable StapelImage for a profile's avatar — variant ladder plus blur-up — mapping this module's avatar_source taxonomy onto the matching media provider. A custom profile presenter or serializer seam must call this rather than hand the raw ref to the media builder with a guessed provider: a pil-default deployment describing CDN refs is how meettoday shipped an empty variant ladder.
+  The renderable StapelImage for a profile's avatar — variant ladder plus blur-up — mapping this module's avatar_source taxonomy onto the matching media provider. A custom profile presenter or serializer seam must call this rather than hand the raw ref to the media builder with a guessed provider: a pil-default deployment describing CDN refs is how a client shipped an empty variant ladder.
 - avatar_url_allowed_hosts — stapel_profiles.validators.avatar_url_allowed_hosts
   The external avatar host allowlist (PROFILES_AVATAR_URL_ALLOWED_HOSTS, normalized; empty = no external host trusted, ["*"] = any host). Same reason as the schemes accessor: one reading of the policy, not two.
 - avatar_url_allowed_schemes — stapel_profiles.validators.avatar_url_allowed_schemes

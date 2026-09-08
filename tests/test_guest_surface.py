@@ -9,7 +9,7 @@ the rule; these tests are what makes the statement load-bearing:
     **not write** to it.
 
 The read half is the half that matters most. ``MyProfileView`` is on the live
-guest path of a real consumer (meettoday: a guest types a display name at
+guest path of a real consumer (a meeting app: a guest types a display name at
 ``PATCH /me`` *before* joining a call), so a regression that closes it would
 break a product in production, mid-call — not in review.
 """
@@ -57,7 +57,7 @@ class TestGuestMayOwnAProfile:
         assert Profile.objects.filter(user_id=guest.id).exists()
 
     def test_guest_can_set_own_display_name(self, guest_client, guest):
-        """The meettoday guest-name gate, verbatim."""
+        """The client guest-name gate, verbatim."""
         resp = guest_client.patch("/me", {"display_name": "Гость Вася"}, format="json")
         assert resp.status_code == 200, resp.content
         assert Profile.objects.get(user_id=guest.id).display_name == "Гость Вася"

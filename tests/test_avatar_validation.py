@@ -114,7 +114,7 @@ class TestAvatarValidationViaComm:
 
         This test used to assert the opposite ("defaults to file, skips the
         cdn checks") and that assertion was the defect, written down. Both
-        profiles on the meettoday sandbox that ever had an avatar (2 of 2)
+        profiles on a client sandbox that ever had an avatar (2 of 2)
         were stored exactly this way — `PATCH {avatar: "avatar/<hash>"}` with
         no source — and serializing them 500'd `/profiles/api/v1/me`.
         """

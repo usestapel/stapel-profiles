@@ -81,7 +81,7 @@ def ensure_declared_languages() -> None:
     deployment that declared its languages the standard Django way and never
     ran that command got an EMPTY picker and a 400 on every ``app_language``
     write — so nobody could state a language, and every notification then had
-    to guess at its recipient's (meettoday sandbox, 2026-08: 0 rows, 0 of 66
+    to guess at its recipient's (a client sandbox, 2026-08: 0 rows, 0 of 66
     profiles with a language, mail sent in the sender's language to everyone).
 
     Configuration is the declaration; this just makes the table agree with it.
@@ -148,7 +148,7 @@ def validate_avatar_reference(source: str, value: str) -> None:
     point of this function: a value that IS a cdn ref may not be tagged
     anything but `cdn`.
 
-    That mismatch is not hypothetical. On the meettoday sandbox both profiles
+    That mismatch is not hypothetical. On a client sandbox both profiles
     that ever had an avatar (2 of 2 — a 100% failure rate of the manual upload
     path, not an edge case) stored a real cdn ref tagged `file`, because the
     frontend PATCHed `{avatar: ref}` and let the model default decide the tag.
@@ -274,7 +274,7 @@ class ProfileCore(models.Model):
 
     # Language settings — hard in core (owner directive 2026-07-17):
     # multi-understand-language is universal account infrastructure, not a
-    # per-product preference, even though a real product (meettoday) may
+    # per-product preference, even though a real product (a meeting app) may
     # front it with a simpler single-code UI of its own.
     app_language = models.ForeignKey(
         Language,
@@ -358,7 +358,7 @@ class ProfileCore(models.Model):
     # the source ALREADY said `cdn` (i.e. exactly the case that was already
     # right), and every other writer — admin, shell, data migration, an
     # `update_or_create` whose defaults predate the ref — could store any
-    # combination it liked. Two rows on the meettoday sandbox did, and 500'd
+    # combination it liked. Two rows on a client sandbox did, and 500'd
     # the profile endpoint. The invariant lives HERE, at the last gate every
     # writer passes, so "inconsistent" stops being a storable state rather
     # than a state the read path has to survive.
