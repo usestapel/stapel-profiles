@@ -102,6 +102,8 @@ class TestErasure:
             "profiles_merged_in": 0,
             "relationships_outgoing": 1,
             "relationships_incoming": 1,
+            "contacts": 0,
+            "contact_reveals": 0,
         }
 
     def test_somebody_elses_rows_are_untouched(self):
@@ -135,6 +137,8 @@ class TestTheReceipt:
             "profiles_merged_in": 0,
             "relationships_outgoing": 1,
             "relationships_incoming": 1,
+            "contacts": 0,
+            "contact_reveals": 0,
         }
         _validate(payload, "gdpr.section.erased")
         assert not Profile.objects.filter(user_id=user_id).exists()
@@ -156,6 +160,8 @@ class TestTheReceipt:
             "profiles_merged_in": 0,
             "relationships_outgoing": 0,
             "relationships_incoming": 0,
+            "contacts": 0,
+            "contact_reveals": 0,
         }
 
     def test_a_subject_type_we_do_not_claim_gets_no_receipt(self, receipts):

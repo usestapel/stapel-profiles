@@ -36,8 +36,24 @@ carrying both numbers; the endpoint never silently truncates the list, which
 would show up in the UI as "some people have no name" with nothing in the
 response saying why. A host with bigger spaces raises the number; the honest
 cost is one bigger query + one bigger response, not a silent partial answer.
+
+CONTACTS — the seller-contacts block (`contacts/`), the module's one NESTED
+key. Read key by key through `contacts.conf.contacts_setting()`, host value
+over default, so a deployment may state one knob without losing the other
+two:
+
+    STAPEL_PROFILES = {"CONTACTS": {"REVEAL_PER_HOUR": 10}}
+
+`REVEAL_PER_HOUR` (30) — reveals one viewer may perform per hour; 0 removes
+the ceiling. `POLICIES` (["members", "verified", "nobody"]) — the policy
+vocabulary this deployment offers, first entry the default for a new
+contact. `OTP_PROVIDER` — dotted path to the phone-verification seam,
+stapel-auth's service by default, with a built-in core-code-store fallback
+when that module is not installed.
 """
 from stapel_core.conf import AppSettings
+
+from .contacts.conf import CONTACTS_DEFAULTS
 
 #: AppSettings-shaped literal dict (capability-config.md §2): a top-level
 #: DEFAULTS lets the capabilities.json emitter introspect axis keys/kinds
@@ -93,6 +109,14 @@ DEFAULTS = {
         # field, so a host that considers a join date too much still takes
         # it out of this list and it is gone from both public endpoints.
         "created_at",
+        # `{"phone": bool}` — whether this person has a phone worth asking
+        # for. A BIT, never a number: the number is obtained only through
+        # POST .../contacts/reveal, which applies the per-number policy,
+        # spends the viewer's hourly budget and writes a journal row. Listed
+        # here like every other field, so a host that does not want the
+        # storefront drawing a "Show phone" button takes it out and both
+        # public endpoints stop carrying it.
+        "contacts",
     ],
     # What a caller WITHOUT AN ACCOUNT sees — the unsigned internet and a
     # guest session alike (0.18.0: a guest is `is_authenticated` and nobody
@@ -127,6 +151,13 @@ DEFAULTS = {
         "avatar_image",
         "seller_type",
         "created_at",
+        # Rides along for the same reason `created_at` does: the visitor who
+        # has not registered yet is exactly the one the "Show phone" button
+        # exists to send to registration, and a button that only appears
+        # after signing in cannot be what makes anyone sign in. It discloses
+        # a bit, not a number, and the reveal endpoint answers that same
+        # visitor with the registration door.
+        "contacts",
     ],
     # ── The block check (profiles.relationships) ─────────────────────
     # How many pairs one call may carry. Structural config, not a
@@ -149,6 +180,24 @@ DEFAULTS = {
     # DRF rate strings ("120/min"), None/"" disables one of them.
     "PROFILES_LOOKUP_RATE": "120/min",
     "PROFILES_BATCH_RATE": "30/min",
+    # ── Seller contacts (contacts/) ──────────────────────────────────
+    # A NESTED block, not four more flat PROFILES_* keys: these four knobs
+    # only mean anything together (a policy vocabulary, a ceiling on the
+    # endpoint that applies it, and the seam that proves a number), and a
+    # deployment turning contacts on reads one block instead of hunting
+    # four names. Structural config, NOT a capability axis — same reading
+    # as PROFILES_FIELDS.
+    #
+    # The host's value REPLACES this default rather than merging into it
+    # (AppSettings' rule for every key), which for a dict of independent
+    # knobs is a trap: stating only REVEAL_PER_HOUR would silently drop the
+    # OTP seam. So `contacts.conf.contacts_setting()` reads it key by key,
+    # host over default, and a host may state exactly what it cares about.
+    # See contacts/conf.py (CONTACTS_DEFAULTS) for what each one does.
+    # One source, referenced rather than restated: a second copy of these
+    # three values here would be the thing that drifts from the code that
+    # reads them.
+    "CONTACTS": dict(CONTACTS_DEFAULTS),
 }
 
 profiles_settings = AppSettings(

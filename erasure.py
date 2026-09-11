@@ -59,11 +59,36 @@ def erase_account(user_id) -> dict[str, int]:
     # erasure.
     merged, _ = Profile.objects.filter(merged_into=user_id).delete()
 
+    # Contacts (contacts/) — the numbers this person published, and the
+    # journal of every time one was handed over. Deleted in BOTH directions,
+    # for the same reason the relationship rows are:
+    #
+    #   * the contacts they own — their phone numbers, the most directly
+    #     identifying thing this module has ever stored;
+    #   * the reveal rows where they were the VIEWER — somebody else's
+    #     journal, but it names this person and their IP, so it is their data
+    #     sitting in another owner's counter. Erasing it costs the owner a
+    #     number in a count; keeping it would leave an erased account's id
+    #     and address in a table anyone could be shown.
+    #
+    # The owner's own reveal rows go with the contacts by cascade.
+    from .contacts.models import Contact, ContactReveal
+
+    seen, _ = ContactReveal.objects.filter(viewer_key=user_id).delete()
+    # Counted per model, not off the first element of `.delete()`: that
+    # number is the TOTAL including cascaded rows, and reporting it as
+    # "contacts" would tell an owner they held twelve phone numbers because
+    # one of them had been revealed eleven times.
+    _total, dropped = Contact.objects.filter(owner_key=user_id).delete()
+    contacts = dropped.get("profiles.Contact", 0)
+
     return {
         "profiles": int(profiles),
         "profiles_merged_in": int(merged),
         "relationships_outgoing": int(following),
         "relationships_incoming": int(followers),
+        "contacts": int(contacts),
+        "contact_reveals": int(seen) + int(dropped.get("profiles.ContactReveal", 0)),
     }
 
 

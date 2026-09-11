@@ -1,6 +1,6 @@
 # Errors — English
 
-`57` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.en.json`.
+`67` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.en.json`.
 
 | Code | Status | Params | Remediation | Text |
 |---|---|---|---|---|
@@ -14,6 +14,10 @@
 | `error.400.cannot_follow_self` | 400 | — | `fix_input` | Cannot follow yourself |
 | `error.400.captcha_invalid` | 400 | — | `retry` | Captcha verification failed. Please try again. |
 | `error.400.captcha_required` | 400 | — | `retry` | Captcha token is required. |
+| `error.400.contacts_code_expired` | 400 | — | `retry` | That code is no longer valid. Ask for a new one. |
+| `error.400.contacts_invalid_code` | 400 | `attempts_remaining` | `fix_input` | Wrong code. {attempts_remaining} attempt(s) left. |
+| `error.400.contacts_invalid_phone` | 400 | — | `fix_input` | Enter the phone number in international form, starting with + |
+| `error.400.contacts_invalid_policy` | 400 | `policies` | `fix_input` | Unknown visibility policy. Allowed here: {policies} |
 | `error.400.display_name_emoji` | 400 | — | `fix_input` | Display name cannot contain emoji |
 | `error.400.display_name_forbidden_chars` | 400 | — | `fix_input` | Display name contains forbidden characters |
 | `error.400.display_name_invisible_chars` | 400 | — | `fix_input` | Display name contains invisible characters |
@@ -39,11 +43,13 @@
 | `error.400.verification_invalid_factor` | 400 | — | `verify` | This verification factor is not available |
 | `error.401.unauthorized` | 401 | — | `reauthenticate` | Authentication required |
 | `error.402.payment_required` | 402 | — | `retry` | Payment required |
+| `error.403.contacts_registration_required` | 403 | — | `reauthenticate` | Register an account to see a seller's phone number |
 | `error.403.forbidden` | 403 | — | `retry` | You do not have permission to perform this action |
 | `error.403.network_blocked` | 403 | — | `contact_support` | Requests from this network are not allowed |
 | `error.403.verification_enrollment_required` | 403 | — | `verify` | Verification factor enrollment required |
 | `error.403.verification_required` | 403 | — | `verify` | Additional verification required |
 | `error.404.ad_not_found` | 404 | — | `retry` | Listing not found |
+| `error.404.contact_not_found` | 404 | — | `fix_input` | Contact not found |
 | `error.404.not_found` | 404 | — | `retry` | Requested resource not found |
 | `error.404.profile_not_found` | 404 | — | `fix_input` | Profile not found |
 | `error.404.verification_challenge_not_found` | 404 | — | `verify` | Verification challenge not found or expired |
@@ -51,13 +57,17 @@
 | `error.406.not_acceptable` | 406 | — | `retry` | Not acceptable |
 | `error.408.request_timeout` | 408 | — | `retry` | Request timeout |
 | `error.409.conflict` | 409 | — | `fix_input` | Resource already exists |
+| `error.409.contacts_duplicate` | 409 | — | `fix_input` | You have already added this number |
 | `error.410.gone` | 410 | — | `retry` | Resource has been permanently removed |
 | `error.413.payload_too_large` | 413 | — | `retry` | Request body is too large |
 | `error.415.unsupported_media_type` | 415 | — | `retry` | Unsupported media type |
 | `error.422.unprocessable_entity` | 422 | — | `wait_and_retry` | Unprocessable entity |
 | `error.423.locked` | 423 | — | `wait_and_retry` | Resource is locked |
 | `error.423.verification_locked` | 423 | — | `wait_and_retry` | Too many failed attempts — verification locked |
+| `error.429.contacts_code_rate` | 429 | `retry_after` | `wait_and_retry` | Too many attempts. Try again in {retry_after} seconds. |
+| `error.429.contacts_reveal_budget` | 429 | `retry_after` | `wait_and_retry` | Too many phone lookups. Try again in {retry_after} seconds. |
 | `error.429.rate_limit` | 429 | `retry_after_minutes` | `wait_and_retry` | Too many attempts. Try again in {retry_after_minutes} minutes. |
 | `error.429.too_many_requests` | 429 | — | `wait_and_retry` | Too many requests. Please try again later. |
 | `error.500.internal` | 500 | — | `contact_support` | Something went wrong |
+| `error.503.contacts_code_unavailable` | 503 | — | `retry` | The code could not be sent right now. Try again shortly. |
 | `error.503.mandate_unavailable` | 503 | — | `retry` | Cannot verify workspace mandate right now |

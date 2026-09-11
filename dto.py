@@ -5,6 +5,8 @@ from uuid import UUID
 
 from stapel_core.media.dto import StapelImageDTO
 
+from .contacts.dto import ProfileContactFlags
+
 
 @dataclass
 class LanguageResponse:
@@ -100,6 +102,7 @@ class ProfilePublicResponse:
         relationship_status: Relationship to current user. Example: following
         seller_type: Self-declared trading capacity ("private"/"business"), or null when this deployment's profile carries no such field or the person never declared one. Example: business
         created_at: ISO 8601 time this PROFILE was created — the tenure a seller page renders as "on the site since March 2024". Not a sign-in time and not an activity signal. Example: 2025-01-15T12:00:00Z
+        contacts: Which kinds of contact this person has published — the fact only, never the value. Example: {"phone": true}
     """
     user_id: UUID
     #: Hard-core again (owner 2026-07-22) — shown on other users' profiles too.
@@ -124,6 +127,14 @@ class ProfilePublicResponse:
     #: when the person signs in, so it says nothing about whether they are
     #: online now.
     created_at: str
+    #: The ONE thing that leaves the contacts sub-module on any surface other
+    #: than its own reveal endpoint: a bit per contact kind saying there is
+    #: something to ask for. `{"phone": true}` is what a storefront draws the
+    #: "Show phone" button from; the number itself is only ever obtained by
+    #: `POST /profiles/api/v1/contacts/reveal`, which applies the per-number
+    #: policy, spends the viewer's hourly budget and writes the journal.
+    #: Viewer-independent on purpose — see `contacts.dto.ProfileContactFlags`.
+    contacts: ProfileContactFlags
 
 
 @dataclass

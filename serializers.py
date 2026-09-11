@@ -26,6 +26,7 @@ from .validators import (
 
 logger = logging.getLogger(__name__)
 
+from .contacts.serializers import ProfileContactFlagsSerializer
 from .dto import (
     FollowersResponse,
     FollowingResponse,
@@ -249,6 +250,9 @@ class ProfileSerializer(serializers.ModelSerializer):
 CTX_FOLLOWERS = "batch_followers"
 CTX_FOLLOWING = "batch_following"
 CTX_RELATIONSHIPS = "batch_relationships"
+#: Same deal for the contacts bit — the SET of owner ids with a revealable
+#: phone, so a 50-tile grid costs one query instead of fifty EXISTS.
+CTX_CONTACTS = "batch_contacts"
 
 #: The one entry that reopens the anonymous view to the full member set in
 #: PROFILES_PUBLIC_FIELDS_ANONYMOUS. Not a wildcard over field names — a
@@ -301,6 +305,10 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
     #: field here — a host that narrows `PROFILES_PUBLIC_FIELDS` narrows
     #: this too.
     seller_type = serializers.SerializerMethodField()
+    #: The contacts BIT — `{"phone": bool}`, never a number. Computed per row
+    #: by default and precomputed for a whole page by `POST .../batch`
+    #: (CTX_CONTACTS), the same deal as the three social fields above.
+    contacts = serializers.SerializerMethodField()
 
     class Meta:
         model = get_profile_model()
@@ -322,6 +330,12 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
             # construction, and gated by the same policy as everything
             # above it.
             "created_at",
+            # One bit per contact kind. In BOTH default policy lists for the
+            # same reason `created_at` is: the storefront visitor deciding
+            # whether to ask for a number is usually signed out, and a button
+            # that only appears after sign-in cannot be the thing that sends
+            # people to sign in. Removable by policy like everything else.
+            "contacts",
         ]
 
     def __init__(self, *args, **kwargs):
@@ -396,6 +410,25 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
         """
         value = getattr(obj, "seller_type", None)
         return str(value) if value else None
+
+    @extend_schema_field(ProfileContactFlagsSerializer)
+    def get_contacts(self, obj):
+        """Which kinds of contact this person has published — the fact only.
+
+        `{"phone": True}` means: there is a phone on this profile that is
+        switched on, proven by SMS, and not withheld from everyone. It is a
+        BIT, and the reason it is a bit is the whole design of the contacts
+        sub-module — the number is handed over by one endpoint that applies
+        the per-number policy, spends the viewer's hourly budget and writes a
+        journal row. Anything that carried the number here would bypass all
+        three.
+        """
+        precomputed = self.context.get(CTX_CONTACTS)
+        if precomputed is not None:
+            return {"phone": obj.user_id in precomputed}
+        from .contacts.policy import has_revealable_phone
+
+        return {"phone": has_revealable_phone(obj.user_id)}
 
     def get_relationship_status(self, obj) -> str | None:
         """Get relationship status with current user."""

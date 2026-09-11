@@ -1,6 +1,6 @@
 # Errors — Русский
 
-`57` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.ru.json`.
+`67` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.ru.json`.
 
 | Код | Статус | Параметры | Действие | Текст |
 |---|---|---|---|---|
@@ -14,6 +14,10 @@
 | `error.400.cannot_follow_self` | 400 | — | `fix_input` | Нельзя подписаться на самого себя |
 | `error.400.captcha_invalid` | 400 | — | `retry` | Проверка капчи не пройдена. Пожалуйста, попробуйте ещё раз. |
 | `error.400.captcha_required` | 400 | — | `retry` | Требуется токен капчи. |
+| `error.400.contacts_code_expired` | 400 | — | `retry` | Этот код больше не действует. Запросите новый. |
+| `error.400.contacts_invalid_code` | 400 | `attempts_remaining` | `fix_input` | Неверный код. Осталось попыток: {attempts_remaining}. |
+| `error.400.contacts_invalid_phone` | 400 | — | `fix_input` | Укажите номер телефона в международном формате, начиная с + |
+| `error.400.contacts_invalid_policy` | 400 | `policies` | `fix_input` | Неизвестная политика видимости. Здесь допустимы: {policies} |
 | `error.400.display_name_emoji` | 400 | — | `fix_input` | Отображаемое имя не может содержать эмодзи |
 | `error.400.display_name_forbidden_chars` | 400 | — | `fix_input` | Отображаемое имя содержит запрещённые символы |
 | `error.400.display_name_invisible_chars` | 400 | — | `fix_input` | Отображаемое имя содержит невидимые символы |
@@ -39,11 +43,13 @@
 | `error.400.verification_invalid_factor` | 400 | — | `verify` | Этот способ подтверждения недоступен |
 | `error.401.unauthorized` | 401 | — | `reauthenticate` | Требуется аутентификация |
 | `error.402.payment_required` | 402 | — | `retry` | Требуется оплата |
+| `error.403.contacts_registration_required` | 403 | — | `reauthenticate` | Зарегистрируйтесь, чтобы увидеть телефон продавца |
 | `error.403.forbidden` | 403 | — | `retry` | У вас нет прав для выполнения этого действия |
 | `error.403.network_blocked` | 403 | — | `contact_support` | Запросы из этой сети не разрешены. |
 | `error.403.verification_enrollment_required` | 403 | — | `verify` | Требуется регистрация фактора подтверждения. |
 | `error.403.verification_required` | 403 | — | `verify` | Требуется дополнительная проверка |
 | `error.404.ad_not_found` | 404 | — | `retry` | Объявление не найдено |
+| `error.404.contact_not_found` | 404 | — | `fix_input` | Контакт не найден |
 | `error.404.not_found` | 404 | — | `retry` | Запрошенный ресурс не найден |
 | `error.404.profile_not_found` | 404 | — | `fix_input` | Профиль не найден |
 | `error.404.verification_challenge_not_found` | 404 | — | `verify` | Запрос на подтверждение не найден или истёк |
@@ -51,13 +57,17 @@
 | `error.406.not_acceptable` | 406 | — | `retry` | Недопустимый формат ответа |
 | `error.408.request_timeout` | 408 | — | `retry` | Время ожидания запроса истекло |
 | `error.409.conflict` | 409 | — | `fix_input` | Ресурс уже существует |
+| `error.409.contacts_duplicate` | 409 | — | `fix_input` | Вы уже добавили этот номер |
 | `error.410.gone` | 410 | — | `retry` | Ресурс был безвозвратно удалён |
 | `error.413.payload_too_large` | 413 | — | `retry` | Тело запроса слишком большое |
 | `error.415.unsupported_media_type` | 415 | — | `retry` | Неподдерживаемый тип данных |
 | `error.422.unprocessable_entity` | 422 | — | `wait_and_retry` | Невозможно обработать данные запроса |
 | `error.423.locked` | 423 | — | `wait_and_retry` | Ресурс заблокирован |
 | `error.423.verification_locked` | 423 | — | `wait_and_retry` | Слишком много неудачных попыток — подтверждение заблокировано |
+| `error.429.contacts_code_rate` | 429 | `retry_after` | `wait_and_retry` | Слишком много попыток. Повторите через {retry_after} с. |
+| `error.429.contacts_reveal_budget` | 429 | `retry_after` | `wait_and_retry` | Слишком много запросов телефонов. Повторите через {retry_after} с. |
 | `error.429.rate_limit` | 429 | `retry_after_minutes` | `wait_and_retry` | Слишком много попыток. Повторите попытку через {retry_after_minutes} мин. |
 | `error.429.too_many_requests` | 429 | — | `wait_and_retry` | Слишком много запросов. Пожалуйста, повторите попытку позже. |
 | `error.500.internal` | 500 | — | `contact_support` | Что-то пошло не так |
+| `error.503.contacts_code_unavailable` | 503 | — | `retry` | Сейчас не удалось отправить код. Попробуйте чуть позже. |
 | `error.503.mandate_unavailable` | 503 | — | `retry` | Не удалось проверить доступ к рабочему пространству |

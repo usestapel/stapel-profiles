@@ -48,10 +48,48 @@ class ProfilesGDPRProvider(GDPRProvider):
             follower_id=user_id, status='blocked',
         ).values_list('following_id', flat=True))
 
+        # Contacts (contacts/): the numbers this person published and how
+        # often each was handed over, plus the reveals they THEMSELVES
+        # performed. Both halves are their data — the first is what the site
+        # holds about them, the second is what the site recorded them doing —
+        # and an export that carried only the first would be an export of
+        # half the module.
+        from .contacts.models import Contact, ContactReveal
+
+        contacts = [
+            {
+                'kind':         c.kind,
+                'value':        c.value,
+                'label':        c.label,
+                'policy':       c.policy,
+                'enabled':      c.enabled,
+                'verified_at':  c.verified_at.isoformat() if c.verified_at else None,
+                'created_at':   c.created_at.isoformat(),
+                'reveal_count': c.reveals.count(),
+            }
+            for c in Contact.objects.filter(owner_key=user_id)
+        ]
+        # The viewer side names the contact by its VALUE, not its id: an id
+        # means nothing outside this database, and the number is the thing
+        # the person actually looked up.
+        contact_reveals_made = [
+            {
+                'contact':    r.contact.value,
+                'listing_id': r.listing_id or None,
+                'at':         r.at.isoformat(),
+                'ip':         r.ip,
+            }
+            for r in ContactReveal.objects.filter(
+                viewer_key=user_id
+            ).select_related('contact')
+        ]
+
         return {
-            'profile':    profile_data,
-            'following':  following,
-            'blocked':    blocked,
+            'profile':               profile_data,
+            'following':             following,
+            'blocked':               blocked,
+            'contacts':              contacts,
+            'contact_reveals_made':  contact_reveals_made,
         }
 
     def delete(self, user_id: int) -> None:

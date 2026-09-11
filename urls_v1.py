@@ -54,6 +54,10 @@ urlpatterns = [
     # Notification unsubscribe
     path('notifications/unsubscribe', UnsubscribeView.as_view(), name='unsubscribe'),
 
+    # Seller contacts — the owner's CRUD + verification, and the one endpoint
+    # that hands a number to a viewer (contacts/urls.py).
+    path('', include('stapel_profiles.contacts.urls')),
+
     # Error-key registry for the stapel-translate collector (service/staff only).
     path('error-keys/', ProfilesErrorKeysView.as_view(), name='error-keys'),
 ]

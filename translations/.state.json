@@ -28,6 +28,22 @@
       "hash": "df78aac6a05fdd36",
       "origin": "seed:stapel-builtin"
     },
+    "error.400.contacts_code_expired": {
+      "hash": "cd063b4eb7cfdd7b",
+      "origin": "llm"
+    },
+    "error.400.contacts_invalid_code": {
+      "hash": "e0c2ca822ce38ae1",
+      "origin": "llm"
+    },
+    "error.400.contacts_invalid_phone": {
+      "hash": "525d39115d1a9fb6",
+      "origin": "llm"
+    },
+    "error.400.contacts_invalid_policy": {
+      "hash": "85af5591b37ac81e",
+      "origin": "llm"
+    },
     "error.400.display_name_emoji": {
       "hash": "d00771abf4e49d74",
       "origin": "seed:stapel-builtin"
@@ -56,9 +72,33 @@
       "hash": "f6368a24e46084ec",
       "origin": "llm"
     },
+    "error.403.contacts_registration_required": {
+      "hash": "84b9cc8ca2a825e5",
+      "origin": "llm"
+    },
+    "error.404.contact_not_found": {
+      "hash": "b91dce6efd85546a",
+      "origin": "llm"
+    },
     "error.404.profile_not_found": {
       "hash": "999930725d061314",
       "origin": "seed:stapel-builtin"
+    },
+    "error.409.contacts_duplicate": {
+      "hash": "18a3dcae1b202b51",
+      "origin": "llm"
+    },
+    "error.429.contacts_code_rate": {
+      "hash": "e451dc85fa50404a",
+      "origin": "llm"
+    },
+    "error.429.contacts_reveal_budget": {
+      "hash": "814eda4e3d9051bf",
+      "origin": "llm"
+    },
+    "error.503.contacts_code_unavailable": {
+      "hash": "d6656a79a16f165e",
+      "origin": "llm"
     }
   },
   "errors.ru": {
@@ -90,6 +130,22 @@
       "hash": "df78aac6a05fdd36",
       "origin": "seed:stapel-builtin"
     },
+    "error.400.contacts_code_expired": {
+      "hash": "cd063b4eb7cfdd7b",
+      "origin": "llm"
+    },
+    "error.400.contacts_invalid_code": {
+      "hash": "e0c2ca822ce38ae1",
+      "origin": "llm"
+    },
+    "error.400.contacts_invalid_phone": {
+      "hash": "525d39115d1a9fb6",
+      "origin": "llm"
+    },
+    "error.400.contacts_invalid_policy": {
+      "hash": "85af5591b37ac81e",
+      "origin": "llm"
+    },
     "error.400.display_name_emoji": {
       "hash": "d00771abf4e49d74",
       "origin": "seed:stapel-builtin"
@@ -118,9 +174,33 @@
       "hash": "f6368a24e46084ec",
       "origin": "human"
     },
+    "error.403.contacts_registration_required": {
+      "hash": "84b9cc8ca2a825e5",
+      "origin": "llm"
+    },
+    "error.404.contact_not_found": {
+      "hash": "b91dce6efd85546a",
+      "origin": "llm"
+    },
     "error.404.profile_not_found": {
       "hash": "999930725d061314",
       "origin": "seed:stapel-builtin"
+    },
+    "error.409.contacts_duplicate": {
+      "hash": "18a3dcae1b202b51",
+      "origin": "llm"
+    },
+    "error.429.contacts_code_rate": {
+      "hash": "e451dc85fa50404a",
+      "origin": "llm"
+    },
+    "error.429.contacts_reveal_budget": {
+      "hash": "814eda4e3d9051bf",
+      "origin": "llm"
+    },
+    "error.503.contacts_code_unavailable": {
+      "hash": "d6656a79a16f165e",
+      "origin": "llm"
     }
   }
 }

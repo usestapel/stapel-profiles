@@ -1,8 +1,8 @@
-# stapel-profiles 0.19.2
+# stapel-profiles 0.20.0
 
 User profiles and social graph: display name, avatar, locale/currency/measurement preferences, notification opt-outs, and follow/unfollow/block relationships between users, with a relationship-status lookup. Publishes the fleet's server-side block check (profiles.relationships — is there a block between these two, in either direction) and the public profile card (profiles.public_cards — name, avatar with CDN render metadata, member-since, seller type), so blocks are enforced by servers rather than by clients hiding a button, and a counterparty renders the same way everywhere.
 
-Contract: axes 1 · surface 17 · extension points 3 · operations 16 · error codes 57.
+Contract: axes 1 · surface 17 · extension points 3 · operations 24 · error codes 67.
 Generated from docs/capabilities.json by `stapel-llms-txt` — do not edit; drift-gated by `make contract-check`.
 
 ## Configuration axes — what a product switches on
@@ -70,8 +70,17 @@ This is the answer to "does Stapel already have something for X?". `instead of` 
 - stapel-core (required) — comm bus (events/functions), JWT authentication, GDPR provider registry, AppSettings config layer
 - stapel-gdpr (optional) — surfaces this module's registered GDPR provider (profile section export/erase) through DSR endpoints; the registration itself only needs stapel-core.gdpr
 
-## HTTP operations (16) — call by operationId, never by a typed path
+## HTTP operations (24) — call by operationId, never by a typed path
 Paths are relative to `/profiles/api/v1/`.
+### Contacts
+- POST /contacts — add_my_contact
+- POST /contacts/{contact_id}/verify/confirm — confirm_contact_verification
+- DELETE /contacts/{contact_id} — delete_my_contact
+- GET /contacts/{contact_id}/reveals/summary — get_contact_reveal_summary
+- GET /contacts — list_my_contacts
+- POST /contacts/{contact_id}/verify/request — request_contact_verification
+- POST /contacts/reveal — reveal_contacts
+- PATCH /contacts/{contact_id} — update_my_contact
 ### Languages
 - GET /languages/{code}/ — get_language
 - GET /languages/ — list_languages
@@ -93,7 +102,7 @@ Paths are relative to `/profiles/api/v1/`.
 - POST /{user_id}/unblock — unblock_user
 - POST /{user_id}/unfollow — unfollow_user
 
-## Error codes (57) — the StapelError envelope
+## Error codes (67) — the StapelError envelope
 Render `t(code, params)`; branch UX on the remediation. Localized text lives in docs/errors.<lang>.md, not here.
 - error.400.avatar_gravatar_hash [400] fix_input
 - error.400.avatar_not_found [400] fix_input
@@ -105,6 +114,10 @@ Render `t(code, params)`; branch UX on the remediation. Localized text lives in 
 - error.400.cannot_follow_self [400] fix_input
 - error.400.captcha_invalid [400] retry
 - error.400.captcha_required [400] retry
+- error.400.contacts_code_expired [400] retry
+- error.400.contacts_invalid_code [400] fix_input {attempts_remaining}
+- error.400.contacts_invalid_phone [400] fix_input
+- error.400.contacts_invalid_policy [400] fix_input {policies}
 - error.400.display_name_emoji [400] fix_input
 - error.400.display_name_forbidden_chars [400] fix_input
 - error.400.display_name_invisible_chars [400] fix_input
@@ -130,11 +143,13 @@ Render `t(code, params)`; branch UX on the remediation. Localized text lives in 
 - error.400.verification_invalid_factor [400] verify
 - error.401.unauthorized [401] reauthenticate
 - error.402.payment_required [402] retry
+- error.403.contacts_registration_required [403] reauthenticate
 - error.403.forbidden [403] retry
 - error.403.network_blocked [403] contact_support
 - error.403.verification_enrollment_required [403] verify
 - error.403.verification_required [403] verify
 - error.404.ad_not_found [404] retry
+- error.404.contact_not_found [404] fix_input
 - error.404.not_found [404] retry
 - error.404.profile_not_found [404] fix_input
 - error.404.verification_challenge_not_found [404] verify
@@ -142,13 +157,17 @@ Render `t(code, params)`; branch UX on the remediation. Localized text lives in 
 - error.406.not_acceptable [406] retry
 - error.408.request_timeout [408] retry
 - error.409.conflict [409] fix_input
+- error.409.contacts_duplicate [409] fix_input
 - error.410.gone [410] retry
 - error.413.payload_too_large [413] retry
 - error.415.unsupported_media_type [415] retry
 - error.422.unprocessable_entity [422] wait_and_retry
 - error.423.locked [423] wait_and_retry
 - error.423.verification_locked [423] wait_and_retry
+- error.429.contacts_code_rate [429] wait_and_retry {retry_after}
+- error.429.contacts_reveal_budget [429] wait_and_retry {retry_after}
 - error.429.rate_limit [429] wait_and_retry {retry_after_minutes}
 - error.429.too_many_requests [429] wait_and_retry
 - error.500.internal [500] contact_support
+- error.503.contacts_code_unavailable [503] retry
 - error.503.mandate_unavailable [503] retry

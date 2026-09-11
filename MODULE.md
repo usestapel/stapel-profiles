@@ -15,12 +15,12 @@ registries). Everything below is customizable **without forking**.
 
 | Surface | Contents |
 |---|---|
-| Models | `Profile` (PK `user_id: UUID`, links to auth by id — no FK across modules), `Language` (PK `code`), `UserRelationship` (follow/block, unique per pair, no self-relation — **also the block store the fleet's `profiles.relationships` check reads**; there is no second model for blocks). Choices: `MeasurementUnit`, `Theme`, `RelationshipStatus`. |
-| HTTP API (`urls.py`) | `me` (GET/PATCH), `me/followers`, `me/following`, `me/blocked`, `<uuid:user_id>` (public profile — a registered user with no row yet is answered with an empty-but-renderable profile; `404` means the id names nobody), `batch` (POST, many public profiles at once — same three-way reading, `missing` = ids that name nobody, never a 404), `<uuid:user_id>/{follow,unfollow,block,unblock,relationship}`, `languages` (read-only viewset), `notifications/unsubscribe` (RFC 8058 one-click, HMAC token). |
+| Models | `Profile` (PK `user_id: UUID`, links to auth by id — no FK across modules), `Language` (PK `code`), `UserRelationship` (follow/block, unique per pair, no self-relation — **also the block store the fleet's `profiles.relationships` check reads**; there is no second model for blocks). Choices: `MeasurementUnit`, `Theme`, `RelationshipStatus`. Plus the contacts sub-module (`contacts/`, same app label): `Contact` (a published phone: E.164 `value`, `verified_at`, `enabled`, `policy`, unique per `(owner_key, value)`) and `ContactReveal` (the hand-over journal: viewer, listing, IP, time). Choices: `ContactKind`, `ContactPolicy`. |
+| HTTP API (`urls.py`) | `me` (GET/PATCH), `me/followers`, `me/following`, `me/blocked`, `<uuid:user_id>` (public profile — a registered user with no row yet is answered with an empty-but-renderable profile; `404` means the id names nobody), `batch` (POST, many public profiles at once — same three-way reading, `missing` = ids that name nobody, never a 404), `<uuid:user_id>/{follow,unfollow,block,unblock,relationship}`, `languages` (read-only viewset), `notifications/unsubscribe` (RFC 8058 one-click, HMAC token), `contacts` (GET/POST), `contacts/<id>` (PATCH/DELETE), `contacts/<id>/verify/{request,confirm}`, `contacts/<id>/reveals/summary`, `contacts/reveal` (POST — **the only endpoint in the fleet that emits a stored phone number to somebody who does not own it**). |
 | Events | Emits `profile.changed` and the GDPR receipt/probe answer; consumes `user.registered` (**provisions the profile row** — 0.15.0 — plus the display-name pre-fill and the OAuth avatar import), `gdpr.erasure.requested`, `gdpr.owner.probe`, `user.merged` (**the survivor's profile wins, the merged one is archived** — 0.17.0) and (deprecated) `user.deleted` — see below. |
-| GDPR | `ProfilesGDPRProvider` (section `profile`): export of profile + relationships, hard delete. Auto-registered in `apps.ProfilesConfig.ready()` via `stapel_core.gdpr.gdpr_registry`. |
+| GDPR | `ProfilesGDPRProvider` (section `profile`): export of profile + relationships + contacts + the reveals this person performed, hard delete of all of it (their numbers, their own journal by cascade, and the rows where they were the *viewer* of somebody else's number). Auto-registered in `apps.ProfilesConfig.ready()` via `stapel_core.gdpr.gdpr_registry`. |
 | Validation | `validate_display_name` (control chars, emoji, invisible chars, min length); avatar reference validation against the CDN contract `avatar/<hash>` with existence check (mode-selectable, see settings). |
-| Error keys | `errors.PROFILES_ERRORS` — `error.404.profile_not_found`, `error.400.cannot_follow_self`, `error.400.cannot_block_self`, `error.400.display_name_*`, `error.400.invalid_avatar_format`, `error.400.avatar_not_found`, `error.400.too_many_ids`. Registered via `stapel_core` `register_service_errors`. |
+| Error keys | `errors.PROFILES_ERRORS` — `error.404.profile_not_found`, `error.400.cannot_follow_self`, `error.400.cannot_block_self`, `error.400.display_name_*`, `error.400.invalid_avatar_format`, `error.400.avatar_not_found`, `error.400.too_many_ids`; contacts adds `error.403.contacts_registration_required`, `error.429.contacts_reveal_budget`, `error.400.contacts_invalid_phone`, `error.400.contacts_invalid_policy`, `error.409.contacts_duplicate`, `error.404.contact_not_found`, `error.400.contacts_invalid_code`, `error.400.contacts_code_expired`, `error.429.contacts_code_rate`, `error.503.contacts_code_unavailable`. Registered via `stapel_core` `register_service_errors`. |
 | Management commands | `sync_languages` (seed/refresh `Language` from bundled fixture, preserving flags), `publish_all_profiles` (backfill `profile.changed` for all rows). |
 | Public API (`__all__`) | `profiles_settings`, `publish_profile_changed`, `validate_display_name`, `ProfilesGDPRProvider`, `blocked_pairs`, `is_blocked` — lazily exported (PEP 562); importing `stapel_profiles` does not require configured Django. Anything not in `__all__` is internal and may change without notice. |
 
@@ -46,6 +46,7 @@ environment variable → default.
 | `PROFILES_CARD_MEDIA_FUNCTION` | `"cdn.describe_many"` | function name \| `""` | The name-addressed CDN read that fills a public card's avatar with render metadata. The default is the fleet's ONE answer about a picture — the same call chat attachments and classified listing cards make. `""` disables the enrichment: cards then carry the ref with null numbers and `meta_reason: "cdn_unavailable"` — a degraded card, never a failed one. |
 | `PROFILES_LOOKUP_RATE` | `"120/min"` | DRF rate string \| `None` | Per-caller ceiling on single public lookups (`ProfileLookupThrottle`), keyed by user when authenticated and by IP otherwise. `None` disables it — a deployment's explicit choice. |
 | `PROFILES_BATCH_RATE` | `"30/min"` | DRF rate string \| `None` | Per-caller ceiling on batch resolution. Deliberately tighter than the lookup budget: one batch request answers for up to `PROFILES_BATCH_MAX_IDS` people. |
+| `CONTACTS` | see below | dict | The seller-contacts block — the module's one **nested** key, read key by key (`contacts.conf.contacts_setting`, host value over default) so a deployment may state one knob without losing the others. `REVEAL_PER_HOUR` (`30`): reveals one **viewer** may perform per hour; `0` removes the ceiling. The ceiling is on the viewer, not on the number — the thing worth stopping is one account walking the catalogue, not many buyers calling one popular seller. `POLICIES` (`["members", "verified", "nobody"]`): the policy vocabulary this deployment offers, first entry the default for a new contact; a host may narrow it, and a name this module does not implement is ignored rather than accepted at the write boundary and enforced by nothing at the read one. `OTP_PROVIDER` (`"stapel_auth.otp.services.PhoneVerificationService"`): the phone-verification seam. |
 
 Every one of these switches is **closed by default**, and every one of them
 announces itself when a deployment opens it: `checks.py` registers
@@ -54,11 +55,16 @@ announces itself when a deployment opens it: `checks.py` registers
 member field set) and `W004` (a public-lookup throttle disabled). A switch
 nobody can see is a switch nobody revisits.
 
-This module currently declares **no `import_strings` keys** (no dotted-path
-settings that swap in app-layer classes). `stapel_core.conf.AppSettings`
-supports them, so a new pluggable seam (e.g. a custom avatar checker backend)
-is a natural **upstream contribution**: add the key + default to `conf.py`
-with `import_strings=(...)`.
+This module declares **no `import_strings` keys** on `AppSettings` itself.
+It has exactly one dotted-path seam, `CONTACTS["OTP_PROVIDER"]`, and it is
+resolved by hand (`contacts.otp.get_otp_provider`) rather than by the
+settings layer — because the default has a fallback and `import_strings`
+has no way to express one: the shipped default points at stapel-auth, and a
+deployment that runs profiles without that module must degrade to the
+built-in provider instead of failing to boot. A path the deployment
+*stated* still raises; only the default falls back. A new seam with no such
+asymmetry is a natural **upstream contribution**: add the key + default to
+`conf.py` with `import_strings=(...)`.
 
 ### Client contract — profile media (security audit PROFILE-01)
 
@@ -240,6 +246,50 @@ somebody's behalf. Siblings get the read.
 and its default may flip to `required`. stapel-chat enforces at send against
 the same contract.
 
+### Seller contacts (`contacts/`)
+
+A listing carries no phone field and never will. A number is a separate
+resource with its own owner, its own proof, its own policy and its own
+journal, and it is handed over by **one** endpoint that decides, per number,
+whether *this* viewer may have it. Everything else in the fleet — listing
+payloads, search hits, cards, the public profile — carries at most one bit.
+
+| Rule | Where it is enforced |
+|---|---|
+| Unproven is invisible. A contact with no `verified_at` exists, is listed to its owner, and is revealed to nobody. | `contacts.policy.revealable_for` / `owners_with_revealable_phone` |
+| Anonymous is not a viewer. A guest session is `is_authenticated` and nobody registered; it gets `error.403.contacts_registration_required` — the door, not a wall. | `IsNotAnonymousUser` + `ContactsDoorMixin` on `ContactRevealView` |
+| Every hand-over is written down, and the viewer's hourly slot is spent **before** the row is written. | `contacts.budget.spend` → `ContactReveal` |
+| The owner is not a viewer either: their own numbers come back whole, unbudgeted and unjournalled. | `contacts.policy.own_phones` |
+| Nothing else leaks. The public profile carries `contacts: {"phone": bool}` — viewer-independent, because a bit that moved with the viewer would leak the policy itself. | `ProfilePublicSerializer.get_contacts` |
+
+**The OTP seam.** This module sends no SMS and stores no code. Proving a
+phone is what stapel-auth already does — the codes live in
+`stapel_core.verification.codes`, the delivery in
+`stapel_core.notifications`, and the policy (TTL, attempts, cooldown, and
+whether the deployment is running `USE_MOCK_SMS_OTP`) in
+`stapel_auth.otp.services`. `CONTACTS["OTP_PROVIDER"]` is a dotted path to
+anything with `send_verification_code(phone)` and `verify_code(phone, code)`
+returning that service's envelopes; it defaults to stapel-auth's phone
+service, and falls back — **only** for that default, and only on
+`ImportError` — to `contacts.otp.CoreOneTimeCodeProvider`, the thinnest use
+of the same core primitive with this module's own numbers, so a
+profiles-only deployment still has a working flow. A path a deployment
+*stated* raises instead: hiding a typo behind a working-looking flow would
+give it a verification policy it never asked for.
+
+**Storage.** The number is stored as written, not hashed — it is handed back
+out to viewers the policy admits, so a one-way transform would make the
+feature impossible. Column-level encryption is a deployment decision this
+module does not take; what it does instead is keep the number off every
+surface but one, and record every time that one surface emits it.
+
+**Normalisation.** E.164, via `phonenumbers`, requiring international form
+and checking `is_possible_number` (plausible length for the country) rather
+than `is_valid_number` (allocated *according to metadata that ships with the
+library and goes stale*). A freshly allocated range answers False to the
+strict check, and refusing it would tell a real person their working phone
+does not exist. What actually proves a number here is the SMS code.
+
 ### Erasure
 
 This module is a stapel-gdpr **data owner**. Declare it in the host's
@@ -278,6 +328,16 @@ and defeat the measure itself — the rights-of-others limit on access, and
 the same non-disclosure property the whole block design rests on. Pinned by
 `test_the_gdpr_export_does_not_disclose_an_incoming_block`. The avatar is a reference string; whatever it points at lives in
 the CDN and is erased by that module's own receipt for the same request.
+
+**Contacts, both directions.** The same rule applies to the contacts
+sub-module, and the counts say so: `contacts` (the numbers they published)
+and `contact_reveals` (their own journal by cascade, **plus** the rows where
+they were the viewer of somebody else's number — those name this person and
+their IP, so they are their data sitting in another owner's counter).
+Erasing them costs the other owner a number in a count; keeping them would
+leave an erased account's id and address in a table anyone could be shown.
+The export carries both halves for the same reason: the numbers the site
+holds about them, and what the site recorded them doing.
 
 **The receipt and the probe are one subscriber.** `actions.py` handles
 `gdpr.erasure.requested` and `gdpr.owner.probe` side by side, deliberately:

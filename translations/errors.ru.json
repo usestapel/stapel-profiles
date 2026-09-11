@@ -6,6 +6,10 @@
   "error.400.avatar_url_scheme": "URL аватара должен использовать одну из схем: {schemes}",
   "error.400.cannot_block_self": "Нельзя заблокировать самого себя",
   "error.400.cannot_follow_self": "Нельзя подписаться на самого себя",
+  "error.400.contacts_code_expired": "Этот код больше не действует. Запросите новый.",
+  "error.400.contacts_invalid_code": "Неверный код. Осталось попыток: {attempts_remaining}.",
+  "error.400.contacts_invalid_phone": "Укажите номер телефона в международном формате, начиная с +",
+  "error.400.contacts_invalid_policy": "Неизвестная политика видимости. Здесь допустимы: {policies}",
   "error.400.display_name_emoji": "Отображаемое имя не может содержать эмодзи",
   "error.400.display_name_forbidden_chars": "Отображаемое имя содержит запрещённые символы",
   "error.400.display_name_invisible_chars": "Отображаемое имя содержит невидимые символы",
@@ -13,5 +17,11 @@
   "error.400.invalid_avatar_format": "Неверный формат ссылки на аватар. Ожидается: avatar/<hash>",
   "error.400.invalid_currency": "Неверный код валюты",
   "error.400.too_many_ids": "Слишком много идентификаторов: запрошено {requested}, максимум {limit} за один запрос",
-  "error.404.profile_not_found": "Профиль не найден"
+  "error.403.contacts_registration_required": "Зарегистрируйтесь, чтобы увидеть телефон продавца",
+  "error.404.contact_not_found": "Контакт не найден",
+  "error.404.profile_not_found": "Профиль не найден",
+  "error.409.contacts_duplicate": "Вы уже добавили этот номер",
+  "error.429.contacts_code_rate": "Слишком много попыток. Повторите через {retry_after} с.",
+  "error.429.contacts_reveal_budget": "Слишком много запросов телефонов. Повторите через {retry_after} с.",
+  "error.503.contacts_code_unavailable": "Сейчас не удалось отправить код. Попробуйте чуть позже."
 }

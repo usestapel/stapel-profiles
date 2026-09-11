@@ -265,9 +265,10 @@ class TestBatchSocialFields:
 
         _post(api_client, few)  # warm any lazy import/connection setup
 
-        # Three grouped queries (profiles + two follow counts) for two
-        # rows and for twelve alike; anonymous, so no relationship lookup.
-        with django_assert_num_queries(3):
+        # Four grouped queries (profiles + two follow counts + the contacts
+        # bit) for two rows and for twelve alike; anonymous, so no
+        # relationship lookup.
+        with django_assert_num_queries(4):
             _post(api_client, few)
-        with django_assert_num_queries(3):
+        with django_assert_num_queries(4):
             _post(api_client, many)

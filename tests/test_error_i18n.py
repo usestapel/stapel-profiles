@@ -82,6 +82,27 @@ _MACHINE_RU = {
         "Запросы из этой сети не разрешены.",
     "error.403.verification_enrollment_required":
         "Требуется регистрация фактора подтверждения.",
+    # ── contacts/ ────────────────────────────────────────────────────
+    "error.403.contacts_registration_required":
+        "Зарегистрируйтесь, чтобы увидеть телефон продавца",
+    "error.429.contacts_reveal_budget":
+        "Слишком много запросов телефонов. Повторите через {retry_after} с.",
+    "error.400.contacts_invalid_phone":
+        "Укажите номер телефона в международном формате, начиная с +",
+    "error.400.contacts_invalid_policy":
+        "Неизвестная политика видимости. Здесь допустимы: {policies}",
+    "error.409.contacts_duplicate":
+        "Вы уже добавили этот номер",
+    "error.404.contact_not_found":
+        "Контакт не найден",
+    "error.400.contacts_invalid_code":
+        "Неверный код. Осталось попыток: {attempts_remaining}.",
+    "error.400.contacts_code_expired":
+        "Этот код больше не действует. Запросите новый.",
+    "error.429.contacts_code_rate":
+        "Слишком много попыток. Повторите через {retry_after} с.",
+    "error.503.contacts_code_unavailable":
+        "Сейчас не удалось отправить код. Попробуйте чуть позже.",
 }
 
 _MACHINE_ES = {
@@ -99,6 +120,29 @@ _MACHINE_ES = {
         "No se permiten solicitudes desde esta red.",
     "error.403.verification_enrollment_required":
         "Es necesario registrar un factor de verificación.",
+    # ── contacts/ ────────────────────────────────────────────────────
+    "error.403.contacts_registration_required":
+        "Regístrate para ver el teléfono del vendedor",
+    "error.429.contacts_reveal_budget":
+        "Demasiadas consultas de teléfonos. Inténtalo de nuevo en "
+        "{retry_after} segundos.",
+    "error.400.contacts_invalid_phone":
+        "Introduce el número de teléfono en formato internacional, "
+        "empezando por +",
+    "error.400.contacts_invalid_policy":
+        "Política de visibilidad desconocida. Aquí se permiten: {policies}",
+    "error.409.contacts_duplicate":
+        "Ya has añadido este número",
+    "error.404.contact_not_found":
+        "Contacto no encontrado",
+    "error.400.contacts_invalid_code":
+        "Código incorrecto. Quedan {attempts_remaining} intento(s).",
+    "error.400.contacts_code_expired":
+        "Ese código ya no es válido. Solicita uno nuevo.",
+    "error.429.contacts_code_rate":
+        "Demasiados intentos. Inténtalo de nuevo en {retry_after} segundos.",
+    "error.503.contacts_code_unavailable":
+        "No se ha podido enviar el código ahora mismo. Inténtalo en breve.",
 }
 
 #: language -> machine-translation table, consulted for the keys the

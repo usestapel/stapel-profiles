@@ -35,6 +35,53 @@ ERR_400_AVATAR_URL_HOST = 'error.400.avatar_url_host'
 #: value is interpolated into a gravatar URL, so anything else is refused.
 ERR_400_AVATAR_GRAVATAR_HASH = 'error.400.avatar_gravatar_hash'
 
+# ── Contacts (contacts/) ─────────────────────────────────────────────────
+#: The reveal door. A caller with no account — the unsigned internet OR a
+#: guest session, which is `is_authenticated` and nobody — asked for a
+#: seller's number. NOT the generic 403: the storefront's answer to this is
+#: to open full registration, and it can only know that from a key that says
+#: "register", not one that says "forbidden". One key for both callers on
+#: purpose — the remedy is the same, and splitting it into a 401 for the
+#: signed-out and a 403 for the guest would give the frontend two doors to
+#: the same room.
+ERR_403_CONTACTS_REGISTRATION_REQUIRED = 'error.403.contacts_registration_required'
+#: The viewer's hourly reveal budget is spent (`CONTACTS.REVEAL_PER_HOUR`).
+#: Carries `retry_after` in seconds so the client can say "in 7 minutes"
+#: instead of "later". Its own key, not the shared `error.429.rate_limit`:
+#: this is the anti-scraping ceiling on ONE endpoint, and a client that
+#: cannot tell it from a generic throttle cannot phrase it.
+ERR_429_CONTACTS_REVEAL_BUDGET = 'error.429.contacts_reveal_budget'
+#: The submitted string is not a storable phone number — not in
+#: international form, or an implausible length for its country.
+ERR_400_CONTACTS_INVALID_PHONE = 'error.400.contacts_invalid_phone'
+#: A policy value this deployment does not offer. Carries the list it does,
+#: so the caller can correct itself instead of guessing.
+ERR_400_CONTACTS_INVALID_POLICY = 'error.400.contacts_invalid_policy'
+#: This person already holds that number. Refused rather than silently
+#: returning the existing row: "added" and "you already had it" are
+#: different answers, and the second one is why the policy the caller just
+#: sent was not applied.
+ERR_409_CONTACTS_DUPLICATE = 'error.409.contacts_duplicate'
+#: No such contact OF THE CALLER'S. Somebody else's contact answers with
+#: this too — a 403 would confirm the row exists, which is precisely the
+#: enumeration this module refuses everywhere else.
+ERR_404_CONTACT_NOT_FOUND = 'error.404.contact_not_found'
+#: Wrong code. Carries `attempts_remaining` — the count lives with the code
+#: in the core store, so it is the truth rather than a client's guess.
+ERR_400_CONTACTS_INVALID_CODE = 'error.400.contacts_invalid_code'
+#: Nothing is waiting: the code aged out, was already spent, or the store
+#: restarted. Deliberately NOT `invalid_code` — three ways of "ask for a new
+#: one", none of which is "you mistyped".
+ERR_400_CONTACTS_CODE_EXPIRED = 'error.400.contacts_code_expired'
+#: The OTP provider refused: too many sends, or the attempt budget is spent
+#: and the penalty has not elapsed. Carries `retry_after` in seconds.
+ERR_429_CONTACTS_CODE_RATE = 'error.429.contacts_code_rate'
+#: The code could not be issued or could not be checked — the store or the
+#: SMS path is down. 503, not 400: "we could not ask" is not "you are
+#: wrong", and rendering the second as the first tells a user their correct
+#: code was rejected.
+ERR_503_CONTACTS_CODE_UNAVAILABLE = 'error.503.contacts_code_unavailable'
+
 PROFILES_ERRORS = {
     ERR_404_PROFILE_NOT_FOUND: 'Profile not found',
     ERR_400_CANNOT_FOLLOW_SELF: 'Cannot follow yourself',
@@ -55,6 +102,16 @@ PROFILES_ERRORS = {
     ERR_400_AVATAR_URL_SCHEME: 'Avatar URL must use one of: {schemes}',
     ERR_400_AVATAR_URL_HOST: 'Avatar URL host is not allowed here',
     ERR_400_AVATAR_GRAVATAR_HASH: 'Gravatar avatar must be an email hash (32 or 64 hex characters)',
+    ERR_403_CONTACTS_REGISTRATION_REQUIRED: 'Register an account to see a seller\'s phone number',
+    ERR_429_CONTACTS_REVEAL_BUDGET: 'Too many phone lookups. Try again in {retry_after} seconds.',
+    ERR_400_CONTACTS_INVALID_PHONE: 'Enter the phone number in international form, starting with +',
+    ERR_400_CONTACTS_INVALID_POLICY: 'Unknown visibility policy. Allowed here: {policies}',
+    ERR_409_CONTACTS_DUPLICATE: 'You have already added this number',
+    ERR_404_CONTACT_NOT_FOUND: 'Contact not found',
+    ERR_400_CONTACTS_INVALID_CODE: 'Wrong code. {attempts_remaining} attempt(s) left.',
+    ERR_400_CONTACTS_CODE_EXPIRED: 'That code is no longer valid. Ask for a new one.',
+    ERR_429_CONTACTS_CODE_RATE: 'Too many attempts. Try again in {retry_after} seconds.',
+    ERR_503_CONTACTS_CODE_UNAVAILABLE: 'The code could not be sent right now. Try again shortly.',
 }
 
 # Machine-readable recovery hints (remediation) — the canonical "what to do"
@@ -85,6 +142,20 @@ PROFILES_REMEDIATION = {
     ERR_400_AVATAR_URL_SCHEME: 'fix_input',
     ERR_400_AVATAR_URL_HOST: 'fix_input',
     ERR_400_AVATAR_GRAVATAR_HASH: 'fix_input',
+    # The contacts keys are the module's first ones whose honest recovery is
+    # NOT "correct the input": the door needs an account, the two ceilings
+    # need time, and the unavailable one needs a retry the caller did nothing
+    # to deserve.
+    ERR_403_CONTACTS_REGISTRATION_REQUIRED: 'reauthenticate',
+    ERR_429_CONTACTS_REVEAL_BUDGET: 'wait_and_retry',
+    ERR_400_CONTACTS_INVALID_PHONE: 'fix_input',
+    ERR_400_CONTACTS_INVALID_POLICY: 'fix_input',
+    ERR_409_CONTACTS_DUPLICATE: 'fix_input',
+    ERR_404_CONTACT_NOT_FOUND: 'fix_input',
+    ERR_400_CONTACTS_INVALID_CODE: 'fix_input',
+    ERR_400_CONTACTS_CODE_EXPIRED: 'retry',
+    ERR_429_CONTACTS_CODE_RATE: 'wait_and_retry',
+    ERR_503_CONTACTS_CODE_UNAVAILABLE: 'retry',
 }
 
 register_service_errors(PROFILES_ERRORS, remediation=PROFILES_REMEDIATION)

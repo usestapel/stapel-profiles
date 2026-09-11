@@ -2,6 +2,131 @@
 
 ## [Unreleased]
 
+## [0.20.0] — 2026-09-11
+
+Minor: a seller can publish a phone number, decide who may read it, and see
+how often it was handed over — and a listing still has no phone field.
+
+### Added — `contacts`, an app-internal sub-module
+
+A number is not an attribute of an advert. It is a separate resource with
+its own owner, its own proof, its own policy and its own journal, and it is
+handed over by **one** endpoint that decides, per number, whether *this*
+viewer may have it. Two new tables (`profiles_contact`,
+`profiles_contact_reveal`, expand-only migration `0019_contacts`), eight new
+endpoints, and one new bit on the public profile.
+
+**The owner's side** — `GET/POST /profiles/api/v1/contacts`,
+`PATCH/DELETE .../contacts/<id>`, `POST .../contacts/<id>/verify/request`
+and `.../verify/confirm`, `GET .../contacts/<id>/reveals/summary`. Several
+numbers per person, each with a label, an on/off switch and a policy
+(`members` | `verified` | `nobody`). Stored E.164, unique per
+`(owner_key, value)` — the same person may not store one number twice, and
+two people *may* share one, because a family phone is a real thing and a
+global unique index would answer "is this number already on the site" for
+anyone who can hit the create endpoint. Somebody else's contact answers
+**404**, never 403: a 403 would confirm the row exists.
+
+**Unproven is invisible.** A new contact has no `verified_at`. It exists, it
+is listed to its owner, and it is revealed to nobody until an SMS code
+confirms it. The code is not this module's: `CONTACTS["OTP_PROVIDER"]` is a
+dotted path defaulting to `stapel_auth.otp.services.PhoneVerificationService`,
+so the TTL, the attempt budget, the resend cooldown and `USE_MOCK_SMS_OTP`
+stay in the one place the fleet already keeps them. A deployment running
+profiles *without* stapel-auth falls back to `contacts.otp.CoreOneTimeCodeProvider`
+— the thinnest use of the same `stapel_core.verification.codes` store, this
+module's own policy numbers. A path a deployment **stated** raises instead
+of falling back: hiding a typo behind a working-looking flow would hand it a
+verification policy it never asked for.
+
+### Added — `POST /profiles/api/v1/contacts/reveal`
+
+The one endpoint that emits a stored number to somebody who does not own it.
+Four things happen and the order is the design:
+
+1. **the door.** No account, no number. A guest session is
+   `is_authenticated` and nobody registered, so `IsNotAnonymousUser` refuses
+   it — and the refusal carries `error.403.contacts_registration_required`
+   rather than the generic 403, because the storefront's correct reaction is
+   to open full registration and it can only know that from the key. The
+   signed-out internet gets the **same** key: a 401 for one and a 403 for the
+   other would give the frontend two doors to one room.
+2. **the budget.** `CONTACTS["REVEAL_PER_HOUR"]` (30) per viewer, spent
+   *before* the rows are read, so abandoning responses does not mine the
+   endpoint. Over it: 429 `error.429.contacts_reveal_budget` with
+   `retry_after` in seconds, so the client can say "in 7 minutes" instead of
+   "later". The ceiling is on the **viewer**, not on the number — the thing
+   worth stopping is one account walking the catalogue, not many buyers
+   calling one popular seller.
+3. **the policy**, per number, per viewer. `verified` reads the viewer's
+   `is_email_verified` / `is_phone_verified` — the same anchors stapel-auth
+   sets, so "verified" means here what it means everywhere else.
+4. **the journal.** One `ContactReveal` row per number handed over, with
+   viewer, listing id and IP (`stapel_core.netintel.client_ip`). A policy
+   says who *may*; only these rows say who *did*.
+
+An empty `phones` list is a normal 200, and "this seller has nothing
+published" is deliberately indistinguishable from "nothing for you" — that
+distinction is itself a fact about the seller. The owner asking for their own
+numbers always gets all of them, unbudgeted and unjournalled. The response
+carries `Cache-Control: no-store`, and so does the 429: a cached refusal
+would make a spent budget look permanent to a shared cache.
+
+### Added — `contacts` on the public profile reads
+
+`GET /profiles/api/v1/<user_id>` and `POST .../batch` now carry
+`contacts: {"phone": bool}` — true iff the person has at least one phone that
+is switched on, proven, and not withheld from everyone. It is the **only**
+thing the contacts sub-module puts on any other surface, and it is a bit, not
+a number. Viewer-independent on purpose: a bit that moved with the viewer
+would leak the policy itself ("the button vanished when I signed out, so that
+number is members-only") and would make a public field uncacheable. In both
+default policy lists (`PROFILES_PUBLIC_FIELDS` and `..._ANONYMOUS`) for the
+same reason `created_at` is in both — the visitor who has not registered yet
+is exactly the one the "Show phone" button exists to send to registration.
+Batched reads precompute it in one query (`CTX_CONTACTS`), so a 50-tile grid
+costs four queries rather than fifty-four.
+
+A test greps **every** serialized response this module produces for the
+fixture number, and a companion test asserts the owner's own list still
+carries it — a leak gate that also passes when the feature is simply broken
+is not a gate.
+
+### Added — GDPR covers contacts in both directions
+
+The export carries the numbers this person published (with reveal counts)
+*and* `contact_reveals_made` — the reveals they performed, naming the number
+by value, with listing and IP. Erasure removes both: their contacts (their
+own journal cascading with them) and the rows where they were the **viewer**
+of somebody else's number. Those rows name this person and their address, so
+they are their data sitting in another owner's counter; erasing them costs
+that owner a number in a count, keeping them would leave an erased account's
+id and IP in a table anyone could be shown. New receipt counts: `contacts`,
+`contact_reveals`.
+
+### Notes
+
+* **Normalisation** is `phonenumbers` with `is_possible_number`, not
+  `is_valid_number`. The strict check tests a number against allocation
+  metadata that ships with the library and goes stale; a freshly allocated
+  range answers False, and refusing it would tell a real person their working
+  phone does not exist. What proves a number here is the SMS code, and
+  nothing is revealed without one.
+* **Storage** is the number as written, not a hash — it is handed back out to
+  viewers the policy admits, so a one-way transform would make the feature
+  impossible. Column-level encryption is a deployment decision this wave does
+  not take; what it does instead is keep the number off every surface but one
+  and record every time that one surface emits it.
+* `phonenumbers>=8.13` is now a **declared** dependency. It was already
+  reachable through stapel-core, but a module that imports a package depends
+  on it whether or not a sibling happens to pull it in.
+* New settings block `STAPEL_PROFILES["CONTACTS"]` — the module's first
+  nested key, read key by key so a deployment may state one knob without
+  losing the other two. Structural config, not a capability axis.
+* `CONFIG.MD` now exists (the package already shipped it in
+  `package-data`): one row per key this module reads, plus the host settings
+  it reads outside its own namespace.
+
 ## [0.19.2] — 2026-09-07
 
 Patch: a seller page can say how long the seller has been here.

@@ -11,9 +11,29 @@
     "hash": "d5a58bf1a469f1ac",
     "text": "La URL del avatar debe usar uno de: {schemes}"
   },
+  "error.400.contacts_code_expired": {
+    "hash": "cd063b4eb7cfdd7b",
+    "text": "Ese código ya no es válido. Solicita uno nuevo."
+  },
+  "error.400.contacts_invalid_code": {
+    "hash": "e0c2ca822ce38ae1",
+    "text": "Código incorrecto. Quedan {attempts_remaining} intento(s)."
+  },
+  "error.400.contacts_invalid_phone": {
+    "hash": "525d39115d1a9fb6",
+    "text": "Introduce el número de teléfono en formato internacional, empezando por +"
+  },
+  "error.400.contacts_invalid_policy": {
+    "hash": "85af5591b37ac81e",
+    "text": "Política de visibilidad desconocida. Aquí se permiten: {policies}"
+  },
   "error.400.too_many_ids": {
     "hash": "f6368a24e46084ec",
     "text": "Demasiados identificadores: {requested} solicitados, como máximo {limit} por solicitud por lotes"
+  },
+  "error.403.contacts_registration_required": {
+    "hash": "84b9cc8ca2a825e5",
+    "text": "Regístrate para ver el teléfono del vendedor"
   },
   "error.403.network_blocked": {
     "hash": "73418e2ec86c7544",
@@ -22,5 +42,25 @@
   "error.403.verification_enrollment_required": {
     "hash": "726adb4e63e9ae80",
     "text": "Es necesario registrar un factor de verificación."
+  },
+  "error.404.contact_not_found": {
+    "hash": "b91dce6efd85546a",
+    "text": "Contacto no encontrado"
+  },
+  "error.409.contacts_duplicate": {
+    "hash": "18a3dcae1b202b51",
+    "text": "Ya has añadido este número"
+  },
+  "error.429.contacts_code_rate": {
+    "hash": "e451dc85fa50404a",
+    "text": "Demasiados intentos. Inténtalo de nuevo en {retry_after} segundos."
+  },
+  "error.429.contacts_reveal_budget": {
+    "hash": "814eda4e3d9051bf",
+    "text": "Demasiadas consultas de teléfonos. Inténtalo de nuevo en {retry_after} segundos."
+  },
+  "error.503.contacts_code_unavailable": {
+    "hash": "d6656a79a16f165e",
+    "text": "No se ha podido enviar el código ahora mismo. Inténtalo en breve."
   }
 }

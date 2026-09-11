@@ -6,6 +6,10 @@
   "error.400.avatar_url_scheme": "La URL del avatar debe usar uno de: {schemes}",
   "error.400.cannot_block_self": "No puedes bloquearte a ti mismo",
   "error.400.cannot_follow_self": "No puedes seguirte a ti mismo",
+  "error.400.contacts_code_expired": "Ese código ya no es válido. Solicita uno nuevo.",
+  "error.400.contacts_invalid_code": "Código incorrecto. Quedan {attempts_remaining} intento(s).",
+  "error.400.contacts_invalid_phone": "Introduce el número de teléfono en formato internacional, empezando por +",
+  "error.400.contacts_invalid_policy": "Política de visibilidad desconocida. Aquí se permiten: {policies}",
   "error.400.display_name_emoji": "El nombre para mostrar no puede contener emojis",
   "error.400.display_name_forbidden_chars": "El nombre para mostrar contiene caracteres no permitidos",
   "error.400.display_name_invisible_chars": "El nombre para mostrar contiene caracteres invisibles",
@@ -13,5 +17,11 @@
   "error.400.invalid_avatar_format": "Formato de referencia de avatar no válido. Se esperaba: avatar/<hash>",
   "error.400.invalid_currency": "Código de moneda no válido",
   "error.400.too_many_ids": "Demasiados identificadores: {requested} solicitados, como máximo {limit} por solicitud por lotes",
-  "error.404.profile_not_found": "Perfil no encontrado"
+  "error.403.contacts_registration_required": "Regístrate para ver el teléfono del vendedor",
+  "error.404.contact_not_found": "Contacto no encontrado",
+  "error.404.profile_not_found": "Perfil no encontrado",
+  "error.409.contacts_duplicate": "Ya has añadido este número",
+  "error.429.contacts_code_rate": "Demasiados intentos. Inténtalo de nuevo en {retry_after} segundos.",
+  "error.429.contacts_reveal_budget": "Demasiadas consultas de teléfonos. Inténtalo de nuevo en {retry_after} segundos.",
+  "error.503.contacts_code_unavailable": "No se ha podido enviar el código ahora mismo. Inténtalo en breve."
 }

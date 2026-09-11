@@ -29,6 +29,7 @@ FULL_PUBLIC_FIELDS = {
     "relationship_status",
     "seller_type",
     "created_at",
+    "contacts",
 }
 
 
@@ -65,6 +66,7 @@ NARROW_ANONYMOUS_FIELDS = {
     "avatar_image",
     "seller_type",
     "created_at",
+    "contacts",
 }
 
 

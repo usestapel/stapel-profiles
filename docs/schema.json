@@ -51,7 +51,10 @@
                       "following_count": 30,
                       "relationship_status": "following",
                       "seller_type": "business",
-                      "created_at": "2025-01-15T12:00:00Z"
+                      "created_at": "2025-01-15T12:00:00Z",
+                      "contacts": {
+                        "phone": true
+                      }
                     }
                   }
                 }
@@ -447,6 +450,744 @@
             "description": ""
           },
           "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/contacts": {
+      "get": {
+        "operationId": "list_my_contacts",
+        "description": "The caller's own contacts, oldest first, WITH their numbers and reveal counters — this shape is never sent to anybody else. `policies` carries the policy vocabulary this deployment accepts, so the picker renders from the server's answer.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "List my contacts",
+        "tags": [
+          "Contacts"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactListResponse"
+                },
+                "examples": {
+                  "ContactListResponse": {
+                    "value": {
+                      "policies": [
+                        "members",
+                        "verified",
+                        "nobody"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      },
+      "post": {
+        "operationId": "add_my_contact",
+        "description": "Store a phone number for the caller. It is normalised to E.164 and starts UNVERIFIED — until `verify/request` + `verify/confirm` have run it is revealed to nobody and the caller's public profile keeps saying `contacts.phone: false`.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Add a contact",
+        "tags": [
+          "Contacts"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactCreateRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactCreateRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactResponse"
+                },
+                "examples": {
+                  "ContactResponse": {
+                    "value": {
+                      "id": 7,
+                      "kind": "phone",
+                      "value": "+15550100",
+                      "label": "Work",
+                      "policy": "members",
+                      "enabled": true,
+                      "verified": true,
+                      "verified_at": "2026-09-11T09:00:00Z",
+                      "reveal_count": 12,
+                      "created_at": "2026-09-11T08:00:00Z"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/contacts/{contact_id}": {
+      "patch": {
+        "operationId": "update_my_contact",
+        "description": "Change the label, the policy or the on/off switch (PATCH semantics). The number itself is not editable — a different number is a different thing to prove — and nothing here touches `verified_at`. Somebody else's contact answers 404.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Update a contact",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Contact id",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Contacts"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedContactUpdateRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedContactUpdateRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedContactUpdateRequest"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactResponse"
+                },
+                "examples": {
+                  "ContactResponse": {
+                    "value": {
+                      "id": 7,
+                      "kind": "phone",
+                      "value": "+15550100",
+                      "label": "Work",
+                      "policy": "members",
+                      "enabled": true,
+                      "verified": true,
+                      "verified_at": "2026-09-11T09:00:00Z",
+                      "reveal_count": 12,
+                      "created_at": "2026-09-11T08:00:00Z"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_my_contact",
+        "description": "Remove the number and its journal. The journal goes with it on purpose: the rows exist to tell the OWNER who asked for THIS number, and a number nobody holds any more has no owner to tell.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Delete a contact",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Contact id",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Contacts"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactActionResponse"
+                },
+                "examples": {
+                  "ContactActionResponse": {
+                    "value": {
+                      "success": true
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/contacts/{contact_id}/reveals/summary": {
+      "get": {
+        "operationId": "get_contact_reveal_summary",
+        "description": "Counts only — never who. The owner is entitled to know how often their number was handed out; the identity of the people who asked is the viewers' data, and this module does not trade one person's privacy for another's curiosity.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Reveal counters for one of my contacts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Contact id",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Contacts"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactRevealSummaryResponse"
+                },
+                "examples": {
+                  "ContactRevealSummaryResponse": {
+                    "value": {
+                      "contact_id": 7,
+                      "total": 128,
+                      "last_24h": 4,
+                      "last_7d": 19,
+                      "last_reveal_at": "2026-09-11T09:30:00Z"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/contacts/{contact_id}/verify/confirm": {
+      "post": {
+        "operationId": "confirm_contact_verification",
+        "description": "Check the code against the provider and, on a match, stamp `verified_at`. This is the moment the number becomes revealable and the owner's public profile starts saying `contacts.phone: true` (policy permitting).\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Confirm a verification code",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Contact id",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Contacts"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactVerifyConfirmRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactVerifyConfirmRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactVerifyConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactResponse"
+                },
+                "examples": {
+                  "ContactResponse": {
+                    "value": {
+                      "id": 7,
+                      "kind": "phone",
+                      "value": "+15550100",
+                      "label": "Work",
+                      "policy": "members",
+                      "enabled": true,
+                      "verified": true,
+                      "verified_at": "2026-09-11T09:00:00Z",
+                      "reveal_count": 12,
+                      "created_at": "2026-09-11T08:00:00Z"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/contacts/{contact_id}/verify/request": {
+      "post": {
+        "operationId": "request_contact_verification",
+        "description": "Ask the OTP provider (`STAPEL_PROFILES['CONTACTS']['OTP_PROVIDER']`, stapel-auth's phone service by default) to send a code to this number. The provider owns the code's lifetime, its attempt budget and its resend cooldown; this module owns none of it. Repeats answer 429 `error.429.contacts_code_rate` with `retry_after`.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Send a verification code",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Contact id",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Contacts"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactVerifyRequestResponse"
+                },
+                "examples": {
+                  "ContactVerifyRequestResponse": {
+                    "value": {
+                      "sent": true,
+                      "expires_in": 600
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/contacts/reveal": {
+      "post": {
+        "operationId": "reveal_contacts",
+        "description": "Return the seller's numbers this viewer is admitted to, per the policy on each number. An empty list is a normal 200: the seller has no published number, or none for this viewer — the two are deliberately indistinguishable. A caller without an account (signed out OR a guest session) gets 403 `error.403.contacts_registration_required`, which is the storefront's cue to open full registration. Over the hourly budget the answer is 429 `error.429.contacts_reveal_budget` with `retry_after` in seconds. The owner asking for their own numbers always gets all of them, unbudgeted and unjournalled.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Show a seller's phone numbers",
+        "tags": [
+          "Contacts"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactRevealRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactRevealRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactRevealRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTCookieAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactRevealResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "429": {
             "content": {
               "application/json": {
                 "schema": {
@@ -965,6 +1706,259 @@
         "type": "string",
         "description": "* `file` - File\n* `url` - URL\n* `gravatar` - Gravatar\n* `cdn` - CDN"
       },
+      "ContactActionResponse": {
+        "type": "object",
+        "description": "Result of a contact action that returns no contact.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the action succeeded",
+            "example": true
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "ContactCreateRequest": {
+        "type": "object",
+        "description": "Add a contact.\n\nThe number must be in international form (leading `+`); it is stored\nE.164, and the same number cannot be added twice by the same person. A\nnew contact starts UNVERIFIED, and therefore invisible to every viewer\nuntil `verify/request` + `verify/confirm` have run.",
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "Phone number in international form",
+            "example": "+15550100"
+          },
+          "label": {
+            "type": "string",
+            "description": "The owner's own label for it",
+            "example": "Work"
+          },
+          "policy": {
+            "type": "string",
+            "nullable": true,
+            "description": "Who may be handed it; omitted means this deployment's default policy",
+            "example": "members"
+          },
+          "kind": {
+            "type": "string",
+            "description": "What sort of contact this is. Only \"phone\" exists today",
+            "example": "phone"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      },
+      "ContactListResponse": {
+        "type": "object",
+        "description": "The owner's contacts, plus the policy vocabulary this deployment offers.\n\n`policies` rides along so a contacts screen can render the picker from\nthe server's answer instead of hardcoding three strings — a deployment\nthat narrowed `STAPEL_PROFILES[\"CONTACTS\"][\"POLICIES\"]` would otherwise\nshow options its own API refuses.",
+        "properties": {
+          "contacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContactResponse"
+            },
+            "description": "The caller's own contacts, oldest first"
+          },
+          "policies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Policy values this deployment accepts, in picker order; the first is the default for a new contact",
+            "example": [
+              "members",
+              "verified",
+              "nobody"
+            ]
+          }
+        },
+        "required": [
+          "contacts",
+          "policies"
+        ]
+      },
+      "ContactResponse": {
+        "type": "object",
+        "description": "One of the OWNER's own contacts, as they see it on their own screen.\n\nThis shape is never sent to anybody but the owner, which is why it\ncarries both the number and its reveal counter. A viewer's answer is\n`RevealedPhone`, which carries neither.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Contact id",
+            "example": 7
+          },
+          "kind": {
+            "type": "string",
+            "description": "What sort of contact this is",
+            "example": "phone"
+          },
+          "value": {
+            "type": "string",
+            "description": "The number in E.164",
+            "example": "+15550100"
+          },
+          "label": {
+            "type": "string",
+            "description": "The owner's own label for it",
+            "example": "Work"
+          },
+          "policy": {
+            "type": "string",
+            "description": "Who may be handed this number (members, verified, nobody)",
+            "example": "members"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "The owner's on/off switch, independent of the policy",
+            "example": true
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Whether the SMS code has been confirmed. An unverified number is revealed to nobody",
+            "example": true
+          },
+          "verified_at": {
+            "type": "string",
+            "nullable": true,
+            "description": "When the code was confirmed, or null",
+            "example": "2026-09-11T09:00:00Z"
+          },
+          "reveal_count": {
+            "type": "integer",
+            "description": "How many times this number has been handed over, ever",
+            "example": 12
+          },
+          "created_at": {
+            "type": "string",
+            "description": "When the contact was added",
+            "example": "2026-09-11T08:00:00Z"
+          }
+        },
+        "required": [
+          "created_at",
+          "enabled",
+          "id",
+          "kind",
+          "label",
+          "policy",
+          "reveal_count",
+          "value",
+          "verified",
+          "verified_at"
+        ]
+      },
+      "ContactRevealRequest": {
+        "type": "object",
+        "description": "Ask for a seller's numbers.",
+        "properties": {
+          "owner_key": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User UUID of the person whose numbers are asked for",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "listing_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "Where the viewer was standing, for the owner's journal. Opaque to this module",
+            "example": 91823
+          }
+        },
+        "required": [
+          "owner_key"
+        ]
+      },
+      "ContactRevealResponse": {
+        "type": "object",
+        "description": "The numbers this viewer was admitted to.\n\nAn empty list is a normal, successful answer: the seller has no\npublished number, or none whose policy admits this viewer. The two cases\nare deliberately indistinguishable — \"there is a number you may not\nread\" is itself a fact about the seller, and this endpoint does not\ndisclose it.\n\nSent with `Cache-Control: no-store`: the answer is per-viewer, budgeted\nand journalled, and a shared cache copy would be a hand-over nobody\nrecorded.",
+        "properties": {
+          "phones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevealedPhone"
+            },
+            "description": "The numbers, in the order the owner added them"
+          }
+        },
+        "required": [
+          "phones"
+        ]
+      },
+      "ContactRevealSummaryResponse": {
+        "type": "object",
+        "description": "How often one of the OWNER's numbers has been handed over.",
+        "properties": {
+          "contact_id": {
+            "type": "integer",
+            "description": "Which contact this counts",
+            "example": 7
+          },
+          "total": {
+            "type": "integer",
+            "description": "Hand-overs ever",
+            "example": 128
+          },
+          "last_24h": {
+            "type": "integer",
+            "description": "Hand-overs in the last 24 hours",
+            "example": 4
+          },
+          "last_7d": {
+            "type": "integer",
+            "description": "Hand-overs in the last 7 days",
+            "example": 19
+          },
+          "last_reveal_at": {
+            "type": "string",
+            "nullable": true,
+            "description": "When it was last handed over, or null",
+            "example": "2026-09-11T09:30:00Z"
+          }
+        },
+        "required": [
+          "contact_id",
+          "last_24h",
+          "last_7d",
+          "last_reveal_at",
+          "total"
+        ]
+      },
+      "ContactVerifyConfirmRequest": {
+        "type": "object",
+        "description": "Confirm the code that was sent to the number.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The code from the SMS",
+            "example": 123456
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "ContactVerifyRequestResponse": {
+        "type": "object",
+        "description": "A verification code was sent to the number.",
+        "properties": {
+          "sent": {
+            "type": "boolean",
+            "description": "Always true — a refusal is an error envelope, not a false here",
+            "example": true
+          },
+          "expires_in": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Seconds the code stays good, when the provider says",
+            "example": 600
+          }
+        },
+        "required": [
+          "expires_in",
+          "sent"
+        ]
+      },
       "FollowersResponse": {
         "type": "object",
         "description": "User's followers list.",
@@ -1043,6 +2037,29 @@
           "flag",
           "name"
         ]
+      },
+      "PatchedContactUpdateRequest": {
+        "type": "object",
+        "description": "Change a contact (PATCH, all optional).\n\nThe number itself is not editable: a different number is a different\nthing to prove, so it is a different contact. Everything else the owner\nmay change at will, and none of it touches `verified_at`.",
+        "properties": {
+          "label": {
+            "type": "string",
+            "nullable": true,
+            "description": "The owner's own label for it",
+            "example": "Mobile"
+          },
+          "policy": {
+            "type": "string",
+            "nullable": true,
+            "description": "Who may be handed it",
+            "example": "verified"
+          },
+          "enabled": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Switch it off without deleting it or changing its policy"
+          }
+        }
       },
       "PatchedProfileUpdateRequest": {
         "type": "object",
@@ -1193,6 +2210,20 @@
           "profiles"
         ]
       },
+      "ProfileContactFlags": {
+        "type": "object",
+        "description": "What a public profile says about a person's contacts — one bit.\n\nTrue means: there is at least one phone on this profile that is\nswitched on, proven by SMS, and not withheld from everyone. It is what a\nstorefront draws the \"Show phone\" button from. It is NOT a promise that\nthe caller will get a number: the policy on each number is applied by\n`POST /profiles/api/v1/contacts/reveal`, and the answer there may still\nbe an empty list or the registration door.\n\nViewer-independent on purpose: a bit that changed with the viewer would\nleak the policy itself (\"the button vanished when I signed out, so that\nnumber is members-only\") and would make a public field uncacheable.",
+        "properties": {
+          "phone": {
+            "type": "boolean",
+            "description": "Whether there is a phone worth asking for",
+            "example": true
+          }
+        },
+        "required": [
+          "phone"
+        ]
+      },
       "ProfileFieldManifestEntry": {
         "type": "object",
         "description": "One active profile field, as the frontend skin needs it to render\nitself without hardcoding field names (docs/pending/profile-fields.md,\n\"Owner Addendum\" §1 — data-driven skin, tier 1 of the two-tier\nfront-pair answer). GET /profiles/api/v1/field-manifest/ returns a list\nof these for whatever the project's STAPEL_PROFILES[\"FIELDS\"] manifest\n(identity preset + standard_fields + custom_fields) actually selected.",
@@ -1322,10 +2353,19 @@
             "type": "string",
             "format": "date-time",
             "readOnly": true
+          },
+          "contacts": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfileContactFlags"
+              }
+            ],
+            "readOnly": true
           }
         },
         "required": [
           "avatar_image",
+          "contacts",
           "created_at",
           "followers_count",
           "following_count",
@@ -1408,12 +2448,24 @@
             "type": "string",
             "description": "ISO 8601 time this PROFILE was created — the tenure a seller page renders as \"on the site since March 2024\". Not a sign-in time and not an activity signal",
             "example": "2025-01-15T12:00:00Z"
+          },
+          "contacts": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfileContactFlags"
+              }
+            ],
+            "description": "Which kinds of contact this person has published — the fact only, never the value",
+            "example": {
+              "phone": true
+            }
           }
         },
         "required": [
           "avatar",
           "avatar_image",
           "avatar_source",
+          "contacts",
           "created_at",
           "display_name",
           "followers_count",
@@ -1628,6 +2680,26 @@
         "required": [
           "status",
           "user_id"
+        ]
+      },
+      "RevealedPhone": {
+        "type": "object",
+        "description": "One number a viewer was admitted to.\n\nDeliberately minimal: a label and a number. No id, no policy, no\ncounters — a viewer has no business knowing how a seller's contacts are\norganised, only how to call them.",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "The owner's own label for it, possibly empty",
+            "example": "Work"
+          },
+          "value": {
+            "type": "string",
+            "description": "The number in E.164",
+            "example": "+15550100"
+          }
+        },
+        "required": [
+          "label",
+          "value"
         ]
       },
       "StapelError": {

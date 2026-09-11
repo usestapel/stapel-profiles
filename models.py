@@ -484,3 +484,16 @@ class UserRelationship(models.Model):
 
     def __str__(self):
         return f"{self.follower_id} -> {self.following_id} ({self.status})"
+
+
+# The contacts sub-module's tables live in a sub-package but belong to this
+# app label (they declare `app_label = "profiles"`). Imported here so
+# Django's app registry sees them: the registry walks `<app>.models`, not
+# the package tree, and a model it never imports is a table that never gets
+# a migration.
+from .contacts.models import (  # noqa: E402,F401  (import-for-registration)
+    Contact,
+    ContactKind,
+    ContactPolicy,
+    ContactReveal,
+)

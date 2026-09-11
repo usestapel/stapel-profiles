@@ -75,6 +75,7 @@ from .dto import (
 from .field_defs import IDENTITY_PRESETS, STANDARD_FIELDS
 from .models import Language, RelationshipStatus, UserRelationship, get_profile_model
 from .serializers import (
+    CTX_CONTACTS,
     CTX_FOLLOWERS,
     CTX_FOLLOWING,
     CTX_RELATIONSHIPS,
@@ -425,10 +426,16 @@ def _batch_social_context(request, profiles):
             ).values_list("following_id", "status")
         )
 
+    # The contacts bit, for the whole page in one query. Viewer-independent
+    # (see contacts.policy), so unlike `relationships` it is computed for
+    # every caller including the anonymous one.
+    from .contacts.policy import owners_with_revealable_phone
+
     return {
         CTX_FOLLOWERS: followers,
         CTX_FOLLOWING: following,
         CTX_RELATIONSHIPS: relationships,
+        CTX_CONTACTS: owners_with_revealable_phone(ids),
     }
 
 

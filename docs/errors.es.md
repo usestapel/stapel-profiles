@@ -1,6 +1,6 @@
 # Errors — Español
 
-`57` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.es.json`.
+`67` error keys. Canonical texts live in the code (`register_service_errors`); localized texts in `translations/errors.es.json`.
 
 | Código | Estado | Parámetros | Acción | Texto |
 |---|---|---|---|---|
@@ -14,6 +14,10 @@
 | `error.400.cannot_follow_self` | 400 | — | `fix_input` | No puedes seguirte a ti mismo |
 | `error.400.captcha_invalid` | 400 | — | `retry` | La verificación del captcha ha fallado. Inténtalo de nuevo. |
 | `error.400.captcha_required` | 400 | — | `retry` | Se requiere el token del captcha. |
+| `error.400.contacts_code_expired` | 400 | — | `retry` | Ese código ya no es válido. Solicita uno nuevo. |
+| `error.400.contacts_invalid_code` | 400 | `attempts_remaining` | `fix_input` | Código incorrecto. Quedan {attempts_remaining} intento(s). |
+| `error.400.contacts_invalid_phone` | 400 | — | `fix_input` | Introduce el número de teléfono en formato internacional, empezando por + |
+| `error.400.contacts_invalid_policy` | 400 | `policies` | `fix_input` | Política de visibilidad desconocida. Aquí se permiten: {policies} |
 | `error.400.display_name_emoji` | 400 | — | `fix_input` | El nombre para mostrar no puede contener emojis |
 | `error.400.display_name_forbidden_chars` | 400 | — | `fix_input` | El nombre para mostrar contiene caracteres no permitidos |
 | `error.400.display_name_invisible_chars` | 400 | — | `fix_input` | El nombre para mostrar contiene caracteres invisibles |
@@ -39,11 +43,13 @@
 | `error.400.verification_invalid_factor` | 400 | — | `verify` | Este factor de verificación no está disponible |
 | `error.401.unauthorized` | 401 | — | `reauthenticate` | Se requiere autenticación |
 | `error.402.payment_required` | 402 | — | `retry` | Se requiere pago |
+| `error.403.contacts_registration_required` | 403 | — | `reauthenticate` | Regístrate para ver el teléfono del vendedor |
 | `error.403.forbidden` | 403 | — | `retry` | No tienes permiso para realizar esta acción |
 | `error.403.network_blocked` | 403 | — | `contact_support` | No se permiten solicitudes desde esta red. |
 | `error.403.verification_enrollment_required` | 403 | — | `verify` | Es necesario registrar un factor de verificación. |
 | `error.403.verification_required` | 403 | — | `verify` | Se requiere verificación adicional |
 | `error.404.ad_not_found` | 404 | — | `retry` | Anuncio no encontrado |
+| `error.404.contact_not_found` | 404 | — | `fix_input` | Contacto no encontrado |
 | `error.404.not_found` | 404 | — | `retry` | Recurso solicitado no encontrado |
 | `error.404.profile_not_found` | 404 | — | `fix_input` | Perfil no encontrado |
 | `error.404.verification_challenge_not_found` | 404 | — | `verify` | Desafío de verificación no encontrado o caducado |
@@ -51,13 +57,17 @@
 | `error.406.not_acceptable` | 406 | — | `retry` | No aceptable |
 | `error.408.request_timeout` | 408 | — | `retry` | Tiempo de espera de la solicitud agotado |
 | `error.409.conflict` | 409 | — | `fix_input` | El recurso ya existe |
+| `error.409.contacts_duplicate` | 409 | — | `fix_input` | Ya has añadido este número |
 | `error.410.gone` | 410 | — | `retry` | El recurso se ha eliminado permanentemente |
 | `error.413.payload_too_large` | 413 | — | `retry` | El cuerpo de la solicitud es demasiado grande |
 | `error.415.unsupported_media_type` | 415 | — | `retry` | Tipo de contenido no compatible |
 | `error.422.unprocessable_entity` | 422 | — | `wait_and_retry` | Entidad no procesable |
 | `error.423.locked` | 423 | — | `wait_and_retry` | El recurso está bloqueado |
 | `error.423.verification_locked` | 423 | — | `wait_and_retry` | Demasiados intentos fallidos — verificación bloqueada |
+| `error.429.contacts_code_rate` | 429 | `retry_after` | `wait_and_retry` | Demasiados intentos. Inténtalo de nuevo en {retry_after} segundos. |
+| `error.429.contacts_reveal_budget` | 429 | `retry_after` | `wait_and_retry` | Demasiadas consultas de teléfonos. Inténtalo de nuevo en {retry_after} segundos. |
 | `error.429.rate_limit` | 429 | `retry_after_minutes` | `wait_and_retry` | Demasiados intentos. Inténtalo de nuevo en {retry_after_minutes} minutos. |
 | `error.429.too_many_requests` | 429 | — | `wait_and_retry` | Demasiadas solicitudes. Inténtalo de nuevo más tarde. |
 | `error.500.internal` | 500 | — | `contact_support` | Algo salió mal |
+| `error.503.contacts_code_unavailable` | 503 | — | `retry` | No se ha podido enviar el código ahora mismo. Inténtalo en breve. |
 | `error.503.mandate_unavailable` | 503 | — | `retry` | No se puede verificar el mandato del espacio de trabajo |
