@@ -10,11 +10,12 @@ letting one manage contacts would mint rows with no owner left to manage
 them, and letting one reveal a number would sell the entire permission model
 for the price of one POST.
 
-The reveal endpoint denies with this module's OWN key
+Every view here denies with this module's OWN key
 (``error.403.contacts_registration_required``) instead of the generic 403,
-because the storefront's correct reaction is to open full registration and
-it can only know that from the key. That single difference is the only reason
-:class:`ContactsDoorMixin` exists.
+because the frontend's correct reaction is to open full registration and it
+can only know that from the key — and because it reads the TOP-LEVEL
+``localizable_error``, which is what :class:`ContactsRegistrationRequired`
+exists to get right.
 """
 import logging
 from datetime import timedelta
@@ -77,18 +78,34 @@ logger = logging.getLogger(__name__)
 
 
 class ContactsRegistrationRequired(exceptions.PermissionDenied):
-    """403 carrying this module's door key, whatever the exception handler is.
+    """403 whose *top-level* ``localizable_error`` is this module's door key.
 
-    The body is built by ``StapelErrorResponse`` and handed to DRF as the
-    exception's ``detail``, which DRF renders verbatim when it is a dict. So
-    the envelope is identical under the stapel exception handler and under
-    DRF's own — a module's error contract must not depend on which handler a
-    host happens to have installed.
+    NAMED, not dressed. The key travels on ``default_code``, and the fleet's
+    ``EXCEPTION_HANDLER`` reads it off the exception
+    (``stapel_core.django.api.errors._drf_exception_error_key``: the detail's
+    ``.code``, then ``default_code``, then the status's generic key) and
+    builds the envelope itself. That is the seam
+    ``api.permissions.MandateUnavailable`` uses, and the one R012 says a view
+    must not take the refusal away from.
+
+    0.20.1 got this wrong in the way that is worth writing down: it built the
+    envelope here with ``StapelErrorResponse`` and passed the whole dict as
+    the exception's ``detail``. Under DRF's bare handler that renders
+    verbatim and looked perfect — which is what the tests ran under. Under
+    the handler production actually installs, tier 4 re-dresses every DRF
+    refusal it did not recognise: the top-level key became the generic
+    ``error.403.forbidden`` and this module's key was buried at
+    ``params.detail.localizable_error``. The pair reads the top level, so the
+    registration door never opened. The lesson is not about this class; it is
+    that an error-shape test run under a different exception handler than
+    production tests nothing.
     """
 
-    def __init__(self):
-        body = StapelErrorResponse(403, ERR_403_CONTACTS_REGISTRATION_REQUIRED).data
-        super().__init__(detail=body)
+    #: Must stay a key registered in `errors.PROFILES_ERRORS` — an
+    #: unregistered string falls through to the generic key for the status,
+    #: silently, which is the exact failure this class exists to prevent.
+    default_code = ERR_403_CONTACTS_REGISTRATION_REQUIRED
+    default_detail = "Register an account to see a seller's phone number"
 
 
 class ContactsDoorMixin:
@@ -97,8 +114,17 @@ class ContactsDoorMixin:
     Overriding ``permission_denied`` rather than adding a permission class:
     DRF's own implementation raises ``NotAuthenticated`` (401) for a caller
     with no credentials and ``PermissionDenied`` (403) for a guest, which
-    would give the storefront two different answers to one question — "you
-    need an account". One door, one key, both callers.
+    would give the frontend two different answers to one question — "you
+    need an account". One door, one key, every caller.
+
+    On EVERY view in this package, not just the reveal (0.20.2). The refusal
+    is the same sentence whether somebody is asking for a seller's number on
+    a listing page or opening their own contacts screen, and a kabinet that
+    got the generic ``error.403.forbidden`` while the storefront button got a
+    named key would be a seam where two screens disagree about what to do
+    with the same visitor. It also makes one property true without
+    exceptions, which is the property this module's error tests assert: every
+    contacts refusal names itself at the top level.
     """
 
     def permission_denied(self, request, message=None, code=None):
@@ -176,7 +202,7 @@ def _otp_error_response(envelope):
 
 
 @extend_schema(tags=["Contacts"])
-class ContactListCreateView(StapelAPIView):
+class ContactListCreateView(ContactsDoorMixin, StapelAPIView):
     """The owner's own contacts: list them, add one."""
 
     permission_classes = [IsNotAnonymousUser]
@@ -196,7 +222,6 @@ class ContactListCreateView(StapelAPIView):
         ),
         responses={
             200: ContactListResponseSerializer,
-            401: OpenApiTypes.OBJECT,
             403: StapelErrorSerializer,
         },
     )
@@ -223,7 +248,6 @@ class ContactListCreateView(StapelAPIView):
         responses={
             201: ContactResponseSerializer,
             400: StapelErrorSerializer,
-            401: OpenApiTypes.OBJECT,
             403: StapelErrorSerializer,
             409: StapelErrorSerializer,
         },
@@ -267,7 +291,7 @@ class ContactListCreateView(StapelAPIView):
 
 
 @extend_schema(tags=["Contacts"])
-class ContactDetailView(StapelAPIView):
+class ContactDetailView(ContactsDoorMixin, StapelAPIView):
     """One of the owner's contacts: change it, delete it."""
 
     permission_classes = [IsNotAnonymousUser]
@@ -297,7 +321,6 @@ class ContactDetailView(StapelAPIView):
         responses={
             200: ContactResponseSerializer,
             400: StapelErrorSerializer,
-            401: OpenApiTypes.OBJECT,
             403: StapelErrorSerializer,
             404: StapelErrorSerializer,
         },
@@ -352,7 +375,6 @@ class ContactDetailView(StapelAPIView):
         request=None,
         responses={
             200: ContactActionResponseSerializer,
-            401: OpenApiTypes.OBJECT,
             403: StapelErrorSerializer,
             404: StapelErrorSerializer,
         },
@@ -369,7 +391,7 @@ class ContactDetailView(StapelAPIView):
 
 
 @extend_schema(tags=["Contacts"])
-class ContactVerifyRequestView(StapelAPIView):
+class ContactVerifyRequestView(ContactsDoorMixin, StapelAPIView):
     """Send an SMS code to one of the owner's numbers."""
 
     permission_classes = [IsNotAnonymousUser]
@@ -398,7 +420,6 @@ class ContactVerifyRequestView(StapelAPIView):
         request=None,
         responses={
             200: ContactVerifyRequestResponseSerializer,
-            401: OpenApiTypes.OBJECT,
             403: StapelErrorSerializer,
             404: StapelErrorSerializer,
             429: StapelErrorSerializer,
@@ -423,7 +444,7 @@ class ContactVerifyRequestView(StapelAPIView):
 
 
 @extend_schema(tags=["Contacts"])
-class ContactVerifyConfirmView(StapelAPIView):
+class ContactVerifyConfirmView(ContactsDoorMixin, StapelAPIView):
     """Confirm the SMS code and mark the number proven."""
 
     permission_classes = [IsNotAnonymousUser]
@@ -452,7 +473,6 @@ class ContactVerifyConfirmView(StapelAPIView):
         responses={
             200: ContactResponseSerializer,
             400: StapelErrorSerializer,
-            401: OpenApiTypes.OBJECT,
             403: StapelErrorSerializer,
             404: StapelErrorSerializer,
             429: StapelErrorSerializer,
@@ -488,7 +508,7 @@ class ContactVerifyConfirmView(StapelAPIView):
 
 
 @extend_schema(tags=["Contacts"])
-class ContactRevealSummaryView(StapelAPIView):
+class ContactRevealSummaryView(ContactsDoorMixin, StapelAPIView):
     """How often one of the owner's numbers has been handed over."""
 
     permission_classes = [IsNotAnonymousUser]
@@ -514,7 +534,6 @@ class ContactRevealSummaryView(StapelAPIView):
         ],
         responses={
             200: ContactRevealSummaryResponseSerializer,
-            401: OpenApiTypes.OBJECT,
             403: StapelErrorSerializer,
             404: StapelErrorSerializer,
         },

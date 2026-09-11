@@ -257,10 +257,22 @@ payloads, search hits, cards, the public profile — carries at most one bit.
 | Rule | Where it is enforced |
 |---|---|
 | Unproven is invisible. A contact with no `verified_at` exists, is listed to its owner, and is revealed to nobody. | `contacts.policy.revealable_for` / `owners_with_revealable_phone` |
-| Anonymous is not a viewer. A guest session is `is_authenticated` and nobody registered; it gets `error.403.contacts_registration_required` — the door, not a wall. | `IsNotAnonymousUser` + `ContactsDoorMixin` on `ContactRevealView` |
+| Anonymous is not a viewer. A guest session is `is_authenticated` and nobody registered; it gets `error.403.contacts_registration_required` **at the top level of the envelope** — the door, not a wall — on every contacts endpoint, so the kabinet and the storefront button answer one visitor one way. | `IsNotAnonymousUser` + `ContactsDoorMixin` on all six views |
 | Every hand-over is written down, and the viewer's hourly slot is spent **before** the row is written. | `contacts.budget.spend` → `ContactReveal` |
 | The owner is not a viewer either: their own numbers come back whole, unbudgeted and unjournalled. | `contacts.policy.own_phones` |
 | Nothing else leaks. The public profile carries `contacts: {"phone": bool}` — viewer-independent, because a bit that moved with the viewer would leak the policy itself. | `ProfilePublicSerializer.get_contacts` |
+
+**Naming a refusal.** `ContactsRegistrationRequired` sets `default_code` to
+the registered key and lets the fleet's `EXCEPTION_HANDLER` build the
+envelope — the seam `api.permissions.MandateUnavailable` uses, and the one
+stapel-tools R012 says a view must not take a refusal away from. Do **not**
+build a `StapelErrorResponse` and hand it to DRF as an exception's `detail`:
+0.20.1 did, and the fleet handler's tier 4 re-dressed it into
+`params.detail` under a generic top-level `error.403.forbidden`, so the
+frontend — which reads the top level — never saw the door. The module's
+tests now run under that same handler (`_codegen_settings.settings_kwargs`
+sets `EXCEPTION_HANDLER` for the test harness too), because an error-shape
+test run under a different handler than production tests nothing.
 
 **The OTP seam.** This module sends no SMS and stores no code. Proving a
 phone is what stapel-auth already does — the codes live in

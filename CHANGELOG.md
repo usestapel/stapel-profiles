@@ -2,6 +2,87 @@
 
 ## [Unreleased]
 
+## [0.20.2] — 2026-09-11
+
+Patch: the registration door actually opens. Measured on a stand, not here —
+which is the more interesting half of this entry.
+
+### Fixed — the 403 door's key was buried one level down
+
+`POST /profiles/api/v1/contacts/reveal` as an anonymous caller answered 403
+with `localizable_error: "error.403.forbidden"` at the **top level** and
+`error.403.contacts_registration_required` nested at
+`params.detail.localizable_error`. A client branches on the top-level key, so
+the storefront could not tell the door from any other refusal and never sent
+anybody to registration.
+
+The cause: `ContactsDoorMixin` built the envelope itself with
+`StapelErrorResponse` and handed the whole dict to DRF as the exception's
+`detail`. `stapel_exception_handler`'s tier 4 re-dresses every DRF refusal it
+does not recognise — it keeps DRF's status and headers and moves the original
+body to `params["detail"]`, choosing the top-level key from
+`exc.detail.code` → `exc.default_code` → the generic key for the status. A
+dict named nothing, so the generic key won.
+
+The fix is to **name** the refusal instead of dressing it:
+`ContactsRegistrationRequired.default_code` is the registered key, and the
+handler builds the envelope. That is the seam
+`stapel_core.django.api.permissions.MandateUnavailable` already uses, and the
+one stapel-tools **R012** says a view must not take a refusal away from.
+
+### Fixed — the test harness ran a different exception handler than production
+
+This is the defect behind the defect. `conftest.py` configures Django through
+`_codegen_settings.settings_kwargs(contract=False)`, which set no
+`REST_FRAMEWORK` at all — so the whole suite ran under DRF's bare exception
+handler, which renders a dict `detail` verbatim. Every error-shape assertion
+in this module was green against a handler no deployment runs. The test that
+should have caught this **asserted the right string and passed**, which is
+worse than having no test, because it was counted.
+
+`settings_kwargs(contract=False)` now sets one key:
+
+```python
+REST_FRAMEWORK = {"EXCEPTION_HANDLER": "stapel_core.django.api.errors.stapel_exception_handler"}
+```
+
+DRF's own defaults still cover authentication, permissions and renderers (the
+historical test layout, `force_authenticate`, `AllowAny` views); only the
+error seam is now production's. No existing test needed changing —
+440 of them were already correct and merely untested where it mattered.
+
+### Changed — the door is on every contacts endpoint, not only the reveal
+
+A guest opening their own contacts screen used to get the generic
+`error.403.forbidden` while the storefront button got a named key: one
+visitor, two answers, from two screens of the same product. All six views now
+carry `ContactsDoorMixin`. With it, no contacts endpoint answers **401** any
+more — a caller with no credentials gets the same named 403 as a guest — so
+the `401` response declarations are gone from `docs/schema.json` (the only
+contract change in this release).
+
+### Added — gates that assert what a client reads
+
+* `test_every_refusal_names_itself_at_the_top_level` — a table of eight
+  refusals (both doors on both surfaces, invalid phone, duplicate, foreign
+  contact, invalid code) asserting `response.json()["localizable_error"]`
+  **is** the specific code, that it is not one of the eight generic
+  per-status keys, and that this module's envelope is not also nested inside
+  `params.detail`.
+* `test_the_reveal_budget_429_names_itself_at_the_top_level`,
+  `test_every_otp_refusal_names_itself_at_the_top_level` (429 + 503),
+  `test_the_invalid_policy_400_names_itself_and_carries_the_vocabulary`.
+* `test_a_guest_gets_the_same_named_door_on_every_contacts_endpoint` — all
+  eight method/path pairs.
+* `test_the_suite_runs_the_fleets_error_seam` — asserts
+  `api_settings.EXCEPTION_HANDLER is stapel_exception_handler`. It guards the
+  premise the rest of the section rests on: if the harness ever drifts back,
+  this says so instead of every other test quietly going hollow.
+
+Reintroducing the 0.20.1 shape turns 14 of these red, with exactly the
+symptom measured on the stand.
+
+
 ## [0.20.1] — 2026-09-11
 
 Patch: the contract artifact, re-emitted against the current `stapel-core`.

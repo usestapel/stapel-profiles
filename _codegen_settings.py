@@ -76,7 +76,20 @@ def settings_kwargs(
             "EXCEPTION_HANDLER": "stapel_core.django.api.errors.stapel_exception_handler",
         }
     else:
-        rest_framework = None
+        # The TEST harness keeps DRF's own defaults for authentication,
+        # permissions and renderers (force_authenticate, AllowAny views, the
+        # historical layout) — but NOT for errors. The exception handler is
+        # the seam that decides what every refusal in this module looks like
+        # on the wire, and running the suite without the one production
+        # installs is how 0.20.1 shipped a 403 whose top-level
+        # `localizable_error` was the generic `error.403.forbidden` with the
+        # module's own key buried under `params.detail`. Every test asserting
+        # an error body was green, against a handler no deployment runs.
+        #
+        # One line, and the error contract is now tested where it is used.
+        rest_framework = {
+            "EXCEPTION_HANDLER": "stapel_core.django.api.errors.stapel_exception_handler",
+        }
 
     kwargs = dict(
         SECRET_KEY="test-secret-key-not-for-production",

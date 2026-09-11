@@ -497,17 +497,6 @@
             },
             "description": ""
           },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {}
-                }
-              }
-            },
-            "description": ""
-          },
           "403": {
             "content": {
               "application/json": {
@@ -584,17 +573,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/StapelError"
-                }
-              }
-            },
-            "description": ""
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {}
                 }
               }
             },
@@ -703,17 +681,6 @@
             },
             "description": ""
           },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {}
-                }
-              }
-            },
-            "description": ""
-          },
           "403": {
             "content": {
               "application/json": {
@@ -772,17 +739,6 @@
                       "success": true
                     }
                   }
-                }
-              }
-            },
-            "description": ""
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {}
                 }
               }
             },
@@ -852,17 +808,6 @@
                       "last_reveal_at": "2026-09-11T09:30:00Z"
                     }
                   }
-                }
-              }
-            },
-            "description": ""
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {}
                 }
               }
             },
@@ -972,17 +917,6 @@
             },
             "description": ""
           },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {}
-                }
-              }
-            },
-            "description": ""
-          },
           "403": {
             "content": {
               "application/json": {
@@ -1064,17 +998,6 @@
                       "expires_in": 600
                     }
                   }
-                }
-              }
-            },
-            "description": ""
-          },
-          "401": {
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "additionalProperties": {}
                 }
               }
             },

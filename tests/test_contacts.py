@@ -636,6 +636,187 @@ def test_the_owners_own_list_does_carry_it(authed_client, user, otp):
 
 
 # ---------------------------------------------------------------------------
+# Every refusal names itself AT THE TOP LEVEL
+# ---------------------------------------------------------------------------
+#
+# 0.20.1 shipped a door that never opened. The 403 carried
+# `error.403.contacts_registration_required` — nested under
+# `params.detail.localizable_error`, with the generic `error.403.forbidden`
+# at the top, which is the only place a client reads. Every test here was
+# green, because the suite ran under DRF's bare exception handler while
+# production runs the fleet's, and the two dress a refusal differently.
+#
+# So this section asserts the thing a client actually reads, for every
+# refusal this module can produce, and `test_the_suite_runs_the_fleets_error_seam`
+# below guards the premise that makes the assertions mean anything.
+
+#: The generic per-status keys. Any of them at the top level means a refusal
+#: lost its name on the way out — the 0.20.1 defect, in the general form.
+GENERIC_KEYS = {
+    "error.400.bad_request",
+    "error.400.validation_error",
+    "error.401.unauthorized",
+    "error.403.forbidden",
+    "error.404.not_found",
+    "error.429.too_many_requests",
+    "error.429.rate_limit",
+    "error.500.internal",
+}
+
+
+def test_the_suite_runs_the_fleets_error_seam():
+    """The premise of every assertion below.
+
+    An error-shape test run under a different exception handler than
+    production tests nothing — that is precisely how 0.20.1 shipped. If this
+    ever fails, the section below has stopped proving anything, whatever
+    colour it is.
+    """
+    from rest_framework.settings import api_settings
+
+    from stapel_core.django.api.errors import stapel_exception_handler
+
+    assert api_settings.EXCEPTION_HANDLER is stapel_exception_handler
+
+
+#: name -> (who, method, path template, payload template, status, expected key).
+#: Built as a table so a refusal added later without a row here is visible as
+#: a gap, not as an absence nobody notices.
+REFUSAL_CASES = {
+    "door/guest-reveal": (
+        "guest", "post", "/contacts/reveal", "owner", 403,
+        "error.403.contacts_registration_required"),
+    "door/signed-out-reveal": (
+        "anon", "post", "/contacts/reveal", "owner", 403,
+        "error.403.contacts_registration_required"),
+    "door/guest-kabinet": (
+        "guest", "get", "/contacts", None, 403,
+        "error.403.contacts_registration_required"),
+    "door/signed-out-kabinet": (
+        "anon", "post", "/contacts", "phone", 403,
+        "error.403.contacts_registration_required"),
+    "invalid-phone": (
+        "user", "post", "/contacts", "bad-phone", 400,
+        "error.400.contacts_invalid_phone"),
+    "duplicate": (
+        "user", "post", "/contacts", "phone", 409,
+        "error.409.contacts_duplicate"),
+    "foreign-contact": (
+        "user", "get", "/contacts/{foreign}/reveals/summary", None, 404,
+        "error.404.contact_not_found"),
+    "invalid-code": (
+        "user", "post", "/contacts/{mine}/verify/confirm", "bad-code", 400,
+        "error.400.contacts_invalid_code"),
+}
+
+_PAYLOADS = {
+    None: None,
+    "owner": None,
+    "phone": {"value": PHONE},
+    "bad-phone": {"value": "15550100"},
+    "bad-code": {"code": "000000"},
+}
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("case", sorted(REFUSAL_CASES))
+def test_every_refusal_names_itself_at_the_top_level(
+    api_client, user, guest, seller, otp, case
+):
+    """`response.json()["localizable_error"]` IS the specific code.
+
+    Not nested under `params`, not the generic key for the status. This is
+    the one field a client branches on, and in 0.20.1 it was the one field
+    the door got wrong.
+    """
+    mine = _contact(user, verified=False)
+    foreign = _contact(seller, value=SECOND_PHONE)
+    who, method, path, payload_key, status, expected = REFUSAL_CASES[case]
+
+    api_client.force_authenticate(
+        user={"user": user, "guest": guest, "anon": None}[who]
+    )
+    payload = _PAYLOADS[payload_key]
+    if payload_key == "owner":
+        payload = {"owner_key": str(seller.id)}
+    url = path.format(mine=mine.id, foreign=foreign.id)
+
+    call = getattr(api_client, method)
+    resp = call(url, payload, format="json") if payload else call(url)
+
+    assert resp.status_code == status, f"{case}: {resp.content}"
+    body = resp.json()
+    assert body["localizable_error"] == expected, f"{case}: {body}"
+    assert body["localizable_error"] not in GENERIC_KEYS, (
+        f"{case}: the refusal lost its name — a client reading the top-level "
+        f"key cannot tell it from any other {status}"
+    )
+    # ...and this module's envelope is not ALSO buried one level down, which
+    # is the shape 0.20.1 shipped: a whole StapelError dict handed to DRF as
+    # the exception's `detail`, re-dressed by the fleet handler into
+    # `params.detail` under a generic top-level key.
+    assert "localizable_error" not in str(body.get("params", {}).get("detail", "")), (
+        f"{case}: the envelope is nested inside params.detail — the view "
+        f"dressed the refusal instead of naming it"
+    )
+
+
+@pytest.mark.django_db
+def test_the_reveal_budget_429_names_itself_at_the_top_level(
+    api_client, user, seller, settings
+):
+    """Split out because it needs a spent budget, and because its `params`
+    are load-bearing: the pair renders the minutes from `retry_after`."""
+    _settings(settings, REVEAL_PER_HOUR=1)
+    _contact(seller)
+    api_client.force_authenticate(user=user)
+    body_in = {"owner_key": str(seller.id)}
+    api_client.post("/contacts/reveal", body_in, format="json")
+
+    resp = api_client.post("/contacts/reveal", body_in, format="json")
+    assert resp.status_code == 429, resp.content
+    body = resp.json()
+    assert body["localizable_error"] == "error.429.contacts_reveal_budget"
+    assert body["localizable_error"] not in GENERIC_KEYS
+    assert body["params"]["retry_after"] > 0
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "provider,status,expected",
+    [
+        ("BlockedProvider", 429, "error.429.contacts_code_rate"),
+        ("DownProvider", 503, "error.503.contacts_code_unavailable"),
+    ],
+)
+def test_every_otp_refusal_names_itself_at_the_top_level(
+    authed_client, user, settings, provider, status, expected
+):
+    _settings(settings, OTP_PROVIDER=f"tests.test_contacts.{provider}")
+    contact = _contact(user, verified=False)
+    resp = authed_client.post(f"/contacts/{contact.id}/verify/request")
+    assert resp.status_code == status, resp.content
+    body = resp.json()
+    assert body["localizable_error"] == expected
+    assert body["localizable_error"] not in GENERIC_KEYS
+
+
+@pytest.mark.django_db
+def test_the_invalid_policy_400_names_itself_and_carries_the_vocabulary(
+    authed_client, user, settings
+):
+    _settings(settings, POLICIES=["verified", "nobody"])
+    resp = authed_client.post(
+        "/contacts", {"value": PHONE, "policy": "members"}, format="json"
+    )
+    assert resp.status_code == 400, resp.content
+    body = resp.json()
+    assert body["localizable_error"] == "error.400.contacts_invalid_policy"
+    assert body["localizable_error"] not in GENERIC_KEYS
+    assert "verified" in body["params"]["policies"]
+
+
+# ---------------------------------------------------------------------------
 # Declarations and permission stack
 # ---------------------------------------------------------------------------
 
@@ -661,11 +842,24 @@ def test_every_contacts_view_denies_the_guest_twice(view):
     [
         ("get", "/contacts"),
         ("post", "/contacts"),
+        ("patch", "/contacts/1"),
+        ("delete", "/contacts/1"),
+        ("post", "/contacts/1/verify/request"),
+        ("post", "/contacts/1/verify/confirm"),
+        ("get", "/contacts/1/reveals/summary"),
+        ("post", "/contacts/reveal"),
     ],
 )
-def test_a_guest_may_not_manage_contacts(guest_client, method, path):
+def test_a_guest_gets_the_same_named_door_on_every_contacts_endpoint(
+    guest_client, method, path
+):
+    """The kabinet and the storefront button answer one visitor one way."""
     resp = getattr(guest_client, method)(path, {"value": PHONE}, format="json")
-    assert resp.status_code in (401, 403), resp.content
+    assert resp.status_code == 403, resp.content
+    assert (
+        resp.json()["localizable_error"]
+        == "error.403.contacts_registration_required"
+    )
 
 
 # ---------------------------------------------------------------------------
