@@ -2,6 +2,27 @@
 
 ## [Unreleased]
 
+## [0.20.1] — 2026-09-11
+
+Patch: the contract artifact, re-emitted against the current `stapel-core`.
+
+`docs/schema.json` carried one stale line — the `error_language` field's
+description on the shared `StapelError` component, whose wording
+`stapel-core` changed in 0.65.0. Nothing in this module produced it and
+nothing in this module reads it, but the drift gate compares bytes, so CI
+(which always installs the newest core) went red on 0.20.0's tag and the
+release gate correctly refused to publish it. **0.20.0 was tagged and never
+published; 0.20.1 is that release plus this one regenerated line.** Nothing
+else differs, and the floor is unchanged — the wording is cosmetic, so
+raising `stapel-core>=` for it would be a floor nobody's behaviour needs.
+
+The lesson is about the gate, not the line: a contract emitted against one
+version of a dependency and verified against whatever is newest is a gate
+that can go red without anybody touching the module. It is still the right
+gate — it caught a real byte difference between what this package ships and
+what its consumers would generate.
+
+
 ## [0.20.0] — 2026-09-11
 
 Minor: a seller can publish a phone number, decide who may read it, and see
