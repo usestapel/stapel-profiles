@@ -260,7 +260,7 @@ class ProfileCore(models.Model):
     # default skin can still hide either one per host (a prop), so "in the
     # default" does not mean "forced on screen".
     display_name = models.CharField(
-        max_length=35,
+        max_length=80,
         blank=True,
         default="",
         help_text="User's display name.",

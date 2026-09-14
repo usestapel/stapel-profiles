@@ -462,7 +462,7 @@ class ProfileCreateUpdateSerializer(serializers.ModelSerializer):
     extra fields aren't listed here)."""
 
     display_name = serializers.CharField(
-        max_length=35, required=False, allow_blank=True
+        max_length=80, required=False, allow_blank=True
     )
     theme = serializers.ChoiceField(choices=Theme.choices, required=False)
     avatar_source = serializers.ChoiceField(choices=AvatarSource.choices, required=False)

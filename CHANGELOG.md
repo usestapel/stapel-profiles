@@ -2,6 +2,37 @@
 
 ## [Unreleased]
 
+## [0.20.3] — 2026-09-14
+
+Patch: `display_name` widened from 35 to 80 characters.
+
+### Changed — `display_name` `max_length` 35 → 80
+
+A client fleet's storefront seed hit `400` on `PATCH /profiles/api/v1/me/`
+for a 36-character shop name («Магазин электроники «Гаджет Маркет»»). 35
+was sized for a person's name; a shop name commonly carries quotes plus a
+legal form (ООО/ИП/…) and clears it routinely.
+
+Raised consistently in the two places that declared the bound —
+`Profile.display_name` (`models.py`) and `ProfileCreateUpdateSerializer`
+(`serializers.py`), which already agreed with each other at 35 — plus the
+comm Function payload contract (`schemas/functions/profiles.set_display_name.json`,
+enforced at the `profiles.set_display_name` call boundary when
+`STAPEL_COMM["VALIDATE_SCHEMAS"]` is on). `profiles.validate_display_name`'s
+JSON schema carries no `maxLength` and needed no change; the canon validator
+itself (`validators.validate_display_name`) has never checked length — the
+bound has always lived on the field, read dynamically off the model in the
+registration-hint pre-fill (`actions.py`), so that path needed no change
+either.
+
+Migration `0020_alter_display_name_max_length_80` is expand-only —
+widening a `CharField`'s `max_length` is metadata-only on every backend this
+module targets (Postgres/SQLite/MySQL `VARCHAR`); no data migration, every
+existing row already satisfies the wider bound.
+
+`make contract`: `docs/schema.json`'s `display_name` component moves
+`maxLength: 35` → `80`; no other line changes.
+
 ## [0.20.2] — 2026-09-11
 
 Patch: the registration door actually opens. Measured on a stand, not here —

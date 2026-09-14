@@ -167,6 +167,30 @@ class TestMyProfilePatch:
         assert profile.display_name == "Ada Lovelace"
         assert profile.theme == "dark"
 
+    def test_patch_display_name_under_80_chars_persists(self, authed_client, user):
+        """A client fleet's storefront seed's shop name («Магазин
+        электроники «Гаджет Маркет»», 36 chars) 400ed against the old
+        35-char bound. The bound moved to 80 so quoted shop names plus a
+        legal form fit."""
+        name = "x" * 79
+        resp = authed_client.patch(
+            "/me", {"display_name": name}, format="json"
+        )
+        assert resp.status_code == 200, resp.content
+        assert resp.json()["display_name"] == name
+        assert Profile.objects.get(user_id=user.id).display_name == name
+
+    def test_patch_display_name_over_80_chars_refused_with_named_error(
+        self, authed_client
+    ):
+        resp = authed_client.patch(
+            "/me", {"display_name": "x" * 81}, format="json"
+        )
+        assert resp.status_code == 400, resp.content
+        body = resp.json()
+        assert body["localizable_error"] == "error.400.field.max_length"
+        assert body["params"]["field"] == "display_name"
+
 
 @pytest.mark.django_db
 class TestProfileDetail:

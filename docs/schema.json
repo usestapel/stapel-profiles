@@ -2208,7 +2208,7 @@
           "display_name": {
             "type": "string",
             "description": "User's display name.",
-            "maxLength": 35
+            "maxLength": 80
           },
           "avatar_source": {
             "allOf": [

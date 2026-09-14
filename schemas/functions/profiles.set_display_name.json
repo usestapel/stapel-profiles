@@ -6,7 +6,7 @@
   "required": ["user_id", "display_name"],
   "properties": {
     "user_id":      { "type": "string", "format": "uuid" },
-    "display_name": { "type": "string", "maxLength": 35 }
+    "display_name": { "type": "string", "maxLength": 80 }
   },
   "additionalProperties": false
 }
