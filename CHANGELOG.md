@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [0.20.4] — 2026-09-14
+
+### Fixed — `docs/capabilities.json` version drift (0.20.3 never published)
+
+0.20.3's tag was cut before `docs/capabilities.json`/`docs/llms.txt` were
+regenerated against the bumped `pyproject.toml` version — the installed
+egg-info still read 0.20.2 when `make contract` ran, so it baked the old
+version string into the emitted docs. CI's contract-drift gate correctly
+failed the release on `test_contract.py::test_capabilities_envelope`
+(envelope said 0.20.2, `pyproject.toml` said 0.20.3) before the package
+ever built — nothing named 0.20.3 reached PyPI. This release is otherwise
+identical to 0.20.3.
+
 ## [0.20.3] — 2026-09-14
 
 Patch: `display_name` widened from 35 to 80 characters.
