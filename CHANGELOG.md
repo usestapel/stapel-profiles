@@ -2,6 +2,58 @@
 
 ## [Unreleased]
 
+## [0.20.5] — 2026-09-16
+
+### Fixed — a profile is keyed on the identity, not on the signup flow
+
+Provisioning listened to ``user.registered`` only, and that is the wrong half
+of a deliberate pair. Auth emits two different facts and says so in as many
+words (``stapel_auth.events.UserProjectionPayload``: "NOT a second
+``user.registered``"):
+
+* ``user.registered`` is a **milestone** — a person completed a signup FLOW —
+  emitted from the registration helper, carrying dead-reckoning hints auth
+  does not even store (``avatar_url``, ``display_name``, ``language``);
+* ``user.created`` is the **identity row itself**, emitted from a
+  ``post_save`` observer, so it fires for every account born by ANY route:
+  org provisioning (``auth.provision_user``), an admin action, a login grant,
+  a JWT shadow row.
+
+Subscribing to the milestone alone stranded every account born the other way.
+Measured on a live fleet, 2026-09-15: **33 of 265 accounts (12.5%) had no
+profile row**, 24 of them with a ``user.created`` event and no
+``user.registered`` — and 16 of those had signed up that same month, so it was
+accruing rather than historical. The symptom is the one provisioning already
+existed to prevent: a public read of that person answers 404 and the product
+has no name to render anywhere.
+
+``user.created`` now provisions the row. Both subscriptions stay, and neither
+makes the other redundant — this one creates the row, ``user.registered`` goes
+on seeding the hints only the milestone carries. ``get_or_create`` makes the
+overlap a no-op in whichever order the two arrive, which matters because they
+are separate outbox rows with no ordering guarantee between them.
+
+**The two events are NOT merged and neither is deprecated.** They are distinct
+facts with distinct payloads and distinct emission points; collapsing them
+would lose the hints and the milestone semantics both.
+
+### Added — ``manage.py backfill_profiles``
+
+The source is fixed, but accounts that predate the emitter still have no row,
+and so does every deployment adopting this module into a product that already
+has users. The command creates the missing EMPTY rows and nothing else: it
+invents no name, imports no avatar, and never touches an existing row, so it
+cannot overwrite what a human set and is safe to re-run.
+
+``--dry-run`` reports and writes nothing. ``--limit`` bounds a first run.
+Inactive accounts are skipped by default (a deactivated account is rendered
+nowhere, and the population most likely to be inactive is the one somebody is
+in the middle of removing); ``--include-inactive`` overrides. Work is batched
+so a large user table does not hold one transaction open for the whole run,
+and each row goes through ``get_or_create`` so a race with the live event
+handler is a no-op rather than a crash.
+
+
 ## [0.20.4] — 2026-09-14
 
 ### Fixed — `docs/capabilities.json` version drift (0.20.3 never published)

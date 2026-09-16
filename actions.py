@@ -425,6 +425,49 @@ def _prefill_display_name(user_id, hint) -> None:
     logger.info("pre-filled display name for user %s from the registration hint", user_id)
 
 
+@on_action("user.created")
+def handle_user_created(event):
+    """Provision the profile row for an identity, however that identity was born.
+
+    ``user.registered`` was the only provisioning trigger until 0.20.5, and
+    that was the wrong half of the pair. Auth emits TWO different facts, and
+    the distinction is deliberate (``stapel_auth.events.UserProjectionPayload``
+    says so in as many words — "NOT a second ``user.registered``"):
+
+    * ``user.registered`` is a **milestone**: a person completed a signup
+      FLOW. It is emitted from the registration helper and carries
+      dead-reckoning hints auth does not even store — ``avatar_url``,
+      ``display_name``, ``language``.
+    * ``user.created`` is the **identity row itself**, emitted from a
+      ``post_save`` observer on the user model, so it fires for every account
+      that comes into existence by ANY route: ``auth.provision_user`` (an org
+      admin creating a login), an admin action, a login grant, a shadow row
+      materialised from a JWT.
+
+    A profile is keyed on the IDENTITY, not on the flow. Subscribing only to
+    the milestone therefore stranded every account born the other way, and on
+    a live fleet it did exactly that: measured 2026-09-15, 33 of 265 accounts
+    (12.5%) had no profile row, 24 of them with a ``user.created`` event and
+    no ``user.registered`` — 16 of those had signed up that same month, so it
+    was ongoing rather than historical. The symptom is the one
+    :func:`_provision_profile` already describes: a public read of that person
+    answers 404 and the product has no name to render anywhere.
+
+    Subscribing to BOTH is not belt-and-braces and does not make the pair
+    redundant. This handler creates the row; ``user.registered`` keeps doing
+    what only it can — seeding the hints that only the milestone carries.
+    ``get_or_create`` makes the overlap a no-op in whichever order the two
+    events arrive, which matters because they are separate outbox rows with
+    no ordering guarantee between them.
+    """
+    payload = event.payload or {}
+    user_id = payload.get("user_id")
+    if not user_id:
+        logger.warning("user.created without user_id: %r", payload)
+        return
+    _provision_profile(user_id)
+
+
 @on_action("user.registered")
 def handle_user_registered(event):
     """Provision the profile row, pre-fill the name, import a provider avatar.
