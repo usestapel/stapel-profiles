@@ -2230,6 +2230,7 @@
                 "$ref": "#/components/schemas/StapelImage"
               }
             ],
+            "nullable": true,
             "readOnly": true
           },
           "location_id": {
@@ -2369,6 +2370,7 @@
           },
           "created_at": {
             "type": "string",
+            "nullable": true,
             "description": "ISO 8601 time this PROFILE was created — the tenure a seller page renders as \"on the site since March 2024\". Not a sign-in time and not an activity signal",
             "example": "2025-01-15T12:00:00Z"
           },

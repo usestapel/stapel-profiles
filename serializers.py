@@ -396,7 +396,14 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
             follower_id=obj.user_id, status="following"
         ).count()
 
-    @extend_schema_field(StapelImageSerializer)
+    # `allow_null`, because `avatar_image()` returns None on its first branch
+    # for any profile without an avatar. Declared without it this component
+    # said a required non-nullable StapelImage and sent null for every blocked
+    # profile with no picture. The DTO-shaped surfaces got it right on their
+    # own - their dataclass says `Optional[StapelImageDTO]` - which is why
+    # this, the one operation whose declared body is the MODEL serializer, was
+    # the only one wrong.
+    @extend_schema_field(StapelImageSerializer(allow_null=True))
     def get_avatar_image(self, obj):
         return avatar_image(obj)
 

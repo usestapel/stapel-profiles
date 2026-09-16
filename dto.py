@@ -126,7 +126,21 @@ class ProfilePublicResponse:
     #: model stores. It is NOT a login/last-seen time: nothing here moves
     #: when the person signs in, so it says nothing about whether they are
     #: online now.
-    created_at: str
+    #:
+    #: `str | None`, and the null is load-bearing: a registered account with
+    #: no profile row is answered 200 from an UNSAVED `Profile(user_id=...)`
+    #: (`views._unwritten_profile`, the only two callers of which are this
+    #: endpoint and the batch one), and `created_at` is `auto_now_add`, so it
+    #: is never stamped. There is no profile creation time because there is no
+    #: profile. Declared a required non-nullable string, it sent null for
+    #: exactly that state - the common one right after signup - so a generated
+    #: client typed it `string` and received null.
+    #:
+    #: Inventing a timestamp for a row that does not exist is the other way to
+    #: make the contract true, and it would be a lie about when the profile was
+    #: made. `ProfileResponse.created_at` (the own-profile surface) stays
+    #: non-nullable: nothing answers it from an unwritten row.
+    created_at: str | None
     #: The ONE thing that leaves the contacts sub-module on any surface other
     #: than its own reveal endpoint: a bit per contact kind saying there is
     #: something to ask for. `{"phone": true}` is what a storefront draws the

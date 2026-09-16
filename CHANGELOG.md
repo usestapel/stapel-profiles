@@ -1,6 +1,77 @@
 # Changelog
 
+## [0.21.0] — 2026-09-16
+
+### Fixed — three fields that declared a concrete type and sent null
+
+Found by `tests/test_contract_wire.py`, added in this release: it performs
+every operation the committed `docs/schema.json` declares and validates the
+body it gets back. All 24 operations are driven, most in BOTH interesting
+states — a profile with an avatar and one without, a written row and an
+unwritten one, a verified contact and an unverified one. That mattered: all
+three findings are null on the EMPTY state, and a recipe that only ever builds
+the fully populated object cannot see them.
+
+`ProfilePublicResponse.created_at` was a required non-nullable string and came
+back **null for any registered account with no profile row** — the common state
+right after signup. `views._unwritten_profile` answers 200 from an *unsaved*
+`Profile(user_id=…)`, and `created_at` is `auto_now_add`, so it is never
+stamped. It is now `str | None`. Inventing a timestamp for a row that does not
+exist was the other way to make the contract true, and it would have been a lie
+about when the profile was made. `GET /{user_id}` and `POST /batch` are the
+only two callers of that branch; `ProfileResponse.created_at`, the own-profile
+surface, stays non-nullable because nothing answers it from an unwritten row.
+
+`ProfilePublic.avatar_image` was a required non-nullable `StapelImage` and came
+back null for every blocked profile without a picture, on `GET /me/blocked`.
+`avatar_image()` returns None on its first branch; the field now declares
+`allow_null`. This is the one operation whose declared body is the **model**
+serializer rather than a DTO — the DTO-shaped surfaces already declared it
+nullable because their dataclass says `Optional[StapelImageDTO]`, which is why
+it was the only one wrong.
+
+### Added — the contract is proved against the wire
+
+`docs/schema.json` is emitted from `@extend_schema` annotations, and an
+annotation is a claim the generator cannot check against the method body.
+`tests/test_contract.py` compares the committed document against a fresh
+emission of the same annotations: both sides come from the claim.
+
+The new gate drives all 24 operations, `UNDRIVABLE` is empty, and the
+mount is the **emission** mount (`profiles/api/`) — the pytest urlconf mounts
+the paths bare, so until now no path in the committed document was reachable
+under the suite's own urlconf.
+
+One observation left for an owner decision rather than fixed: an **anonymous**
+`GET /{user_id}` returns 8 of the 14 declared-required fields. The serializer
+states that the declared surface is the member policy, so it is a stated design
+rather than an unnoticed lie — but a client generated from the schema still
+gets fewer fields than declared when signed out.
+
+
 ## [Unreleased]
+
+## [0.20.7] — 2026-09-16
+
+### Fixed — the backfill read the shadow table and reported a confident zero
+
+`backfill_profiles` enumerated `get_user_model()`, which is right for a
+monolith and useless for a split deployment: there that table is a SHADOW,
+populated only when a person has presented a JWT to *this* service. So the
+users most likely to lack a profile — the ones who never opened the product —
+are missing from it too.
+
+Caught on the fleet it was written for, within minutes of shipping: 33
+accounts in auth had no profile row, only **2** of them existed in profiles'
+shadow table, and the command printed `missing: 0`. It was telling the truth
+about the wrong question, which is the worst shape a backfill can have.
+
+`--user-ids-file` takes the authoritative ids from outside (one per line, `-`
+for stdin, blanks/`#`/duplicates tolerated), overrides the local table, and
+skips the `is_active` filter because this service cannot know an id's active
+state — the caller selected the ids and owns that judgement. The default mode
+is unchanged for monoliths, and both modes now name their source in the output
+so a run cannot be read without knowing which list it asked.
 
 ## [0.20.6] — 2026-09-16
 

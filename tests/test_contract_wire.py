@@ -681,29 +681,13 @@ def _contacts_reveal(call):
 #: Each entry names the defect and its owner, and ``strict=True`` turns a
 #: fixed one into a failure until the entry is deleted — so a finding can be
 #: neither forgotten nor quietly kept.
-KNOWN_MISMATCHES: dict = {
-    ("GET", V1 + "/{user_id}"):
-        "created_at is a required non-nullable string in ProfilePublicResponse "
-        "and comes back null for a registered account with no profile row: "
-        "views._unwritten_profile answers from an UNSAVED Profile instance, "
-        "whose auto_now_add created_at has never been stamped. Owner: "
-        "stapel-profiles (dto.ProfilePublicResponse.created_at vs "
-        "views._unwritten_profile).",
-    ("POST", V1 + "/batch"):
-        "The same unwritten-profile branch as GET /{user_id}: the batch fills "
-        "`profiles` with views._unwritten_profile instances for registered "
-        "accounts with no row, so their created_at is null against the "
-        "required non-nullable ProfilePublicResponse.created_at. Owner: "
-        "stapel-profiles (views.ProfileBatchView.post).",
-    ("GET", V1 + "/me/blocked"):
-        "avatar_image is a required non-nullable StapelImage in the declared "
-        "ProfilePublic component — @extend_schema_field(StapelImageSerializer) "
-        "carries no nullability — while "
-        "ProfilePublicSerializer.get_avatar_image returns None for a profile "
-        "with no avatar (serializers.avatar_image, first branch). Every "
-        "blocked profile without an avatar is a null there. Owner: "
-        "stapel-profiles (serializers.ProfilePublicSerializer.get_avatar_image).",
-}
+KNOWN_MISMATCHES: dict = {}
+#: EMPTY, and by fix rather than exemption: all three entries this gate found
+#: on the day it was written were repaired in the same release (created_at is
+#: `str | None` on the public DTO, avatar_image is declared nullable on the one
+#: surface whose body is the model serializer). The mechanism stays for the
+#: next finding - an entry names the defect and its owner, and `strict=True`
+#: turns a fixed one into a failure until the entry is deleted.
 
 
 def test_the_contract_declares_something_to_check():

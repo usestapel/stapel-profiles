@@ -21,6 +21,34 @@ The second is closed at the source. This command is for the first, and for
 any deployment adopting stapel-profiles into a product that already has
 users, which is the same shape.
 
+WHICH USER LIST IT READS — AND WHY THAT MATTERS
+-----------------------------------------------
+By default it enumerates ``get_user_model()``, which is right for a MONOLITH
+where auth and profiles share one database.
+
+**In a SPLIT deployment that local table is the shadow table, not the source
+of truth**, and a shadow row only exists once that person has presented a JWT
+to *this* service. So the users most likely to be missing a profile — the ones
+who never opened the product — are missing from the local user table too, and
+enumerating it finds nothing while the gap is wide open.
+
+Measured on a live fleet, 2026-09-16: 33 accounts in auth had no profile row;
+only 2 of them existed in profiles' shadow user table. The default mode
+reported ``missing: 0`` and was telling the truth about the wrong question.
+
+So in a split deployment, pass the authoritative ids in:
+
+    # on the service that owns users
+    manage.py dumpdata auth.User --fields id | ... > /tmp/ids.txt
+    # or any list of uuids, one per line
+
+    manage.py backfill_profiles --user-ids-file /tmp/ids.txt --dry-run
+    cat /tmp/ids.txt | manage.py backfill_profiles --user-ids-file -
+
+``--user-ids-file`` takes precedence over the local table and skips the
+``is_active`` filter, because this service cannot know an id's active state —
+the caller selected the ids and owns that judgement.
+
 WHAT IT DOES NOT DO
 -------------------
 It creates an EMPTY row and nothing else — the honest state of a person who
@@ -54,6 +82,25 @@ BATCH = 500
 class Command(BaseCommand):
     help = "Create an empty profile row for every user that has none (idempotent)."
 
+    @staticmethod
+    def _ids_from_file(path: str) -> list:
+        """One id per line; blanks and '#' comments ignored. '-' is stdin."""
+        import sys
+
+        stream = sys.stdin if path == "-" else open(path, encoding="utf-8")
+        try:
+            out, seen = [], set()
+            for line in stream:
+                value = line.strip()
+                if not value or value.startswith("#") or value in seen:
+                    continue
+                seen.add(value)
+                out.append(value)
+            return out
+        finally:
+            if stream is not sys.stdin:
+                stream.close()
+
     def add_arguments(self, parser):
         parser.add_argument(
             "--dry-run",
@@ -71,6 +118,16 @@ class Command(BaseCommand):
             ),
         )
         parser.add_argument(
+            "--user-ids-file",
+            help=(
+                "Read the authoritative user ids from this file (one per "
+                "line; '-' for stdin) instead of the local user table. "
+                "REQUIRED in a split deployment, where the local table is a "
+                "shadow populated only by people who have presented a JWT to "
+                "this service — see the module docstring."
+            ),
+        )
+        parser.add_argument(
             "--limit",
             type=int,
             default=0,
@@ -83,23 +140,31 @@ class Command(BaseCommand):
         Profile = get_profile_model()
         User = get_user_model()
 
-        users = User.objects.all()
-        if not options["include_inactive"]:
-            users = users.filter(is_active=True)
-
         # Both sides as id sets rather than a subquery join: the two models
         # may live in different databases in a split deployment, where a JOIN
         # is not available and a NOT IN subquery would silently be wrong.
-        have = set(Profile.objects.values_list("user_id", flat=True))
-        missing = [uid for uid in users.values_list("id", flat=True) if uid not in have]
+        have = {str(u) for u in Profile.objects.values_list("user_id", flat=True)}
+
+        source = options.get("user_ids_file")
+        if source:
+            wanted, total_users = self._ids_from_file(source), None
+        else:
+            users = User.objects.all()
+            if not options["include_inactive"]:
+                users = users.filter(is_active=True)
+            wanted = [str(u) for u in users.values_list("id", flat=True)]
+            total_users = len(wanted)
+
+        missing = [uid for uid in wanted if uid not in have]
 
         limit = options["limit"]
         if limit:
             missing = missing[:limit]
 
-        total_users = users.count()
+        origin = f"file {source}" if source else "local user table"
         self.stdout.write(
-            f"users considered: {total_users}  "
+            f"source: {origin}  "
+            f"users considered: {total_users if total_users is not None else len(wanted)}  "
             f"profiles present: {len(have)}  "
             f"missing: {len(missing)}"
         )
