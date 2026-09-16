@@ -2,7 +2,16 @@
 
 ## [Unreleased]
 
-## [0.20.5] — 2026-09-16
+## [0.20.6] — 2026-09-16
+
+Re-cut of 0.20.5, whose contract artifacts were not regenerated after the
+version bump: `docs/capabilities.json` embeds the version string, so the drift
+gate failed CI and the PyPI publish never ran. No code difference from 0.20.5
+— the tag exists, the release does not, and a re-cut is cheaper than moving a
+pushed tag. The gate did its job; the mistake was mine for bumping the version
+without running `make contract`.
+
+## [0.20.5] — 2026-09-16 (tagged, never published)
 
 ### Fixed — a profile is keyed on the identity, not on the signup flow
 
