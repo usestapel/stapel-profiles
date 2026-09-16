@@ -2,6 +2,31 @@
 
 ## [0.21.0] — 2026-09-16
 
+> **Read this before trusting the `v0.20.7` tag.** That tag is pushed and it
+> points at `bc6f997`, a commit whose `pyproject.toml` already reads
+> **0.21.0** — so publishing from it would upload a 0.21.0 wheel under a
+> `v0.20.7` label. The tag is deliberately **left in place**: moving a pushed
+> tag is worse than a wrong one, because anyone who already fetched it keeps
+> the old target silently.
+>
+> What each version actually is:
+>
+> | version | commit | state |
+> | --- | --- | --- |
+> | 0.20.6 | `6c54441` | tagged `v0.20.6`, published to PyPI |
+> | 0.20.7 | **never existed as a tree** | the tag `v0.20.7` points at `bc6f997`, which is 0.21.0 |
+> | 0.21.0 | `bc6f997` | the version every artifact in this repo reports |
+>
+> `bc6f997` carries two pieces of work at once: the backfill fix written as
+> 0.20.7, and this release's contract fixes and version bump. Two writers were
+> in this tree at the same time and one commit took both sets of staged files.
+> Nothing was lost — the backfill notes are a section of 0.21.0 below, with
+> their author's prose kept word for word.
+>
+> `v0.20.7` should not be published. The next tag should be `v0.21.0`, cut from
+> a commit whose version matches it.
+
+
 ### Fixed — three fields that declared a concrete type and sent null
 
 Found by `tests/test_contract_wire.py`, added in this release: it performs
