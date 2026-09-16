@@ -49,11 +49,13 @@ rather than an unnoticed lie — but a client generated from the schema still
 gets fewer fields than declared when signed out.
 
 
-## [Unreleased]
+### Also in 0.21.0 — the backfill read the shadow table and reported a confident zero
 
-## [0.20.7] — 2026-09-16
+*(Written as `0.20.7`, and it never shipped under that number: the commit that
+carried it also carried this release's version bump, so the tree it tagged says
+`0.21.0`. The work is unchanged and the prose below is its author's; only the
+heading is reparented, so the file describes the version that actually exists.)*
 
-### Fixed — the backfill read the shadow table and reported a confident zero
 
 `backfill_profiles` enumerated `get_user_model()`, which is right for a
 monolith and useless for a split deployment: there that table is a SHADOW,
