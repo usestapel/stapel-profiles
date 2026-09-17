@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.21.1] — 2026-09-17
+
+Patch: delete this module's copies of `gdpr.section.erased` and
+`gdpr.owner.alive`. They were refusing other owners' receipts.
+
+`stapel-core` owns both facts and has shipped schemas for them since 0.81.0.
+This module's copies pinned `owner` to `{"const": "profile"}` and required
+`owner`, `subject_type`, `subject_key` and `counts`, which core leaves
+optional.
+
+`stapel_core.comm` registers one schema per action name for the whole process,
+so in any service that loaded this copy it became the contract for *every*
+emitter — and a receipt from `identity_mirror:iron-profiles`, or from any owner
+but `profile`, was rejected. The receipt is emitted inside the erasure's own
+transaction, so the rejection rolled the erasure back while the orchestrator
+counted a success. Confirmed by `stapel_core.comm.E010` at core 0.82.2.
+
+The floor moves to `stapel-core>=0.81.0`, the release that ships the two
+schemas. Tests validate against the owner's schema now, which is the one a
+service actually loads.
+
 ## [0.21.0] — 2026-09-16
 
 > **Read this before trusting the `v0.20.7` tag.** That tag is pushed and it

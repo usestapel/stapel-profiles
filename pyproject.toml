@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stapel-profiles"
-version = "0.21.0"
+version = "0.21.1"
 description = "User profiles Django app for the Stapel framework"
 readme = "README.md"
 license = { text = "MIT" }
@@ -48,7 +48,7 @@ dependencies = [
     # validators.validate_avatar_url()) — below it, DRF's own field-error
     # collapse discards `params` on re-raise, so a client never saw e.g. the
     # allowed schemes.
-    "stapel-core>=0.60.6,<1.0",
+    "stapel-core>=0.81.0,<1.0",
     # Direct import, not borrowed from core's requirements: contacts/phones.py
     # parses and E.164-normalises every stored number with it, and a module
     # that imports a package depends on it whether or not a sibling happens
