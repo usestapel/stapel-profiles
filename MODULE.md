@@ -162,12 +162,12 @@ in `schemas/`.
 |---|---|---|---|
 | Emits | `profile.changed` | `events.publish_profile_changed(instance)` — called on every create/update via `ProfileCreateUpdateSerializer` and on unsubscribe; keyed by `user_id` | `schemas/emits/profile.changed.json`. App layer can subscribe with `@on_action("profile.changed")` to react to profile mutations — this is the primary hook for syncing derived data. |
 | Consumes | `user.registered` | `actions.handle_user_registered` (`@on_action`, registered in `apps.ready()`) | **Provisions the profile row** (`_provision_profile`, `get_or_create` — 0.15.0). Registration is what says a person exists in this product, so it is what creates their row; the row is empty but it EXISTS, which is what makes the public read answerable for someone who has never opened their own profile. Also pre-fills `display_name` from the payload hint (a pre-fill, never an assignment — see `_prefill_display_name`) and imports `avatar_url` through `cdn.import_from_url`; both are enrichments and neither is required for the row. Idempotent under at-least-once redelivery; every part is best-effort/swallow-not-retry. Contract: `schemas/consumes/user.registered.json`. |
-| Consumes | `gdpr.erasure.requested` | `actions.handle_erasure_requested` | Erases the named subject and receipts with counts — see **Erasure** below. Contract: `schemas/consumes/gdpr.erasure.requested.json`. |
-| Consumes | `gdpr.owner.probe` | `actions.handle_owner_probe` | Answers `gdpr.owner.alive` from the same module as the eraser — see **Erasure** below. Contract: `schemas/consumes/gdpr.owner.probe.json`. |
-| Consumes | `user.deleted` | `actions.handle_user_deleted` (`@on_action`, registered in `apps.ready()`) | Deprecated upstream (stapel-gdpr removes it in 0.6.0). Same `erasure.erase_account` as the erasure path, and it receipts too when the payload carries a `correlation_id`. Handlers are idempotent; delivery is at-least-once. Contract: `schemas/consumes/user.deleted.json`. |
+| Consumes | `gdpr.erasure.requested` | `stapel_core.gdpr.register_gdpr_owner`, called from `apps.ready()` over `erasure.erase_subject` | Erases the named subject and receipts with counts — see **Erasure** below. Contract: `schemas/consumes/gdpr.erasure.requested.json`. |
+| Consumes | `gdpr.owner.probe` | Same registration | Answers `gdpr.owner.alive` from the subscriber that erases — see **Erasure** below. Contract: `schemas/consumes/gdpr.owner.probe.json`. |
+| Consumes | `user.deleted` | Same registration (`legacy_user_deleted`) | Deprecated upstream (stapel-gdpr removes it in 0.6.0). Same `erasure.erase_account` as the erasure path, and it receipts too when the payload carries a `correlation_id`. Handlers are idempotent; delivery is at-least-once. Contract: `schemas/consumes/user.deleted.json`. |
 | Consumes | `user.merged` | `actions.handle_user_merged` (`@on_action`, registered in `apps.ready()`) | The other half of an account's life cycle (stapel-auth 0.30.0): a guest folded into an existing account. **Merge policy — the survivor's profile WINS, the merged one is ARCHIVED** (`ProfileCore.merged_into`, migration `0018`), never deleted. Nothing is copied onto the survivor and no row is created for it: a merge is not a registration, and a guest's name landing on an established account is the violation `_prefill_display_name` exists to prevent. Follows and blocks DO move (a block that silently vanishes is worse than a stale one); rows that would duplicate one the survivor already holds, or point it at itself, are dropped. Idempotent (a redelivery reports zeroes). Answering only `user.deleted` is `stapel_core.lifecycle.E001`. Contract: `schemas/consumes/user.merged.json`. |
-| Emits | `gdpr.section.erased` | `actions._receipt`, in the erasing transaction | This module's erasure receipt, with counts — see **Erasure** below. Contract: `schemas/emits/gdpr.section.erased.json`. |
-| Emits | `gdpr.owner.alive` | `actions.handle_owner_probe` | Probe answer — see **Erasure** below. Contract: `schemas/emits/gdpr.owner.alive.json`. |
+| Emits | `gdpr.section.erased` | `stapel_core.gdpr`, in the erasing transaction | This module's erasure receipt, with counts and core's deterministic `receipt_id` — see **Erasure** below. Contract: core ships the schema (`stapel_core/gdpr/schemas/emits/`). |
+| Emits | `gdpr.owner.alive` | `stapel_core.gdpr`, from the subscriber that erases | Probe answer — see **Erasure** below. Contract: core ships the schema. |
 | Calls (function) | `cdn.media_exists` | `serializers.ProfileCreateUpdateSerializer.validate_avatar` when `PROFILES_AVATAR_CHECK="comm"` | Name-addressed `stapel_core.comm.call` — the CDN module (or the project) registers the provider; profiles never imports it. |
 | Provides (function) | `profiles.set_display_name` | `functions.set_display_name`, registered in `apps.ready()` | Payload `{user_id, display_name}` → `{ok, display_name, reason}`. The **named write** of the canonical name, performed by profiles on another module's authority (a workspace owner correcting a member on the roster): the caller's edge authorized it, this provider enforces the canon, the swap-aware model and the `profile.changed` emission. Refusals are structural — `reason` is the trailing name of a `error.400.display_name_*` key, or `no_display_name_field`. Contract: `schemas/functions/profiles.set_display_name.json`. |
 | Provides (function) | `profiles.validate_display_name` | `functions.validate_display_name_fn` | Payload `{display_name}` → `{ok, reason}`. The canon alone, no write — for a caller that stores a *displayed* name of its own (e.g. an invitation's name hint) and must not grow a second, weaker regex. Contract: `schemas/functions/profiles.validate_display_name.json`. |
@@ -351,11 +351,15 @@ leave an erased account's id and address in a table anyone could be shown.
 The export carries both halves for the same reason: the numbers the site
 holds about them, and what the site recorded them doing.
 
-**The receipt and the probe are one subscriber.** `actions.py` handles
-`gdpr.erasure.requested` and `gdpr.owner.probe` side by side, deliberately:
-`gdpr.owner.alive` is only evidence that the erasure path is *consumed*
-because it is answered by the code that erases. Split them and `gdpr.W006` /
-`GET /gdpr/api/v1/owners/health` would report a running container instead.
+**The protocol is core's, the erasure is this module's.** `apps.ready()`
+calls `stapel_core.gdpr.register_gdpr_owner("profile", ("account",),
+erasure.erase_subject)`, which subscribes `gdpr.erasure.requested`,
+`gdpr.owner.probe` and the deprecated `user.deleted` around that one
+callable (0.22.0; before it this module carried its own copy of the sixty
+lines, and core's provider bridge had to yield to it — `gdpr.W012`). The
+probe is still answered by the subscriber that erases, which is the only
+reason `gdpr.owner.alive` is evidence that the path is *consumed* rather
+than that a container runs.
 Deployment note: a service with this app installed and declared in
 `DATA_OWNERS` must run a `consume_actions` process, or nothing answers
 either event.

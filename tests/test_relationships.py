@@ -322,7 +322,14 @@ class TestErasure:
         assert UserRelationship.objects.count() == 0
 
     def test_the_receipt_and_the_probe_answer_for_the_block_store(self):
-        from stapel_profiles.actions import handle_erasure_requested, handle_owner_probe
+        from stapel_core.gdpr import register_gdpr_owner
+        from stapel_profiles.erasure import (
+            GDPR_OWNER,
+            GDPR_SUBJECT_TYPES,
+            erase_subject,
+        )
+
+        owner = register_gdpr_owner(GDPR_OWNER, GDPR_SUBJECT_TYPES, erase_subject)
 
         receipts, alive = [], []
         subscribe_action("gdpr.section.erased", receipts.append)
@@ -333,7 +340,7 @@ class TestErasure:
         relationships.block(blocker, blocked)
 
         correlation_id = str(uuid.uuid4())
-        handle_erasure_requested(types.SimpleNamespace(
+        owner.handle_erasure_requested(types.SimpleNamespace(
             payload={
                 "correlation_id": correlation_id,
                 "subject_type": "account",
@@ -342,7 +349,7 @@ class TestErasure:
             event_id="evt-1",
             service="gdpr",
         ))
-        handle_owner_probe(types.SimpleNamespace(
+        owner.handle_owner_probe(types.SimpleNamespace(
             payload={"correlation_id": correlation_id}, event_id="evt-2",
             service="gdpr",
         ))

@@ -5,8 +5,13 @@ import uuid
 
 import pytest
 
-from stapel_profiles.actions import handle_user_deleted
+from stapel_core.gdpr import register_gdpr_owner
 from stapel_profiles.errors import PROFILES_ERRORS, ProfilesErrorKeysView
+from stapel_profiles.erasure import (
+    GDPR_OWNER,
+    GDPR_SUBJECT_TYPES,
+    erase_subject,
+)
 from stapel_profiles.gdpr import ProfilesGDPRProvider
 from stapel_profiles.models import (
     Language,
@@ -14,6 +19,11 @@ from stapel_profiles.models import (
     RelationshipStatus,
     UserRelationship,
 )
+
+
+#: The registration `apps.ready()` made — same terms, so this hands back
+#: the existing one and reaches the handlers the bus calls.
+PROFILE_OWNER = register_gdpr_owner(GDPR_OWNER, GDPR_SUBJECT_TYPES, erase_subject)
 
 
 def _event(payload):
@@ -88,14 +98,14 @@ class TestUserDeletedAction:
         user_id = uuid.uuid4()
         Profile.objects.create(user_id=user_id)
 
-        handle_user_deleted(_event({"user_id": str(user_id)}))
+        PROFILE_OWNER.handle_user_deleted(_event({"user_id": str(user_id)}))
 
         assert not Profile.objects.filter(user_id=user_id).exists()
 
     def test_handler_without_user_id_logs_and_skips(self, caplog):
         Profile.objects.create(user_id=uuid.uuid4())
 
-        handle_user_deleted(_event({}))
+        PROFILE_OWNER.handle_user_deleted(_event({}))
 
         assert Profile.objects.count() == 1
         assert "without user_id" in caplog.text
