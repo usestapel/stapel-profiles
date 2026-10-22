@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.22.1] — 2026-10-22
+
+- **Follow works for a registered user with no profile row.** `GET /<id>`
+  already answered 200 (an empty profile) for such a person, while
+  `POST /<id>/follow` answered 404 because it demanded a stored row. Accounts
+  born on paths that never emitted `user.registered` (stapel-auth's phone
+  sign-up, admin broker and SSO before 0.49) showed a broken Follow button.
+  Follow now asks `cards.existing_users`, the same seam the detail view uses.
+
 ## [0.22.0] — 2026-09-18
 
 Minor: the erasure protocol is core's, not this module's copy of it.

@@ -44,6 +44,21 @@ class TestFollow:
         assert resp.status_code == 400
         assert resp.json()["localizable_error"] == ERR_400_CANNOT_FOLLOW_SELF
 
+    def test_follow_a_registered_user_without_a_profile_row(
+        self, authed_client, user, other_user
+    ):
+        """GET /<id> answers 200 for this person (an empty profile); Follow
+        answered 404 because no row existed, so a user born on a path that
+        never provisioned one (phone sign-up before stapel-auth 0.49) showed a
+        broken Follow button."""
+        assert not Profile.objects.filter(user_id=other_user.id).exists()
+        assert authed_client.get(f"/{other_user.id}").status_code == 200
+        resp = authed_client.post(f"/{other_user.id}/follow")
+        assert resp.status_code == 200, resp.content
+        assert UserRelationship.objects.filter(
+            follower_id=user.id, following_id=other_user.id
+        ).exists()
+
     def test_follow_unknown_profile_404(self, authed_client):
         resp = authed_client.post(f"/{uuid.uuid4()}/follow")
         assert resp.status_code == 404

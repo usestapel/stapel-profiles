@@ -572,7 +572,13 @@ class FollowView(StapelAPIView):
         if str(follower_id) == str(user_id):
             return StapelErrorResponse(400, ERR_400_CANNOT_FOLLOW_SELF)
 
-        if not Profile.objects.filter(user_id=user_id).exists():
+        # Same answer as ProfileDetailView: a registered person with no
+        # profile row yet (an account born before its user.registered was
+        # handled) is followable; 404 is for an id that names nobody.
+        if (
+            not Profile.objects.filter(user_id=user_id).exists()
+            and user_id not in existing_users([user_id])
+        ):
             return StapelErrorResponse(404, ERR_404_PROFILE_NOT_FOUND)
 
         relationship, created = UserRelationship.objects.update_or_create(
