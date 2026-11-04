@@ -224,6 +224,57 @@ def blocks_of(user_id) -> list:
     )
 
 
+def social_graph(user_id, limit=None) -> dict:
+    """One person's graph as a feed needs it: whom they follow, whom to hide.
+
+    Returns ``{"following": [ids], "blocked": [ids], "truncated": bool}``.
+
+    * ``blocked`` is every id with a block between it and ``user_id`` **in
+      either direction**, as one undirected list. The answer names no
+      blocker, for the same reason :func:`blocked_pairs` does not: the
+      caller hides both arrows, and nothing it holds can tell the blocked
+      party who acted. Never truncated.
+    * ``following`` is whom ``user_id`` follows, newest follow first, minus
+      anyone in ``blocked``; cut at ``min(limit, PROFILES_FOLLOWING_MAX)``
+      with ``truncated: true``.
+
+    An id that cannot name a user raises :class:`MalformedUserId`, like the
+    pair check: the caller answers 503, never an empty graph.
+    """
+    from .conf import profiles_settings
+    from .models import RelationshipStatus, UserRelationship
+
+    me = _as_user_id(user_id)
+    ceiling = int(profiles_settings.PROFILES_FOLLOWING_MAX)
+    if limit is not None:
+        ceiling = max(0, min(ceiling, int(limit)))
+
+    outgoing = UserRelationship.objects.filter(
+        follower_id=me, status=RelationshipStatus.BLOCKED
+    ).values_list("following_id", flat=True)
+    incoming = UserRelationship.objects.filter(
+        following_id=me, status=RelationshipStatus.BLOCKED
+    ).values_list("follower_id", flat=True)
+    blocked = sorted({str(uid) for uid in outgoing} | {str(uid) for uid in incoming})
+    hidden = set(blocked)
+
+    rows = (
+        UserRelationship.objects.filter(
+            follower_id=me, status=RelationshipStatus.FOLLOWING
+        )
+        .exclude(following_id__in=list(hidden))
+        .order_by("-created_at", "-id")
+        .values_list("following_id", flat=True)[: ceiling + 1]
+    )
+    following = [str(uid) for uid in rows]
+    truncated = len(following) > ceiling
+    return {
+        "following": following[:ceiling],
+        "blocked": blocked,
+        "truncated": truncated,
+    }
+
+
 __all__ = [
     "BLOCKED",
     "MalformedUserId",
@@ -233,5 +284,6 @@ __all__ = [
     "blocks_of",
     "is_blocked",
     "normalise_pairs",
+    "social_graph",
     "unblock",
 ]

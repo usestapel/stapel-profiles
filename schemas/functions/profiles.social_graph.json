@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "profiles.social_graph",
+  "description": "Payload for the profiles.social_graph comm Function — one person's graph as a read-time feed needs it. Returns {\"following\": [user_id, ...], \"blocked\": [user_id, ...], \"truncated\": bool}. `following` is whom the user follows, newest follow first, minus anyone in `blocked`, cut at min(limit, PROFILES_FOLLOWING_MAX, default 5000) with truncated=true when cut. `blocked` is every id with a block between it and the user IN EITHER DIRECTION, as one undirected list that names no blocker, and is never cut. An id that cannot name a user RAISES, so the caller answers 503 rather than an empty graph.",
+  "type": "object",
+  "required": ["user_id"],
+  "properties": {
+    "user_id": { "type": "string" },
+    "limit": { "type": "integer", "minimum": 0 }
+  },
+  "additionalProperties": false
+}

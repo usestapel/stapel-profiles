@@ -167,6 +167,13 @@ DEFAULTS = {
     # module where being wrong has a direction — an uncheckable block must
     # fail closed at the caller (503), not open.
     "PROFILES_PAIRS_MAX": 500,
+    # ── The social graph (profiles.social_graph) ─────────────────────
+    # How many followed ids one call returns at most. Over it the answer is
+    # cut and says so (``truncated: true``): a short FOLLOWING list only
+    # narrows a home feed, which is the safe direction to be wrong in. The
+    # BLOCKED list is never cut — a dropped block would show a blocked
+    # author, the unsafe direction.
+    "PROFILES_FOLLOWING_MAX": 5000,
     # ── The public card (profiles.public_cards) ──────────────────────
     # The name-addressed CDN function that fills a card avatar's render
     # metadata. The default is the fleet's one answer about a picture — the

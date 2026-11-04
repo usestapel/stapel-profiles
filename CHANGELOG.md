@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.23.0] — 2026-11-05
+
+- **`profiles.social_graph {user_id, limit?}` → `{following, blocked,
+  truncated}`** — one person's graph as a read-time feed needs it.
+  `following` is whom the user follows, newest follow first, minus anyone
+  blocked, cut at `min(limit, PROFILES_FOLLOWING_MAX)` (new key, default
+  5000) with `truncated: true`. `blocked` is every id with a block in either
+  direction, as one undirected list that names no blocker, and is never cut.
+  A malformed id raises, so the caller answers 503 rather than an empty
+  graph. In-process: `stapel_profiles.relationships.social_graph`.
+
 ## [0.22.1] — 2026-10-22
 
 - **Follow works for a registered user with no profile row.** `GET /<id>`

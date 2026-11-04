@@ -21,6 +21,9 @@ monolith and in a split deployment where profiles is its own container::
     call("profiles.language", {"user_id": str(user_id)})
     # -> {"app_language": "en", "auto_detected_language": "ru"}
 
+    call("profiles.social_graph", {"user_id": str(user_id)})
+    # -> {"following": ["<b>"], "blocked": ["<c>"], "truncated": False}
+
 **Why a write is published at all.** The module that owns the *authority*
 question owns the endpoint; the module that owns the *data* owns the write
 and publishes it by name (`tasks/who-owns-the-name-write.md`). A workspace
@@ -67,6 +70,7 @@ DISPLAY_NAMES = "profiles.display_names"
 LANGUAGE = "profiles.language"
 RELATIONSHIPS = "profiles.relationships"
 PUBLIC_CARDS = "profiles.public_cards"
+SOCIAL_GRAPH = "profiles.social_graph"
 
 #: Structural refusal reasons that are NOT a bad name: the deployment's
 #: active profile model carries no ``display_name`` at all (§66 moved it out
@@ -92,6 +96,7 @@ DISPLAY_NAMES_SCHEMA = _load_schema(DISPLAY_NAMES)
 LANGUAGE_SCHEMA = _load_schema(LANGUAGE)
 RELATIONSHIPS_SCHEMA = _load_schema(RELATIONSHIPS)
 PUBLIC_CARDS_SCHEMA = _load_schema(PUBLIC_CARDS)
+SOCIAL_GRAPH_SCHEMA = _load_schema(SOCIAL_GRAPH)
 
 
 def _reason_of(error_key: str) -> str:
@@ -336,6 +341,23 @@ def public_cards(payload: dict) -> dict:
     return build_cards(payload.get("user_ids") or [])
 
 
+def social_graph(payload: dict) -> dict:
+    """Provider for ``profiles.social_graph`` — whom a person follows and whom to hide.
+
+    Payload: ``{"user_id": str, "limit"?: int}``
+    Returns: ``{"following": [id, ...], "blocked": [id, ...], "truncated": bool}``
+
+    For a feed that fans in at read time: ``following`` is cut at
+    ``min(limit, PROFILES_FOLLOWING_MAX)`` and says so with ``truncated``;
+    ``blocked`` is every id with a block in EITHER direction, undirected and
+    never cut. An id that cannot name a user raises, so the caller answers
+    503 rather than a feed that forgot a block.
+    """
+    from .relationships import social_graph as build_graph
+
+    return build_graph(payload.get("user_id"), payload.get("limit"))
+
+
 def register() -> None:
     """Register this module's Function providers.
 
@@ -354,3 +376,4 @@ def register() -> None:
     register_function(LANGUAGE, language, schema=LANGUAGE_SCHEMA)
     register_function(RELATIONSHIPS, relationships, schema=RELATIONSHIPS_SCHEMA)
     register_function(PUBLIC_CARDS, public_cards, schema=PUBLIC_CARDS_SCHEMA)
+    register_function(SOCIAL_GRAPH, social_graph, schema=SOCIAL_GRAPH_SCHEMA)

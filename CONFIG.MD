@@ -28,6 +28,7 @@ nobody revisits.
 | PROFILES_PUBLIC_FIELDS | env | policy: what a public lookup exposes to an authenticated caller. Both public endpoints serialize through one class, so they cannot disagree. | no | the full public set |
 | PROFILES_PUBLIC_FIELDS_ANONYMOUS | env | policy: what a caller WITHOUT AN ACCOUNT sees (the unsigned internet and a guest session alike). Narrow by default; may only ever narrow `PROFILES_PUBLIC_FIELDS`. `None`/`["*"]` restores "anonymous sees what members see". | no | identity + avatar + seller type + tenure + contacts bit |
 | PROFILES_PAIRS_MAX | env | ceiling: pairs one `profiles.relationships` call may carry. Over it the call RAISES — an uncheckable block must fail closed (503), not open. | no | 500 |
+| PROFILES_FOLLOWING_MAX | env | ceiling: followed ids one `profiles.social_graph` answer carries; over it the list is cut and `truncated: true`. The blocked list is never cut. | no | 5000 |
 | PROFILES_CARD_MEDIA_FUNCTION | env | wiring: the name-addressed CDN read that fills a public card's avatar with render metadata. `""` degrades the card, never fails it. | no | cdn.describe_many |
 | PROFILES_LOOKUP_RATE | env | tuning: per-caller ceiling on single public lookups (DRF rate string). `None`/`""` disables it. | no | 120/min |
 | PROFILES_BATCH_RATE | env | tuning: per-caller ceiling on batch resolution — deliberately tighter, one request answers for up to `PROFILES_BATCH_MAX_IDS` people. | no | 30/min |
