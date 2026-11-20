@@ -82,6 +82,9 @@ from rest_framework.test import APIClient
 
 REPO = Path(__file__).resolve().parent.parent
 SCHEMA = json.loads((REPO / "docs" / "schema.json").read_text())
+#: The document a native client generates from (contract profile 2). Every
+#: answer is checked against both: the components are emitted twice.
+SCHEMA_V2 = json.loads((REPO / "docs" / "schema.v2.json").read_text())
 
 #: The mount the contract is emitted at, reproduced for the test client.
 urlpatterns = [
@@ -153,9 +156,9 @@ def _json_schema(node):
     return rebuilt
 
 
-def _validator(response_schema):
+def _validator(response_schema, document=SCHEMA):
     root = copy.deepcopy(response_schema)
-    root["components"] = copy.deepcopy(SCHEMA["components"])
+    root["components"] = copy.deepcopy(document["components"])
     return jsonschema.Draft202012Validator(_json_schema(root))
 
 
@@ -217,12 +220,46 @@ def anonymous():
     return APIClient()
 
 
+def stored_avatar_with_ladder():
+    """An uploaded avatar with its rendered variant ladder, as the file source stores it.
+
+    The ladder is what a gravatar or link avatar never has: numbered tiers
+    (``VariantMeta.tier`` is an int in core's provider output and a string on
+    the wire). A gate that only ever builds link avatars cannot see the tier.
+    """
+    from io import BytesIO
+
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+    from PIL import Image
+    from stapel_core.media.variants import generate_variants
+
+    buffer = BytesIO()
+    Image.new("RGB", (640, 480), (200, 80, 40)).save(buffer, format="PNG")
+    name = default_storage.save(f"avatars/{_unique('wire')}.png", ContentFile(buffer.getvalue()))
+
+    class Stored:
+        storage = default_storage
+
+        def __init__(self, name):
+            self.name = name
+
+        def open(self, mode="rb"):
+            return default_storage.open(self.name, mode)
+
+    assert generate_variants(Stored(name)), "no ladder rendered"
+    return name
+
+
 def make_profile(user, *, avatar=True, **kwargs):
-    """A profile row for ``user``. ``avatar=False`` is the empty state."""
+    """A profile row for ``user``. ``avatar=False`` is the empty state,
+    ``avatar="file"`` an uploaded picture with its variant ladder."""
     from stapel_profiles.models import AvatarSource, get_profile_model
 
     defaults = dict(display_name="Ada Lovelace")
-    if avatar:
+    if avatar == "file":
+        defaults.update(avatar_source=AvatarSource.FILE, avatar=stored_avatar_with_ladder())
+    elif avatar:
         defaults.update(avatar_source=AvatarSource.GRAVATAR, avatar=AVATAR_HASH)
     defaults.update(kwargs)
     profile, _created = get_profile_model().objects.update_or_create(
@@ -391,15 +428,20 @@ UNDRIVABLE: dict = {}
 
 @recipe("GET", "/{user_id}")
 def _profile_detail(call):
-    """Both states of the public read: a written profile, and an unwritten one."""
+    """The public read: a written profile, a laddered avatar, an unwritten one, oneself."""
     viewer = make_user()
     written = make_user()
     make_profile(written)
+    laddered = make_user()
+    make_profile(laddered, avatar="file")
     return [
         call(client_for(viewer), params={"user_id": written.id}),
+        call(client_for(viewer), params={"user_id": laddered.id}),
         # A registered person with no row — answered 200 from an unsaved
         # instance, not 404 (views._unwritten_profile).
         call(client_for(viewer), params={"user_id": user_without_profile().id}),
+        # The owner reading their own public card ("self").
+        call(client_for(laddered), params={"user_id": laddered.id}),
     ]
 
 
@@ -409,6 +451,8 @@ def _profile_batch(call):
     viewer = make_user()
     with_avatar = make_user()
     make_profile(with_avatar)
+    laddered = make_user()
+    make_profile(laddered, avatar="file")
     without_avatar = make_user()
     make_profile(without_avatar, avatar=False)
     unwritten = user_without_profile()
@@ -417,6 +461,7 @@ def _profile_batch(call):
         data={
             "user_ids": [
                 str(with_avatar.id),
+                str(laddered.id),
                 str(without_avatar.id),
                 str(unwritten.id),
                 # An id that names nobody — the `missing` half of the answer.
@@ -428,11 +473,14 @@ def _profile_batch(call):
 
 @recipe("GET", "/me")
 def _my_profile(call):
-    """A filled-in profile and a brand-new one (get_or_create's own defaults)."""
+    """A filled-in profile, an uploaded avatar, and a brand-new one (get_or_create's own defaults)."""
     filled = make_user()
     make_profile(filled)
+    laddered = make_user()
+    make_profile(laddered, avatar="file")
     return [
         call(client_for(filled)),
+        call(client_for(laddered)),
         call(client_for(make_user())),
     ]
 
@@ -441,7 +489,12 @@ def _my_profile(call):
 def _my_profile_patch(call):
     user = make_user()
     make_profile(user, avatar=False)
-    return call(client_for(user), data={"display_name": "Grace Hopper"})
+    laddered = make_user()
+    make_profile(laddered, avatar="file")
+    return [
+        call(client_for(user), data={"display_name": "Grace Hopper"}),
+        call(client_for(laddered), data={"display_name": "Grace Hopper"}),
+    ]
 
 
 @recipe("GET", "/me/blocked")
@@ -451,7 +504,7 @@ def _my_blocked(call):
 
     me = make_user()
     with_avatar = make_user()
-    make_profile(with_avatar)
+    make_profile(with_avatar, avatar="file")
     relate(me, with_avatar, RelationshipStatus.BLOCKED)
     without_avatar = make_user()
     make_profile(without_avatar, avatar=False)
@@ -809,7 +862,15 @@ def test_the_wire_matches_the_declared_response(method, path, code, body_schema,
     responses = produced if isinstance(produced, list) else [produced]
     assert responses, f"{method} {path}: the recipe produced no response at all"
 
-    validator = _validator(body_schema)
+    validators = {
+        "schema.json": _validator(body_schema),
+        "schema.v2.json": _validator(
+            SCHEMA_V2["paths"][path][method.lower()]["responses"][str(code)]["content"][
+                "application/json"
+            ]["schema"],
+            SCHEMA_V2,
+        ),
+    }
     for index, response in enumerate(responses):
         where = f"{method} {path} (state {index + 1} of {len(responses)})"
         assert response.status_code == code, (
@@ -818,15 +879,60 @@ def test_the_wire_matches_the_declared_response(method, path, code, body_schema,
         )
 
         body = response.json()
-        errors = sorted(validator.iter_errors(body), key=lambda e: list(e.path))
-        assert not errors, (
-            f"{where} answers a body the contract does not describe:\n"
-            + "\n".join(
-                f"  at {list(e.path) or '<root>'}: {e.message}" for e in errors[:10]
+        for document, validator in validators.items():
+            errors = sorted(validator.iter_errors(body), key=lambda e: list(e.path))
+            assert not errors, (
+                f"{where} answers a body {document} does not describe:\n"
+                + "\n".join(
+                    f"  at {list(e.path) or '<root>'}: {e.message}" for e in errors[:10]
+                )
+                + f"\n  body: {json.dumps(body)[:600]}"
             )
-            + f"\n  body: {json.dumps(body)[:600]}"
-        )
         # An empty list validates against any item schema, so a list response
         # must actually carry a row for the check to have looked at anything.
         if isinstance(body, list):
             assert body, f"{where}: the declared list came back empty"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Every caller state
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _member_client():
+    return client_for(make_user())
+
+
+def _guest_client():
+    return client_for(make_guest())
+
+
+#: The caller states every recipe request is replayed as. The recipe's own
+#: caller is the fourth (the owner, for every owned resource here).
+CALLER_STATES = {"anonymous": anonymous, "guest": _guest_client, "member": _member_client}
+
+
+@pytest.mark.parametrize(
+    "method,path",
+    sorted({(m, p) for m, p, _c, _s in OPERATIONS}),
+    ids=[f"{m} {p}" for m, p in sorted({(m, p) for m, p, _c, _s in OPERATIONS})],
+)
+def test_every_caller_state_is_answered_as_declared(method, path):
+    """The recipe's requests, sent again with no session, as a guest and as a stranger.
+
+    A 2xx must be declared and its body must validate against both documents;
+    a refusal is a 4xx; an operation open to callers without a session does
+    not refuse them 401. The first run found the public read answering a
+    caller without an account with five required keys missing.
+    """
+    from tests._contract_gates_next import AuthStateReplay
+
+    replay = AuthStateReplay(
+        {"schema.json": SCHEMA, "schema.v2.json": SCHEMA_V2}, CALLER_STATES
+    )
+    with replay.watching(method, path):
+        RECIPES[(method, path)](Call(method, path))
+    assert replay.replayed >= len(CALLER_STATES), (
+        f"{method} {path}: the recipe never reached the operation, nothing was replayed"
+    )
+    assert not replay.findings, "\n".join(str(f) for f in replay.findings)

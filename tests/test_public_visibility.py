@@ -38,6 +38,14 @@ def profile(db):
     return Profile.objects.create(user_id=uuid.uuid4(), display_name="Ada")
 
 
+def _populate(profile):
+    """Give the withheld fields values, so null can only mean withheld."""
+    profile.location_id = 42
+    profile.location_display_name_narrow = "Mamer"
+    profile.location_display_name_broad = "Differdange"
+    profile.save()
+
+
 @pytest.fixture
 def anon_client():
     """A second, definitely unauthenticated client.
@@ -64,9 +72,33 @@ NARROW_ANONYMOUS_FIELDS = {
     "avatar_source",
     "avatar",
     "avatar_image",
+    "followers_count",
+    "following_count",
     "seller_type",
     "created_at",
     "contacts",
+}
+
+
+def visible(body):
+    """The keys that carry a value. A withheld field keeps its key and answers
+    null, so the body has the declared shape for every caller."""
+    assert set(body) == FULL_PUBLIC_FIELDS, "a withheld field lost its key"
+    return {name for name, value in body.items() if value is not None}
+
+
+def withheld(body, fields):
+    assert set(body) == FULL_PUBLIC_FIELDS, "a withheld field lost its key"
+    return {name for name in fields if body[name] is None} == set(fields)
+
+
+#: What the default anonymous policy withholds: whereabouts, and the
+#: relationship that has no meaning without a viewer.
+WITHHELD_FROM_ANONYMOUS = {
+    "location_id",
+    "location_display_name_narrow",
+    "location_display_name_broad",
+    "relationship_status",
 }
 
 
@@ -84,18 +116,20 @@ def test_anonymous_default_is_narrower_than_the_member_view(anon_client, profile
     id, so THIS is what an unauthenticated scraper gets out of the box. It
     must not include whereabouts or the social graph.
     """
+    _populate(profile)
     body = anon_client.get(f"/{profile.user_id}").json()
 
-    assert set(body) == NARROW_ANONYMOUS_FIELDS
-    assert not {f for f in body if f.startswith("location_")}
-    assert "followers_count" not in body
-    assert "following_count" not in body
+    assert withheld(body, WITHHELD_FROM_ANONYMOUS)
+    assert visible(body) >= {"user_id", "display_name", "followers_count", "following_count"}
+    # Counts, not the graph: how many, never who.
+    assert body["followers_count"] == 0 and body["following_count"] == 0
 
 
 def test_the_batch_endpoint_has_the_same_anonymous_default(anon_client, profile):
     """The bulk door is the one worth scraping — it must not be wider."""
+    _populate(profile)
     body = _batch(anon_client, [profile.user_id]).json()
-    assert set(body["profiles"][0]) == NARROW_ANONYMOUS_FIELDS
+    assert withheld(body["profiles"][0], WITHHELD_FROM_ANONYMOUS)
 
 
 def test_the_member_view_for_anonymous_is_an_explicit_opt_out(anon_client, profile):
@@ -106,6 +140,7 @@ def test_the_member_view_for_anonymous_is_an_explicit_opt_out(anon_client, profi
         ):
             body = anon_client.get(f"/{profile.user_id}").json()
         assert set(body) == FULL_PUBLIC_FIELDS, value
+        assert body["location_display_name_narrow"] == "", value
 
 
 def test_host_can_narrow_what_a_public_lookup_exposes(api_client, profile):
@@ -113,7 +148,7 @@ def test_host_can_narrow_what_a_public_lookup_exposes(api_client, profile):
         STAPEL_PROFILES={"PROFILES_PUBLIC_FIELDS": ["user_id", "display_name"]}
     ):
         body = api_client.get(f"/{profile.user_id}").json()
-    assert set(body) == {"user_id", "display_name"}
+    assert visible(body) == {"user_id", "display_name"}
 
 
 def test_the_batch_endpoint_obeys_the_same_policy(api_client, profile):
@@ -122,7 +157,7 @@ def test_the_batch_endpoint_obeys_the_same_policy(api_client, profile):
         STAPEL_PROFILES={"PROFILES_PUBLIC_FIELDS": ["user_id", "display_name"]}
     ):
         body = _batch(api_client, [profile.user_id]).json()
-    assert set(body["profiles"][0]) == {"user_id", "display_name"}
+    assert visible(body["profiles"][0]) == {"user_id", "display_name"}
 
 
 def test_anonymous_callers_can_be_given_a_narrower_view(anon_client, authed_client, profile):
@@ -133,8 +168,9 @@ def test_anonymous_callers_can_be_given_a_narrower_view(anon_client, authed_clie
         anonymous = anon_client.get(f"/{profile.user_id}").json()
         member = authed_client.get(f"/{profile.user_id}").json()
 
-    assert set(anonymous) == {"user_id", "display_name", "avatar_image"}
+    assert visible(anonymous) == {"user_id", "display_name"}  # no avatar: null
     assert set(member) == FULL_PUBLIC_FIELDS
+    assert member["location_display_name_narrow"] == ""
 
 
 @pytest.fixture
@@ -158,17 +194,16 @@ def test_a_guest_session_reads_the_anonymous_view_not_the_member_one(
     first tap on "message the seller", and that one POST used to buy the
     member view of every user id — whereabouts and the social graph, at
     scrape rate, from a session nobody registered."""
+    _populate(profile)
     body = guest_client.get(f"/{profile.user_id}").json()
 
-    assert set(body) == NARROW_ANONYMOUS_FIELDS
-    assert not {f for f in body if f.startswith("location_")}
-    assert "followers_count" not in body
-    assert "relationship_status" not in body
+    assert withheld(body, WITHHELD_FROM_ANONYMOUS)
 
 
 def test_the_batch_door_answers_a_guest_the_same_way(guest_client, profile):
+    _populate(profile)
     body = _batch(guest_client, [profile.user_id]).json()
-    assert set(body["profiles"][0]) == NARROW_ANONYMOUS_FIELDS
+    assert withheld(body["profiles"][0], WITHHELD_FROM_ANONYMOUS)
 
 
 def test_a_member_still_reads_the_member_view(authed_client, profile):
@@ -197,7 +232,7 @@ def test_the_anonymous_policy_can_only_narrow(api_client, profile):
         }
     ):
         body = api_client.get(f"/{profile.user_id}").json()
-    assert set(body) == {"user_id"}
+    assert visible(body) == {"user_id"}
 
 
 # ── Tenure (`created_at`) ────────────────────────────────────────────
@@ -275,9 +310,9 @@ def test_a_host_that_drops_the_join_date_from_the_policy_hides_it(
         anonymous = anon_client.get(f"/{profile.user_id}").json()
         batched = _batch(authed_client, [profile.user_id]).json()
 
-    assert "created_at" not in member
-    assert "created_at" not in anonymous
-    assert "created_at" not in batched["profiles"][0]
+    assert member["created_at"] is None
+    assert anonymous["created_at"] is None
+    assert batched["profiles"][0]["created_at"] is None
 
 
 def test_the_join_date_can_be_hidden_from_the_internet_alone(
@@ -293,8 +328,8 @@ def test_the_join_date_can_be_hidden_from_the_internet_alone(
         anonymous = anon_client.get(f"/{profile.user_id}").json()
         member = authed_client.get(f"/{profile.user_id}").json()
 
-    assert "created_at" not in anonymous
-    assert "created_at" in member
+    assert anonymous["created_at"] is None
+    assert member["created_at"] is not None
 
 
 # ── Enumeration limits ───────────────────────────────────────────────

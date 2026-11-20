@@ -13,6 +13,7 @@ from stapel_profiles.checks import (
     W002_AVATAR_HOSTS_ANY,
     W003_ANONYMOUS_SEES_EVERYTHING,
     W004_ENUMERATION_UNBOUNDED,
+    W005_WITHHELD_NOT_NULLABLE,
     check_open_switches,
 )
 
@@ -50,6 +51,31 @@ def test_a_narrower_anonymous_policy_is_not_reported():
     assert W003_ANONYMOUS_SEES_EVERYTHING not in _ids(
         PROFILES_PUBLIC_FIELDS_ANONYMOUS=["user_id"]
     )
+
+
+def test_the_default_policy_withholds_only_nullable_fields():
+    assert W005_WITHHELD_NOT_NULLABLE not in _ids()
+
+
+@pytest.mark.parametrize(
+    "policy",
+    [
+        {"PROFILES_PUBLIC_FIELDS_ANONYMOUS": ["user_id", "avatar"]},
+        {"PROFILES_PUBLIC_FIELDS": ["user_id", "display_name"]},
+    ],
+)
+def test_withholding_a_non_nullable_field_is_reported(policy):
+    """A withheld field is answered null; a non-nullable one breaks every strict client."""
+    assert W005_WITHHELD_NOT_NULLABLE in _ids(**policy)
+
+
+def test_withholding_a_nullable_field_is_not_reported():
+    from stapel_profiles.conf import DEFAULTS
+
+    anonymous = [
+        f for f in DEFAULTS["PROFILES_PUBLIC_FIELDS_ANONYMOUS"] if f != "avatar_image"
+    ]
+    assert W005_WITHHELD_NOT_NULLABLE not in _ids(PROFILES_PUBLIC_FIELDS_ANONYMOUS=anonymous)
 
 
 @pytest.mark.parametrize("key", ["PROFILES_LOOKUP_RATE", "PROFILES_BATCH_RATE"])

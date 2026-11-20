@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.23.3] — 2026-11-20
+
+Patch. No migration. Requires stapel-core 0.99.3. A strict client generated
+from the contract could not decode two answers; both now match it.
+
+- **Avatar tiers are strings on the wire.** `avatar_image` on `/me` (GET,
+  PATCH), `/{user_id}`, `/batch` and `/me/blocked` left through core's
+  `StapelImageSerializer`, so a laddered avatar (`file`/`cdn`) served
+  `"tier": 120` where `VariantMetaDTO.tier` declares a string. Every profile
+  with an uploaded picture failed to decode.
+- **Withheld means null, never absent.** The public read and the batch
+  answered a caller without an account (no session or a guest session) with
+  `location_*`, the follower counts and `relationship_status` missing, all
+  `required`. A field the visibility policy withholds now keeps its key and
+  answers `null`; `location_display_name_narrow`/`_broad` are declared
+  nullable for that; `relationship_status` is `null` without an account.
+- **Follower and following counts are visible to callers without an
+  account** (`PROFILES_PUBLIC_FIELDS_ANONYMOUS` default): counts, not the graph.
+- **`profiles.W005`**: a visibility policy withholding a field the contract
+  declares non-nullable is reported at `manage.py check`.
+- **Wire gate on every caller state** (`tests/test_contract_wire.py`): each
+  recipe request is replayed with no session, as a guest and as a stranger,
+  and every answer is validated against `schema.json` and `schema.v2.json`;
+  recipes cover an uploaded avatar with its ladder and the owner's own card.
+  Seen red on 0.23.2 for both defects above.
+- `docs/schema.v2.json` binds `error.404.not_found` on the language detail
+  (core 0.99.3's generic-lookup 404).
+
 ## [0.23.2] — 2026-11-20
 
 Patch. No migration, no consumer edit. Requires stapel-core 0.99.1.

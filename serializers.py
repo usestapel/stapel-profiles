@@ -76,7 +76,17 @@ def avatar_image(profile):
     by a writer that bypassed the API) therefore degrade to "no avatar"
     instead of handing every consumer a reference the boundary would refuse
     today — no client should ever have to defend itself against this field.
+
+    The descriptor leaves through core's `StapelImageSerializer`, the one
+    normaliser of the wire shape: a provider's ladder carries integer tiers,
+    the contract a string (`VariantMetaDTO.tier`).
     """
+    described = _avatar_descriptor(profile)
+    return None if described is None else StapelImageSerializer(described).data
+
+
+def _avatar_descriptor(profile):
+    """The provider's raw `StapelImage` dict for the avatar, or ``None``."""
     value = profile.avatar
     if not value:
         return None
@@ -340,8 +350,20 @@ class ProfilePublicSerializer(serializers.ModelSerializer):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        for name in set(self.fields) - set(self._visible_fields()):
+        #: Fields this caller may not see: not computed, answered null. The
+        #: key stays, so the body keeps the declared shape for every caller.
+        self._withheld = [
+            name for name in self.fields if name not in set(self._visible_fields())
+        ]
+        for name in self._withheld:
             self.fields.pop(name)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        if self.context.get("request") is not None:
+            for name in self._withheld:
+                data[name] = None
+        return data
 
     def _visible_fields(self) -> list[str]:
         """The policy for THIS caller (see the class docstring)."""

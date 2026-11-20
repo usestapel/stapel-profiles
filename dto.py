@@ -99,12 +99,12 @@ class ProfilePublicResponse:
         avatar_source: Where avatar points (file, url, gravatar, cdn). Example: file
         avatar: Avatar reference matching avatar_source. Example: avatar/def456
         avatar_image: Renderable avatar descriptor, or null when there is no avatar. Example: null
-        location_id: Geo service location ID. Example: 42
-        location_display_name_narrow: Short location. Example: LU - Mamer
-        location_display_name_broad: Broad location. Example: LU - Differdange
+        location_id: Geo service location ID, or null when unset or withheld from this caller. Example: 42
+        location_display_name_narrow: Short location, or null when withheld from this caller (a caller without an account, by default). Example: LU - Mamer
+        location_display_name_broad: Broad location, or null when withheld from this caller (a caller without an account, by default). Example: LU - Differdange
         followers_count: Number of followers. Example: 120
         following_count: Number of users followed. Example: 30
-        relationship_status: Relationship to current user. Example: following
+        relationship_status: Relationship to the caller (following, blocked, neutral, self), or null for a caller without an account. Example: following
         seller_type: Self-declared trading capacity ("private"/"business"), or null when this deployment's profile carries no such field or the person never declared one. Example: business
         created_at: ISO 8601 time this PROFILE was created — the tenure a seller page renders as "on the site since March 2024". Not a sign-in time and not an activity signal. Example: 2025-01-15T12:00:00Z
         contacts: Which kinds of contact this person has published — the fact only, never the value. Example: {"phone": true}
@@ -117,8 +117,11 @@ class ProfilePublicResponse:
     #: Renderable descriptor denormalized from avatar+avatar_source (§ /me).
     avatar_image: Optional[StapelImageDTO]
     location_id: Optional[int]
-    location_display_name_narrow: str
-    location_display_name_broad: str
+    #: Nullable because the visibility policy withholds values, never keys:
+    #: a field a caller may not see is answered null, so every caller decodes
+    #: one shape (serializers.ProfilePublicSerializer).
+    location_display_name_narrow: Optional[str]
+    location_display_name_broad: Optional[str]
     followers_count: int
     following_count: int
     relationship_status: Optional[str]

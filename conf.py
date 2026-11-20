@@ -125,10 +125,11 @@ DEFAULTS = {
     # endpoints are AllowAny and answer for any user id, so this list is what
     # the open internet may walk the member directory for. Identity and
     # avatar are what a name-next-to-a-message needs; whereabouts
-    # (location_*) and the social graph (followers/following counts) are not
-    # needed to render a stranger's name and are exactly what makes a bulk
-    # scrape worth running. relationship_status has no meaning without a
-    # viewer. A host that wants the pre-0.12.6 answer sets this to None (or
+    # (location_*) are not needed to render a stranger's name and are
+    # exactly what makes a bulk scrape worth running. relationship_status has
+    # no meaning without a viewer. A field left out is WITHHELD: answered as
+    # null, never dropped, so every caller decodes the one declared shape
+    # (profiles.W005 names a policy that withholds a non-nullable field). A host that wants the pre-0.12.6 answer sets this to None (or
     # ["*"]) — "anonymous callers see everything members see" is a decision
     # a deployment states, not one it inherits. A narrower list (or []) still
     # narrows further; it may never widen past PROFILES_PUBLIC_FIELDS.
@@ -149,6 +150,10 @@ DEFAULTS = {
         "avatar_source",
         "avatar",
         "avatar_image",
+        # Counts, not the graph: how many people follow someone says nothing
+        # about who, and a stranger's page shows it to every visitor.
+        "followers_count",
+        "following_count",
         "seller_type",
         "created_at",
         # Rides along for the same reason `created_at` does: the visitor who

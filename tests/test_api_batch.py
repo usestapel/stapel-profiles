@@ -201,9 +201,7 @@ class TestBatchSocialFields:
     cost a query per row."""
 
     def test_counts_match_the_single_endpoint(self, authed_client):
-        # Authenticated on purpose: the social graph is not in the anonymous
-        # field policy (PROFILES_PUBLIC_FIELDS_ANONYMOUS), so an anonymous
-        # caller has no counts to compare.
+        # Authenticated: the relationship half is null without an account.
         api_client = authed_client
         a, b, c = uuid.uuid4(), uuid.uuid4(), uuid.uuid4()
         for uid in (a, b, c):

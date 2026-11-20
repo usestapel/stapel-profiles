@@ -200,9 +200,10 @@ class TestProfileDetail:
         assert resp.status_code == 200, resp.content
         data = resp.json()
         assert data["avatar"] == "https://example.com/me.png"
-        # relationship_status is not in the anonymous field policy — it has
-        # no meaning without a viewer (PROFILES_PUBLIC_FIELDS_ANONYMOUS).
-        assert "relationship_status" not in data
+        # relationship_status is withheld from a caller without an account —
+        # it has no meaning without a viewer — and withheld means null: the
+        # key stays, so the body keeps its declared shape.
+        assert data["relationship_status"] is None
         # Private fields must not leak through the public serializer
         assert "email_messages" not in data
         assert "essential_cookies_accepted" not in data

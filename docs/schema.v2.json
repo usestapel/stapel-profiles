@@ -1431,7 +1431,10 @@
                 }
               }
             },
-            "description": ""
+            "description": "",
+            "x-stapel-errors": [
+              "error.404.not_found"
+            ]
           }
         }
       }
@@ -2584,17 +2587,19 @@
           "location_id": {
             "type": "integer",
             "nullable": true,
-            "description": "Geo service location ID",
+            "description": "Geo service location ID, or null when unset or withheld from this caller",
             "example": 42
           },
           "location_display_name_narrow": {
             "type": "string",
-            "description": "Short location",
+            "nullable": true,
+            "description": "Short location, or null when withheld from this caller (a caller without an account, by default)",
             "example": "LU - Mamer"
           },
           "location_display_name_broad": {
             "type": "string",
-            "description": "Broad location",
+            "nullable": true,
+            "description": "Broad location, or null when withheld from this caller (a caller without an account, by default)",
             "example": "LU - Differdange"
           },
           "followers_count": {
@@ -2610,7 +2615,7 @@
           "relationship_status": {
             "type": "string",
             "nullable": true,
-            "description": "Relationship to current user",
+            "description": "Relationship to the caller (following, blocked, neutral, self), or null for a caller without an account",
             "example": "following"
           },
           "seller_type": {

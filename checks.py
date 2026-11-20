@@ -31,6 +31,21 @@ W001_AVATAR_CHECK_OFF = "profiles.W001"
 W002_AVATAR_HOSTS_ANY = "profiles.W002"
 W003_ANONYMOUS_SEES_EVERYTHING = "profiles.W003"
 W004_ENUMERATION_UNBOUNDED = "profiles.W004"
+W005_WITHHELD_NOT_NULLABLE = "profiles.W005"
+
+
+def _non_nullable_public_fields() -> set[str]:
+    """Public-profile fields the contract declares non-nullable (`ProfilePublicResponse`)."""
+    import typing
+
+    from .dto import ProfilePublicResponse
+
+    hints = typing.get_type_hints(ProfilePublicResponse)
+    return {
+        name
+        for name, hint in hints.items()
+        if type(None) not in typing.get_args(hint)
+    }
 
 
 def check_open_switches(app_configs=None, **kwargs):
@@ -83,6 +98,31 @@ def check_open_switches(app_configs=None, **kwargs):
                     "restore the default (identity + avatar only)."
                 ),
                 id=W003_ANONYMOUS_SEES_EVERYTHING,
+            )
+        )
+
+    from .serializers import ProfilePublicSerializer
+
+    declared = set(ProfilePublicSerializer.Meta.fields)
+    members = set(profiles_settings.PROFILES_PUBLIC_FIELDS or [])
+    withheld = declared - members
+    if anonymous is not None and ANONYMOUS_FIELDS_SAME_AS_MEMBERS not in anonymous:
+        withheld |= declared - set(anonymous)
+    unsound = sorted(withheld & _non_nullable_public_fields())
+    if unsound:
+        problems.append(
+            CheckWarning(
+                "The public-profile visibility policy withholds "
+                f"{', '.join(unsound)} from some callers. A withheld field is "
+                "answered null, and the contract declares these non-nullable, "
+                "so a generated client refuses those answers.",
+                hint=(
+                    "Keep these fields in PROFILES_PUBLIC_FIELDS and "
+                    "PROFILES_PUBLIC_FIELDS_ANONYMOUS; withhold only fields the "
+                    "contract declares nullable (location_*, relationship_status, "
+                    "avatar, avatar_image, seller_type, created_at)."
+                ),
+                id=W005_WITHHELD_NOT_NULLABLE,
             )
         )
 
