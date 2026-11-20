@@ -76,6 +76,20 @@ def _blank_string_alternative(node: dict) -> bool:
     )
 
 
+def _undiscriminated_union(node: dict) -> bool:
+    """A ``oneOf`` of bare ``$ref`` branches with no ``discriminator``.
+
+    ``PolymorphicProxySerializer(resource_type_field_name=None)`` emits
+    branches that may overlap by construction (one is another plus a key), so
+    a value satisfying both is one the document describes, and an exclusive
+    ``oneOf`` would refuse it. A discriminated union stays exclusive.
+    """
+    branches = node.get("oneOf")
+    if not isinstance(branches, list) or "discriminator" in node:
+        return False
+    return all(isinstance(b, dict) and set(b) == {"$ref"} for b in branches)
+
+
 def _openapi30_to_jsonschema(node: Any, direction: str | None = None) -> Any:
     """OpenAPI 3.0 to JSON Schema, optionally for one direction of travel.
 
@@ -101,7 +115,7 @@ def _openapi30_to_jsonschema(node: Any, direction: str | None = None) -> Any:
             }
             if "required" in out:
                 out["required"] = [name for name in out["required"] if name not in banned]
-    if _blank_string_alternative(out):
+    if _blank_string_alternative(out) or _undiscriminated_union(out):
         out["anyOf"] = out.pop("oneOf")
     if node.get("nullable"):
         return {"anyOf": [out, {"type": "null"}]}
@@ -221,6 +235,13 @@ def dead_action_declarations(resolver=None) -> list[tuple[str, str, str]]:
 def _message(error, direction: str) -> str:
     if error.validator == "not" and error.validator_value == {}:
         return f"a {_FORBIDDEN_IN[direction]} field has no place in a {direction}"
+    if error.context:
+        # "<the whole value> is not valid under any of the given schemas"
+        # names nothing; the closest branch's own error does.
+        from jsonschema.exceptions import best_match
+
+        inner = best_match(error.context)
+        return f"{list(inner.absolute_path) or '<root>'}: {_message(inner, direction)}"
     return error.message
 
 
@@ -294,15 +315,19 @@ class WireFinding:
         return f"{self.method} {self.path} as {self.state}: {self.status} — {self.problem}"
 
 
-_AUTH_HEADERS = ("HTTP_AUTHORIZATION", "HTTP_COOKIE")
+#: Request headers that carry a caller's credential: a session, or the fleet
+#: service key (``X-API-KEY``, core's ServiceAPIKeyMiddleware).
+_AUTH_HEADERS = ("HTTP_AUTHORIZATION", "HTTP_COOKIE", "HTTP_X_API_KEY")
 
 
 @dataclass
 class AuthStateReplay:
     """Replays a recipe's requests to one operation as other caller states.
 
-    ``schemas`` maps a name to a document (``{"schema.json": ..., "schema.v2.json": ...}``);
-    every answer is checked against each. ``states`` maps a state name to a
+    ``schemas`` maps a name to a document (``{"schema.v2.json": ..., "schema.json": ...}``);
+    every answer is checked against each, and the FIRST document's
+    ``security`` is the claim about who may call (profile 2 derives it from
+    the running permission stack; profile 1 does not). ``states`` maps a state name to a
     zero-argument factory returning a fresh client already authenticated as
     that state (``{"anonymous": APIClient, "guest": ..., "member": ...}``);
     the state named ``"anonymous"`` is the caller with no session at all.
@@ -317,7 +342,7 @@ class AuthStateReplay:
 
     Each matching request is replayed right after the original returns, so
     the replay sees the recipe's settings overrides and database state at
-    that moment. Request headers that carry a session are dropped.
+    that moment. Request headers that carry a credential are dropped.
     Refusals with a status the operation does not declare are collected in
     ``undeclared_refusals``, not ``findings``: what a client decodes is the
     2xx body; an undeclared 4xx reaches it as an error either way.
@@ -363,6 +388,9 @@ class AuthStateReplay:
             return
         body = _json_or_none(response)
         for name, schema in self.schemas.items():
+            op_here = (schema.get("paths") or {}).get(path, {}).get(method.lower()) or {}
+            if str(status) not in (op_here.get("responses") or {}):
+                continue  # a document that declares no refusals claims nothing about this one
             for error in response_errors(schema, method, path, status, body):
                 found(f"{name}: refusal body: {error}")
 

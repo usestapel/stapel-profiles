@@ -927,8 +927,10 @@ def test_every_caller_state_is_answered_as_declared(method, path):
     """
     from tests._contract_gates_next import AuthStateReplay
 
+    # The first document's `security` is the claim: profile 2 derives it from
+    # the running permission stack, profile 1 does not.
     replay = AuthStateReplay(
-        {"schema.json": SCHEMA, "schema.v2.json": SCHEMA_V2}, CALLER_STATES
+        {"schema.v2.json": SCHEMA_V2, "schema.json": SCHEMA}, CALLER_STATES
     )
     with replay.watching(method, path):
         RECIPES[(method, path)](Call(method, path))
