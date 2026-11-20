@@ -33,20 +33,25 @@ def _configure() -> None:
     repo_root = os.path.dirname(os.path.abspath(__file__))
     sys.path[:] = [p for p in sys.path if os.path.abspath(p or os.getcwd()) != repo_root]
 
-    # Bootstrap an eager Celery app before Django setup so shared_task decorators
-    # bind to a configured app (mirrors conftest.pytest_configure).
-    from celery import Celery
+    # Bootstrap an eager Celery app before Django setup so a sibling's
+    # shared_task decorators bind to a configured app. Celery is not a
+    # dependency of this module; without it there is nothing to bind.
+    try:
+        from celery import Celery
+    except ImportError:
+        Celery = None
 
-    celery = Celery("stapel_profiles_codegen")
-    celery.config_from_object(
-        {
-            "task_always_eager": True,
-            "task_eager_propagates": True,
-            "broker_url": "memory://",
-            "result_backend": "cache+memory://",
-        }
-    )
-    celery.set_default()
+    if Celery is not None:
+        celery = Celery("stapel_profiles_codegen")
+        celery.config_from_object(
+            {
+                "task_always_eager": True,
+                "task_eager_propagates": True,
+                "broker_url": "memory://",
+                "result_backend": "cache+memory://",
+            }
+        )
+        celery.set_default()
 
     from django.conf import settings
 
@@ -140,6 +145,9 @@ def main(argv: list[str] | None = None) -> int:
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
     paths = emit_schema(out / "schema.json")
+    # Profile 2 goes to its own file: docs/schema.json is what stapel-react's
+    # generators read, and stays profile 1.
+    emit_schema(out / "schema.v2.json", contract_profile=2)
     flows = emit_flows(out / "flows.json")
     errors = emit_errors(out / "errors.json")
 

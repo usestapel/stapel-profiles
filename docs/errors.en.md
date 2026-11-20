@@ -66,7 +66,7 @@
 | `error.423.verification_locked` | 423 | — | `wait_and_retry` | Too many failed attempts — verification locked |
 | `error.429.contacts_code_rate` | 429 | `retry_after` | `wait_and_retry` | Too many attempts. Try again in {retry_after} seconds. |
 | `error.429.contacts_reveal_budget` | 429 | `retry_after` | `wait_and_retry` | Too many phone lookups. Try again in {retry_after} seconds. |
-| `error.429.rate_limit` | 429 | `retry_after_minutes` | `wait_and_retry` | Too many attempts. Try again in {retry_after_minutes} minutes. |
+| `error.429.rate_limit` | 429 | `retry_after_display`, `retry_after`, `retry_after_minutes` | `wait_and_retry` | Too many attempts. Try again in {retry_after_display} ({retry_after} s, about {retry_after_minutes} min). |
 | `error.429.too_many_requests` | 429 | — | `wait_and_retry` | Too many requests. Please try again later. |
 | `error.500.internal` | 500 | — | `contact_support` | Something went wrong |
 | `error.503.contacts_code_unavailable` | 503 | — | `retry` | The code could not be sent right now. Try again shortly. |

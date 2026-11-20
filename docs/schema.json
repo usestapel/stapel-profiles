@@ -42,8 +42,10 @@
                   "ProfilePublicResponse": {
                     "value": {
                       "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "display_name": "Grace Hopper",
                       "avatar_source": "file",
                       "avatar": "avatar/def456",
+                      "avatar_image": null,
                       "location_id": 42,
                       "location_display_name_narrow": "LU - Mamer",
                       "location_display_name_broad": "LU - Differdange",
@@ -439,6 +441,26 @@
                 "examples": {
                   "ProfileBatchResponse": {
                     "value": {
+                      "profiles": [
+                        {
+                          "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                          "display_name": "Grace Hopper",
+                          "avatar_source": "file",
+                          "avatar": "avatar/def456",
+                          "avatar_image": null,
+                          "location_id": 42,
+                          "location_display_name_narrow": "LU - Mamer",
+                          "location_display_name_broad": "LU - Differdange",
+                          "followers_count": 120,
+                          "following_count": 30,
+                          "relationship_status": "following",
+                          "seller_type": "business",
+                          "created_at": "2025-01-15T12:00:00Z",
+                          "contacts": {
+                            "phone": true
+                          }
+                        }
+                      ],
                       "missing": [
                         "550e8400-e29b-41d4-a716-446655440000"
                       ]
@@ -485,6 +507,20 @@
                 "examples": {
                   "ContactListResponse": {
                     "value": {
+                      "contacts": [
+                        {
+                          "id": 7,
+                          "kind": "phone",
+                          "value": "+15550100",
+                          "label": "Work",
+                          "policy": "members",
+                          "enabled": true,
+                          "verified": true,
+                          "verified_at": "2026-09-11T09:00:00Z",
+                          "reveal_count": 12,
+                          "created_at": "2026-09-11T08:00:00Z"
+                        }
+                      ],
                       "policies": [
                         "members",
                         "verified",
@@ -1154,6 +1190,8 @@
                         "name": "theme",
                         "kind": "enum",
                         "docstring": "UI theme preference.",
+                        "required": false,
+                        "order": 0,
                         "enum_values": [
                           "light",
                           "dark",
@@ -1294,17 +1332,26 @@
                   "ProfileResponse": {
                     "value": {
                       "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "display_name": "Ada Lovelace",
+                      "theme": "dark",
                       "avatar_source": "file",
                       "avatar": "avatar/abc123",
+                      "avatar_image": null,
                       "location_id": 42,
                       "location_display_name_narrow": "LU - Mamer",
                       "location_display_name_broad": "LU - Differdange",
+                      "app_language": {
+                        "code": "en",
+                        "name": "English",
+                        "flag": "/flags/en.svg"
+                      },
                       "understands": [
                         "en",
                         "fr"
                       ],
                       "use_device_language": true,
                       "auto_detected_language": "de",
+                      "auto_translate_content": false,
                       "email_messages": true,
                       "email_system": true,
                       "push_messages": true,
@@ -1377,17 +1424,26 @@
                   "ProfileResponse": {
                     "value": {
                       "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "display_name": "Ada Lovelace",
+                      "theme": "dark",
                       "avatar_source": "file",
                       "avatar": "avatar/abc123",
+                      "avatar_image": null,
                       "location_id": 42,
                       "location_display_name_narrow": "LU - Mamer",
                       "location_display_name_broad": "LU - Differdange",
+                      "app_language": {
+                        "code": "en",
+                        "name": "English",
+                        "flag": "/flags/en.svg"
+                      },
                       "understands": [
                         "en",
                         "fr"
                       ],
                       "use_device_language": true,
                       "auto_detected_language": "de",
+                      "auto_translate_content": false,
                       "email_messages": true,
                       "email_system": true,
                       "push_messages": true,
@@ -1682,7 +1738,21 @@
             "items": {
               "$ref": "#/components/schemas/ContactResponse"
             },
-            "description": "The caller's own contacts, oldest first"
+            "description": "The caller's own contacts, oldest first",
+            "example": [
+              {
+                "id": 7,
+                "kind": "phone",
+                "value": "+15550100",
+                "label": "Work",
+                "policy": "members",
+                "enabled": true,
+                "verified": true,
+                "verified_at": "2026-09-11T09:00:00Z",
+                "reveal_count": 12,
+                "created_at": "2026-09-11T08:00:00Z"
+              }
+            ]
           },
           "policies": {
             "type": "array",
@@ -1980,7 +2050,8 @@
           "enabled": {
             "type": "boolean",
             "nullable": true,
-            "description": "Switch it off without deleting it or changing its policy"
+            "description": "Switch it off without deleting it or changing its policy",
+            "example": false
           }
         }
       },
@@ -2045,7 +2116,8 @@
           "auto_translate_content": {
             "type": "boolean",
             "nullable": true,
-            "description": "Auto-translate ad content"
+            "description": "Auto-translate ad content",
+            "example": false
           },
           "email_messages": {
             "type": "boolean",
@@ -2114,7 +2186,27 @@
             "items": {
               "$ref": "#/components/schemas/ProfilePublicResponse"
             },
-            "description": "Profiles that exist, in the order their ids were first requested"
+            "description": "Profiles that exist, in the order their ids were first requested",
+            "example": [
+              {
+                "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                "display_name": "Grace Hopper",
+                "avatar_source": "file",
+                "avatar": "avatar/def456",
+                "avatar_image": null,
+                "location_id": 42,
+                "location_display_name_narrow": "LU - Mamer",
+                "location_display_name_broad": "LU - Differdange",
+                "followers_count": 120,
+                "following_count": 30,
+                "relationship_status": "following",
+                "seller_type": "business",
+                "created_at": "2025-01-15T12:00:00Z",
+                "contacts": {
+                  "phone": true
+                }
+              }
+            ]
           },
           "missing": {
             "type": "array",
@@ -2168,11 +2260,13 @@
           },
           "required": {
             "type": "boolean",
-            "description": "Whether the field is required (not blank)"
+            "description": "Whether the field is required (not blank)",
+            "example": false
           },
           "order": {
             "type": "integer",
-            "description": "Manifest declaration order — identity first, then standard_fields in listed order, then custom_fields"
+            "description": "Manifest declaration order — identity first, then standard_fields in listed order, then custom_fields",
+            "example": 0
           },
           "enum_values": {
             "type": "array",
@@ -2309,7 +2403,9 @@
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           "display_name": {
-            "type": "string"
+            "type": "string",
+            "description": "The name shown to other users",
+            "example": "Grace Hopper"
           },
           "avatar_source": {
             "type": "string",
@@ -2328,7 +2424,8 @@
                 "$ref": "#/components/schemas/StapelImageDTO"
               }
             ],
-            "nullable": true
+            "nullable": true,
+            "description": "Renderable avatar descriptor, or null when there is no avatar"
           },
           "location_id": {
             "type": "integer",
@@ -2414,10 +2511,14 @@
             "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           "display_name": {
-            "type": "string"
+            "type": "string",
+            "description": "The name shown to other users",
+            "example": "Ada Lovelace"
           },
           "theme": {
-            "type": "string"
+            "type": "string",
+            "description": "UI theme preference (light/dark/system)",
+            "example": "dark"
           },
           "avatar_source": {
             "type": "string",
@@ -2436,7 +2537,8 @@
                 "$ref": "#/components/schemas/StapelImageDTO"
               }
             ],
-            "nullable": true
+            "nullable": true,
+            "description": "Renderable avatar descriptor, or null when there is no avatar"
           },
           "location_id": {
             "type": "integer",
@@ -2461,7 +2563,12 @@
               }
             ],
             "nullable": true,
-            "description": "Selected app language"
+            "description": "Selected app language, or null when none is chosen",
+            "example": {
+              "code": "en",
+              "name": "English",
+              "flag": "/flags/en.svg"
+            }
           },
           "understands": {
             "type": "array",
@@ -2486,7 +2593,8 @@
           },
           "auto_translate_content": {
             "type": "boolean",
-            "description": "Auto-translate ad content"
+            "description": "Auto-translate ad content",
+            "example": false
           },
           "email_messages": {
             "type": "boolean",

@@ -50,7 +50,7 @@ class ContactListResponse:
     show options its own API refuses.
 
     Attributes:
-        contacts: The caller's own contacts, oldest first.
+        contacts: The caller's own contacts, oldest first. Example: [{"id": 7, "kind": "phone", "value": "+15550100", "label": "Work", "policy": "members", "enabled": true, "verified": true, "verified_at": "2026-09-11T09:00:00Z", "reveal_count": 12, "created_at": "2026-09-11T08:00:00Z"}]
         policies: Policy values this deployment accepts, in picker order; the first is the default for a new contact. Example: ["members", "verified", "nobody"]
     """
     contacts: List[ContactResponse]

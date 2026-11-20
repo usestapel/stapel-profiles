@@ -1,0 +1,3106 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "",
+    "version": "0.0.0",
+    "x-stapel-contract": 2
+  },
+  "paths": {
+    "/profiles/api/v1/{user_id}": {
+      "get": {
+        "operationId": "get_profile",
+        "description": "Get compact profile of a specific user by UUID. Includes relationship status with current user if authenticated. A registered user who has never filled anything in answers 200 with an empty-but-renderable profile; 404 means the id names no user.\n\n**Permissions:** `AllowAny`",
+        "summary": "Get user profile",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User UUID",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Profile"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfilePublicResponse"
+                },
+                "examples": {
+                  "ProfilePublicResponse": {
+                    "value": {
+                      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "display_name": "Grace Hopper",
+                      "avatar_source": "file",
+                      "avatar": "avatar/def456",
+                      "avatar_image": null,
+                      "location_id": 42,
+                      "location_display_name_narrow": "LU - Mamer",
+                      "location_display_name_broad": "LU - Differdange",
+                      "followers_count": 120,
+                      "following_count": 30,
+                      "relationship_status": "following",
+                      "seller_type": "business",
+                      "created_at": "2025-01-15T12:00:00Z",
+                      "contacts": {
+                        "phone": true
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.404.profile_not_found"
+            ]
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/{user_id}/block": {
+      "post": {
+        "operationId": "block_user",
+        "description": "Block a user. Creates or updates relationship to \"blocked\" status.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Block user",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User UUID to block",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipActionResponse"
+                },
+                "examples": {
+                  "RelationshipActionResponse": {
+                    "value": {
+                      "success": true,
+                      "status": "following"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.400.cannot_block_self"
+            ]
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/{user_id}/follow": {
+      "post": {
+        "operationId": "follow_user",
+        "description": "Follow a user. Creates or updates relationship to \"following\" status.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Follow user",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User UUID to follow",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipActionResponse"
+                },
+                "examples": {
+                  "RelationshipActionResponse": {
+                    "value": {
+                      "success": true,
+                      "status": "following"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.400.cannot_follow_self"
+            ]
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.404.profile_not_found"
+            ]
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/{user_id}/relationship": {
+      "get": {
+        "operationId": "get_relationship",
+        "description": "Get current relationship status with a user.\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Get relationship status",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User UUID",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipResponse"
+                },
+                "examples": {
+                  "RelationshipResponse": {
+                    "value": {
+                      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "status": "following"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/{user_id}/unblock": {
+      "post": {
+        "operationId": "unblock_user",
+        "description": "Unblock a user. Sets relationship to \"neutral\" status.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Unblock user",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User UUID to unblock",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipActionResponse"
+                },
+                "examples": {
+                  "RelationshipActionResponse": {
+                    "value": {
+                      "success": true,
+                      "status": "following"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/{user_id}/unfollow": {
+      "post": {
+        "operationId": "unfollow_user",
+        "description": "Unfollow a user. Sets relationship to \"neutral\" status.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Unfollow user",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User UUID to unfollow",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipActionResponse"
+                },
+                "examples": {
+                  "RelationshipActionResponse": {
+                    "value": {
+                      "success": true,
+                      "status": "following"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/batch": {
+      "post": {
+        "operationId": "batch_profiles",
+        "description": "Resolve up to PROFILES_BATCH_MAX_IDS (default 100) public profiles in one call. A registered user who has never filled anything in is answered with an empty-but-renderable profile, exactly as `GET .../<user_id>` answers them. Ids that name no user come back in `missing` — a normal state, never a 404. Ids in neither list were not part of the request. Over the limit the request is refused with `error.400.too_many_ids` carrying both numbers; the list is never silently truncated.\n\n**Permissions:** `AllowAny`",
+        "summary": "Get many user profiles at once",
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileBatchRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileBatchRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ProfileBatchRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileBatchResponse"
+                },
+                "examples": {
+                  "ProfileBatchResponse": {
+                    "value": {
+                      "profiles": [
+                        {
+                          "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                          "display_name": "Grace Hopper",
+                          "avatar_source": "file",
+                          "avatar": "avatar/def456",
+                          "avatar_image": null,
+                          "location_id": 42,
+                          "location_display_name_narrow": "LU - Mamer",
+                          "location_display_name_broad": "LU - Differdange",
+                          "followers_count": 120,
+                          "following_count": 30,
+                          "relationship_status": "following",
+                          "seller_type": "business",
+                          "created_at": "2025-01-15T12:00:00Z",
+                          "contacts": {
+                            "phone": true
+                          }
+                        }
+                      ],
+                      "missing": [
+                        "550e8400-e29b-41d4-a716-446655440000"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.400.too_many_ids"
+            ]
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/contacts": {
+      "get": {
+        "operationId": "list_my_contacts",
+        "description": "The caller's own contacts, oldest first, WITH their numbers and reveal counters — this shape is never sent to anybody else. `policies` carries the policy vocabulary this deployment accepts, so the picker renders from the server's answer.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "List my contacts",
+        "tags": [
+          "Contacts"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactListResponse"
+                },
+                "examples": {
+                  "ContactListResponse": {
+                    "value": {
+                      "contacts": [
+                        {
+                          "id": 7,
+                          "kind": "phone",
+                          "value": "+15550100",
+                          "label": "Work",
+                          "policy": "members",
+                          "enabled": true,
+                          "verified": true,
+                          "verified_at": "2026-09-11T09:00:00Z",
+                          "reveal_count": 12,
+                          "created_at": "2026-09-11T08:00:00Z"
+                        }
+                      ],
+                      "policies": [
+                        "members",
+                        "verified",
+                        "nobody"
+                      ]
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      },
+      "post": {
+        "operationId": "add_my_contact",
+        "description": "Store a phone number for the caller. It is normalised to E.164 and starts UNVERIFIED — until `verify/request` + `verify/confirm` have run it is revealed to nobody and the caller's public profile keeps saying `contacts.phone: false`.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Add a contact",
+        "tags": [
+          "Contacts"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactCreateRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactCreateRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactResponse"
+                },
+                "examples": {
+                  "ContactResponse": {
+                    "value": {
+                      "id": 7,
+                      "kind": "phone",
+                      "value": "+15550100",
+                      "label": "Work",
+                      "policy": "members",
+                      "enabled": true,
+                      "verified": true,
+                      "verified_at": "2026-09-11T09:00:00Z",
+                      "reveal_count": 12,
+                      "created_at": "2026-09-11T08:00:00Z"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.400.contacts_invalid_phone",
+              "error.400.contacts_invalid_policy"
+            ]
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.409.contacts_duplicate"
+            ]
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/contacts/{contact_id}": {
+      "patch": {
+        "operationId": "update_my_contact",
+        "description": "Change the label, the policy or the on/off switch (PATCH semantics). The number itself is not editable — a different number is a different thing to prove — and nothing here touches `verified_at`. Somebody else's contact answers 404.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Update a contact",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Contact id",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Contacts"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedContactUpdateRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedContactUpdateRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedContactUpdateRequest"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactResponse"
+                },
+                "examples": {
+                  "ContactResponse": {
+                    "value": {
+                      "id": 7,
+                      "kind": "phone",
+                      "value": "+15550100",
+                      "label": "Work",
+                      "policy": "members",
+                      "enabled": true,
+                      "verified": true,
+                      "verified_at": "2026-09-11T09:00:00Z",
+                      "reveal_count": 12,
+                      "created_at": "2026-09-11T08:00:00Z"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.400.contacts_invalid_policy"
+            ]
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.404.contact_not_found"
+            ]
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete_my_contact",
+        "description": "Remove the number and its journal. The journal goes with it on purpose: the rows exist to tell the OWNER who asked for THIS number, and a number nobody holds any more has no owner to tell.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Delete a contact",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Contact id",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Contacts"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactActionResponse"
+                },
+                "examples": {
+                  "ContactActionResponse": {
+                    "value": {
+                      "success": true
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.404.contact_not_found"
+            ]
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/contacts/{contact_id}/reveals/summary": {
+      "get": {
+        "operationId": "get_contact_reveal_summary",
+        "description": "Counts only — never who. The owner is entitled to know how often their number was handed out; the identity of the people who asked is the viewers' data, and this module does not trade one person's privacy for another's curiosity.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Reveal counters for one of my contacts",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Contact id",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Contacts"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactRevealSummaryResponse"
+                },
+                "examples": {
+                  "ContactRevealSummaryResponse": {
+                    "value": {
+                      "contact_id": 7,
+                      "total": 128,
+                      "last_24h": 4,
+                      "last_7d": 19,
+                      "last_reveal_at": "2026-09-11T09:30:00Z"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.404.contact_not_found"
+            ]
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/contacts/{contact_id}/verify/confirm": {
+      "post": {
+        "operationId": "confirm_contact_verification",
+        "description": "Check the code against the provider and, on a match, stamp `verified_at`. This is the moment the number becomes revealable and the owner's public profile starts saying `contacts.phone: true` (policy permitting).\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Confirm a verification code",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Contact id",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Contacts"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactVerifyConfirmRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactVerifyConfirmRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactVerifyConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactResponse"
+                },
+                "examples": {
+                  "ContactResponse": {
+                    "value": {
+                      "id": 7,
+                      "kind": "phone",
+                      "value": "+15550100",
+                      "label": "Work",
+                      "policy": "members",
+                      "enabled": true,
+                      "verified": true,
+                      "verified_at": "2026-09-11T09:00:00Z",
+                      "reveal_count": 12,
+                      "created_at": "2026-09-11T08:00:00Z"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.400.contacts_code_expired",
+              "error.400.contacts_invalid_code"
+            ]
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.404.contact_not_found"
+            ]
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.429.contacts_code_rate"
+            ]
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.503.contacts_code_unavailable"
+            ]
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/contacts/{contact_id}/verify/request": {
+      "post": {
+        "operationId": "request_contact_verification",
+        "description": "Ask the OTP provider (`STAPEL_PROFILES['CONTACTS']['OTP_PROVIDER']`, stapel-auth's phone service by default) to send a code to this number. The provider owns the code's lifetime, its attempt budget and its resend cooldown; this module owns none of it. Repeats answer 429 `error.429.contacts_code_rate` with `retry_after`.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Send a verification code",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "contact_id",
+            "schema": {
+              "type": "integer"
+            },
+            "description": "Contact id",
+            "required": true
+          }
+        ],
+        "tags": [
+          "Contacts"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactVerifyRequestResponse"
+                },
+                "examples": {
+                  "ContactVerifyRequestResponse": {
+                    "value": {
+                      "sent": true,
+                      "expires_in": 600
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.404.contact_not_found"
+            ]
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.429.contacts_code_rate"
+            ]
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.503.contacts_code_unavailable"
+            ]
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "Bad Request",
+            "x-stapel-errors": [
+              "error.400.contacts_code_expired",
+              "error.400.contacts_invalid_code"
+            ]
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/contacts/reveal": {
+      "post": {
+        "operationId": "reveal_contacts",
+        "description": "Return the seller's numbers this viewer is admitted to, per the policy on each number. An empty list is a normal 200: the seller has no published number, or none for this viewer — the two are deliberately indistinguishable. A caller without an account (signed out OR a guest session) gets 403 `error.403.contacts_registration_required`, which is the storefront's cue to open full registration. Over the hourly budget the answer is 429 `error.429.contacts_reveal_budget` with `retry_after` in seconds. The owner asking for their own numbers always gets all of them, unbudgeted and unjournalled.\n\n**Permissions:** `IsNotAnonymousUser`",
+        "summary": "Show a seller's phone numbers",
+        "tags": [
+          "Contacts"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactRevealRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactRevealRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/ContactRevealRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ContactRevealResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.429.contacts_reveal_budget"
+            ]
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/field-manifest": {
+      "get": {
+        "operationId": "get_field_manifest",
+        "description": "List the profile fields the project's manifest activated (identity preset + standard_fields + custom_fields), in declaration order.\n\n**Permissions:** `AllowAny`",
+        "summary": "Get active profile field manifest",
+        "tags": [
+          "Profile"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProfileFieldManifestEntry"
+                  }
+                },
+                "examples": {
+                  "ProfileFieldManifestEntry": {
+                    "value": [
+                      {
+                        "name": "theme",
+                        "kind": "enum",
+                        "docstring": "UI theme preference.",
+                        "required": false,
+                        "order": 0,
+                        "enum_values": [
+                          "light",
+                          "dark",
+                          "system"
+                        ]
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/languages/": {
+      "get": {
+        "operationId": "list_languages",
+        "description": "Get list of all available languages.\n\n**Permissions:** `AllowAny`",
+        "summary": "List all languages",
+        "tags": [
+          "Languages"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/LanguageResponse"
+                  }
+                },
+                "examples": {
+                  "LanguageResponse": {
+                    "value": [
+                      {
+                        "code": "en",
+                        "name": "English",
+                        "flag": "/flags/en.svg"
+                      }
+                    ]
+                  }
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/languages/{code}/": {
+      "get": {
+        "operationId": "get_language",
+        "description": "Get language details by code.\n\n**Permissions:** `AllowAny`",
+        "summary": "Get language by code",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "code",
+            "schema": {
+              "type": "string",
+              "description": "Language code (e.g., 'en', 'ru', 'de')"
+            },
+            "required": true
+          }
+        ],
+        "tags": [
+          "Languages"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LanguageResponse"
+                },
+                "examples": {
+                  "LanguageResponse": {
+                    "value": {
+                      "code": "en",
+                      "name": "English",
+                      "flag": "/flags/en.svg"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/me": {
+      "get": {
+        "operationId": "get_my_profile",
+        "description": "Get current user's profile. Creates profile with defaults if not exists.\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Get my profile",
+        "tags": [
+          "Profile"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                },
+                "examples": {
+                  "ProfileResponse": {
+                    "value": {
+                      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "display_name": "Ada Lovelace",
+                      "theme": "dark",
+                      "avatar_source": "file",
+                      "avatar": "avatar/abc123",
+                      "avatar_image": null,
+                      "location_id": 42,
+                      "location_display_name_narrow": "LU - Mamer",
+                      "location_display_name_broad": "LU - Differdange",
+                      "app_language": {
+                        "code": "en",
+                        "name": "English",
+                        "flag": "/flags/en.svg"
+                      },
+                      "understands": [
+                        "en",
+                        "fr"
+                      ],
+                      "use_device_language": true,
+                      "auto_detected_language": "de",
+                      "auto_translate_content": false,
+                      "email_messages": true,
+                      "email_system": true,
+                      "push_messages": true,
+                      "push_system": true,
+                      "essential_cookies_accepted": true,
+                      "initial_setup_passed": true,
+                      "followers_count": 42,
+                      "following_count": 15,
+                      "created_at": "2025-01-15T12:00:00Z",
+                      "updated_at": "2025-01-20T14:30:00Z"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      },
+      "patch": {
+        "operationId": "update_my_profile",
+        "description": "Update current user's profile. All fields are optional (PATCH semantics).\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Update my profile",
+        "tags": [
+          "Profile"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedProfileUpdateRequest"
+              }
+            },
+            "application/x-www-form-urlencoded": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedProfileUpdateRequest"
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/PatchedProfileUpdateRequest"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                },
+                "examples": {
+                  "ProfileResponse": {
+                    "value": {
+                      "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                      "display_name": "Ada Lovelace",
+                      "theme": "dark",
+                      "avatar_source": "file",
+                      "avatar": "avatar/abc123",
+                      "avatar_image": null,
+                      "location_id": 42,
+                      "location_display_name_narrow": "LU - Mamer",
+                      "location_display_name_broad": "LU - Differdange",
+                      "app_language": {
+                        "code": "en",
+                        "name": "English",
+                        "flag": "/flags/en.svg"
+                      },
+                      "understands": [
+                        "en",
+                        "fr"
+                      ],
+                      "use_device_language": true,
+                      "auto_detected_language": "de",
+                      "auto_translate_content": false,
+                      "email_messages": true,
+                      "email_system": true,
+                      "push_messages": true,
+                      "push_system": true,
+                      "essential_cookies_accepted": true,
+                      "initial_setup_passed": true,
+                      "followers_count": 42,
+                      "following_count": 15,
+                      "created_at": "2025-01-15T12:00:00Z",
+                      "updated_at": "2025-01-20T14:30:00Z"
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StapelError"
+                }
+              }
+            },
+            "description": "",
+            "x-stapel-errors": [
+              "error.400.avatar_gravatar_hash",
+              "error.400.avatar_not_found",
+              "error.400.avatar_source_mismatch",
+              "error.400.avatar_url_host",
+              "error.400.avatar_url_scheme",
+              "error.400.invalid_avatar_format"
+            ]
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/me/blocked": {
+      "get": {
+        "operationId": "get_my_blocked",
+        "description": "Get list of profiles of users the current user has blocked.\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Get my blocked users",
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProfilePublic"
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/me/followers": {
+      "get": {
+        "operationId": "get_my_followers",
+        "description": "Get list of users following the current user.\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Get my followers",
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowersResponse"
+                },
+                "examples": {
+                  "FollowersResponse": {
+                    "value": {
+                      "followers": [
+                        "550e8400-e29b-41d4-a716-446655440000"
+                      ],
+                      "count": 42
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/me/following": {
+      "get": {
+        "operationId": "get_my_following",
+        "description": "Get list of users the current user is following.\n\n**Permissions:** `IsAuthenticated`",
+        "summary": "Get my following",
+        "tags": [
+          "Relationships"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowingResponse"
+                },
+                "examples": {
+                  "FollowingResponse": {
+                    "value": {
+                      "following": [
+                        "550e8400-e29b-41d4-a716-446655440000"
+                      ],
+                      "count": 15
+                    }
+                  }
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    },
+    "/profiles/api/v1/notifications/unsubscribe": {
+      "post": {
+        "operationId": "unsubscribe_notifications",
+        "description": "Verify HMAC token and toggle the corresponding notification preference off. Uses POST per RFC 8058 (List-Unsubscribe-Post).\n\n**Permissions:** `AllowAny`",
+        "summary": "Unsubscribe from notifications",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "token",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          }
+        ],
+        "tags": [
+          "Notifications"
+        ],
+        "security": [
+          {
+            "JWTCookieAuth": []
+          },
+          {
+            "JWTBearerAuth": []
+          },
+          {}
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": {}
+                }
+              }
+            },
+            "description": ""
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "AvatarSourceEnum": {
+        "enum": [
+          "file",
+          "url",
+          "gravatar",
+          "cdn"
+        ],
+        "type": "string",
+        "description": "* `file` - File\n* `url` - URL\n* `gravatar` - Gravatar\n* `cdn` - CDN"
+      },
+      "ContactActionResponse": {
+        "type": "object",
+        "description": "Result of a contact action that returns no contact.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the action succeeded",
+            "example": true
+          }
+        },
+        "required": [
+          "success"
+        ]
+      },
+      "ContactCreateRequest": {
+        "type": "object",
+        "description": "Add a contact.\n\nThe number must be in international form (leading `+`); it is stored\nE.164, and the same number cannot be added twice by the same person. A\nnew contact starts UNVERIFIED, and therefore invisible to every viewer\nuntil `verify/request` + `verify/confirm` have run.",
+        "properties": {
+          "value": {
+            "type": "string",
+            "description": "Phone number in international form",
+            "example": "+15550100"
+          },
+          "label": {
+            "type": "string",
+            "description": "The owner's own label for it",
+            "example": "Work"
+          },
+          "policy": {
+            "type": "string",
+            "nullable": true,
+            "description": "Who may be handed it; omitted means this deployment's default policy",
+            "example": "members"
+          },
+          "kind": {
+            "type": "string",
+            "description": "What sort of contact this is. Only \"phone\" exists today",
+            "example": "phone"
+          }
+        },
+        "required": [
+          "value"
+        ]
+      },
+      "ContactListResponse": {
+        "type": "object",
+        "description": "The owner's contacts, plus the policy vocabulary this deployment offers.\n\n`policies` rides along so a contacts screen can render the picker from\nthe server's answer instead of hardcoding three strings — a deployment\nthat narrowed `STAPEL_PROFILES[\"CONTACTS\"][\"POLICIES\"]` would otherwise\nshow options its own API refuses.",
+        "properties": {
+          "contacts": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ContactResponse"
+            },
+            "description": "The caller's own contacts, oldest first",
+            "example": [
+              {
+                "id": 7,
+                "kind": "phone",
+                "value": "+15550100",
+                "label": "Work",
+                "policy": "members",
+                "enabled": true,
+                "verified": true,
+                "verified_at": "2026-09-11T09:00:00Z",
+                "reveal_count": 12,
+                "created_at": "2026-09-11T08:00:00Z"
+              }
+            ]
+          },
+          "policies": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Policy values this deployment accepts, in picker order; the first is the default for a new contact",
+            "example": [
+              "members",
+              "verified",
+              "nobody"
+            ]
+          }
+        },
+        "required": [
+          "contacts",
+          "policies"
+        ]
+      },
+      "ContactResponse": {
+        "type": "object",
+        "description": "One of the OWNER's own contacts, as they see it on their own screen.\n\nThis shape is never sent to anybody but the owner, which is why it\ncarries both the number and its reveal counter. A viewer's answer is\n`RevealedPhone`, which carries neither.",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Contact id",
+            "example": 7
+          },
+          "kind": {
+            "type": "string",
+            "description": "What sort of contact this is",
+            "example": "phone"
+          },
+          "value": {
+            "type": "string",
+            "description": "The number in E.164",
+            "example": "+15550100"
+          },
+          "label": {
+            "type": "string",
+            "description": "The owner's own label for it",
+            "example": "Work"
+          },
+          "policy": {
+            "type": "string",
+            "description": "Who may be handed this number (members, verified, nobody)",
+            "example": "members"
+          },
+          "enabled": {
+            "type": "boolean",
+            "description": "The owner's on/off switch, independent of the policy",
+            "example": true
+          },
+          "verified": {
+            "type": "boolean",
+            "description": "Whether the SMS code has been confirmed. An unverified number is revealed to nobody",
+            "example": true
+          },
+          "verified_at": {
+            "type": "string",
+            "nullable": true,
+            "description": "When the code was confirmed, or null",
+            "example": "2026-09-11T09:00:00Z"
+          },
+          "reveal_count": {
+            "type": "integer",
+            "description": "How many times this number has been handed over, ever",
+            "example": 12
+          },
+          "created_at": {
+            "type": "string",
+            "description": "When the contact was added",
+            "example": "2026-09-11T08:00:00Z"
+          }
+        },
+        "required": [
+          "created_at",
+          "enabled",
+          "id",
+          "kind",
+          "label",
+          "policy",
+          "reveal_count",
+          "value",
+          "verified",
+          "verified_at"
+        ]
+      },
+      "ContactRevealRequest": {
+        "type": "object",
+        "description": "Ask for a seller's numbers.",
+        "properties": {
+          "owner_key": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User UUID of the person whose numbers are asked for",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "listing_id": {
+            "type": "string",
+            "nullable": true,
+            "description": "Where the viewer was standing, for the owner's journal. Opaque to this module",
+            "example": 91823
+          }
+        },
+        "required": [
+          "owner_key"
+        ]
+      },
+      "ContactRevealResponse": {
+        "type": "object",
+        "description": "The numbers this viewer was admitted to.\n\nAn empty list is a normal, successful answer: the seller has no\npublished number, or none whose policy admits this viewer. The two cases\nare deliberately indistinguishable — \"there is a number you may not\nread\" is itself a fact about the seller, and this endpoint does not\ndisclose it.\n\nSent with `Cache-Control: no-store`: the answer is per-viewer, budgeted\nand journalled, and a shared cache copy would be a hand-over nobody\nrecorded.",
+        "properties": {
+          "phones": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RevealedPhone"
+            },
+            "description": "The numbers, in the order the owner added them"
+          }
+        },
+        "required": [
+          "phones"
+        ]
+      },
+      "ContactRevealSummaryResponse": {
+        "type": "object",
+        "description": "How often one of the OWNER's numbers has been handed over.",
+        "properties": {
+          "contact_id": {
+            "type": "integer",
+            "description": "Which contact this counts",
+            "example": 7
+          },
+          "total": {
+            "type": "integer",
+            "description": "Hand-overs ever",
+            "example": 128
+          },
+          "last_24h": {
+            "type": "integer",
+            "description": "Hand-overs in the last 24 hours",
+            "example": 4
+          },
+          "last_7d": {
+            "type": "integer",
+            "description": "Hand-overs in the last 7 days",
+            "example": 19
+          },
+          "last_reveal_at": {
+            "type": "string",
+            "nullable": true,
+            "description": "When it was last handed over, or null",
+            "example": "2026-09-11T09:30:00Z"
+          }
+        },
+        "required": [
+          "contact_id",
+          "last_24h",
+          "last_7d",
+          "last_reveal_at",
+          "total"
+        ]
+      },
+      "ContactVerifyConfirmRequest": {
+        "type": "object",
+        "description": "Confirm the code that was sent to the number.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "The code from the SMS",
+            "example": 123456
+          }
+        },
+        "required": [
+          "code"
+        ]
+      },
+      "ContactVerifyRequestResponse": {
+        "type": "object",
+        "description": "A verification code was sent to the number.",
+        "properties": {
+          "sent": {
+            "type": "boolean",
+            "description": "Always true — a refusal is an error envelope, not a false here",
+            "example": true
+          },
+          "expires_in": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Seconds the code stays good, when the provider says",
+            "example": 600
+          }
+        },
+        "required": [
+          "expires_in",
+          "sent"
+        ]
+      },
+      "FollowersResponse": {
+        "type": "object",
+        "description": "User's followers list.",
+        "properties": {
+          "followers": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "List of follower user UUIDs",
+            "example": [
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "description": "Total follower count",
+            "example": 42
+          }
+        },
+        "required": [
+          "count",
+          "followers"
+        ]
+      },
+      "FollowingResponse": {
+        "type": "object",
+        "description": "Users followed by this user.",
+        "properties": {
+          "following": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "List of followed user UUIDs",
+            "example": [
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          },
+          "count": {
+            "type": "integer",
+            "description": "Total following count",
+            "example": 15
+          }
+        },
+        "required": [
+          "count",
+          "following"
+        ]
+      },
+      "LanguageResponse": {
+        "type": "object",
+        "description": "Language info.",
+        "properties": {
+          "code": {
+            "type": "string",
+            "description": "ISO 639-1 language code",
+            "example": "en"
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable language name",
+            "example": "English"
+          },
+          "flag": {
+            "type": "string",
+            "nullable": true,
+            "description": "URL to flag image",
+            "example": "/flags/en.svg"
+          }
+        },
+        "required": [
+          "code",
+          "flag",
+          "name"
+        ]
+      },
+      "PatchedContactUpdateRequest": {
+        "type": "object",
+        "description": "Change a contact (PATCH, all optional).\n\nThe number itself is not editable: a different number is a different\nthing to prove, so it is a different contact. Everything else the owner\nmay change at will, and none of it touches `verified_at`.",
+        "properties": {
+          "label": {
+            "type": "string",
+            "nullable": true,
+            "description": "The owner's own label for it",
+            "example": "Mobile"
+          },
+          "policy": {
+            "type": "string",
+            "nullable": true,
+            "description": "Who may be handed it",
+            "example": "verified"
+          },
+          "enabled": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Switch it off without deleting it or changing its policy",
+            "example": false
+          }
+        }
+      },
+      "PatchedProfileUpdateRequest": {
+        "type": "object",
+        "description": "Update profile fields (PATCH, all optional).",
+        "properties": {
+          "display_name": {
+            "type": "string",
+            "nullable": true,
+            "description": "User's display name",
+            "example": "Ada Lovelace"
+          },
+          "theme": {
+            "type": "string",
+            "nullable": true,
+            "description": "UI theme preference (light/dark/system)",
+            "example": "dark"
+          },
+          "avatar_source": {
+            "type": "string",
+            "nullable": true,
+            "description": "Where avatar points (file, url, gravatar, cdn)",
+            "example": "file"
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true,
+            "description": "Avatar reference matching avatar_source",
+            "example": "avatar/abc123"
+          },
+          "location_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Geo service location ID",
+            "example": 42
+          },
+          "app_language": {
+            "type": "string",
+            "nullable": true,
+            "description": "ISO 639-1 language code",
+            "example": "en"
+          },
+          "understands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "description": "List of understood language codes",
+            "example": [
+              "en",
+              "fr"
+            ]
+          },
+          "use_device_language": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Use device language for UI",
+            "example": true
+          },
+          "auto_translate_content": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Auto-translate ad content",
+            "example": false
+          },
+          "email_messages": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Toggle message email notifications",
+            "example": true
+          },
+          "email_system": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Toggle system email notifications",
+            "example": true
+          },
+          "push_messages": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Toggle message push notifications",
+            "example": true
+          },
+          "push_system": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Toggle system push notifications",
+            "example": true
+          },
+          "essential_cookies_accepted": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Essential cookies consent",
+            "example": true
+          },
+          "initial_setup_passed": {
+            "type": "boolean",
+            "nullable": true,
+            "description": "Mark onboarding as complete",
+            "example": true
+          }
+        }
+      },
+      "ProfileBatchRequest": {
+        "type": "object",
+        "description": "Look up many public profiles in one request.\n\nSent as a POST body rather than a `?ids=` query string on purpose: a\npeople grid resolves 50-100 ids at once, which is 1.9-3.7 kB of UUIDs —\npast the conservative 2 kB URL ceiling old proxies/WAFs still enforce,\nand close to nginx's default 8 kB request-line+header budget once a JWT\ncookie rides along. A 414 there would read to the user as \"the profile\nservice is down\", which is exactly the failure mode this endpoint exists\nto remove. A body also keeps the roster of who is being looked at out of\naccess logs and Referer headers.\n\nPOST is the transport, not the semantics: this is a read, it changes\nnothing and is safe to repeat. HTTP caching is given up in the trade —\nacceptable, because the caller batches precisely because it keeps its\nown per-id cache and only asks for the ids missing from it.",
+        "properties": {
+          "user_ids": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "User UUIDs to look up. Duplicates are collapsed; found profiles come back in the order first requested",
+            "example": [
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          }
+        },
+        "required": [
+          "user_ids"
+        ]
+      },
+      "ProfileBatchResponse": {
+        "type": "object",
+        "description": "Answer of the batch lookup: the profiles that exist + the ids with none.\n\nThe split is the whole point of the endpoint. \"This user has no profile\nrow\" is a NORMAL state — nobody has opened settings yet — not a failure,\nso it must not arrive as a 404 per id: that is what turned a 16-tile\ncontact grid into 16 red console lines. Reading the answer:\n\n* id in ``profiles`` — there is a profile, here it is;\n* id in ``missing`` — asked, none exists: render the placeholder, cache\nthe negative, do not retry, nothing is broken;\n* id in neither — it was not part of THIS request.\n\n``profiles`` and ``missing`` together always cover exactly the\ndeduplicated ids that were sent, so \"absent\" never has to be guessed at.\nNothing is invented for a missing id: an id in ``missing`` carries no\npayload at all, because a filled-in placeholder would be this service\nasserting a display name for a person who never chose one.\n\nThe status is 200 in every one of those cases, including \"all missing\".",
+        "properties": {
+          "profiles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ProfilePublicResponse"
+            },
+            "description": "Profiles that exist, in the order their ids were first requested",
+            "example": [
+              {
+                "user_id": "550e8400-e29b-41d4-a716-446655440000",
+                "display_name": "Grace Hopper",
+                "avatar_source": "file",
+                "avatar": "avatar/def456",
+                "avatar_image": null,
+                "location_id": 42,
+                "location_display_name_narrow": "LU - Mamer",
+                "location_display_name_broad": "LU - Differdange",
+                "followers_count": 120,
+                "following_count": 30,
+                "relationship_status": "following",
+                "seller_type": "business",
+                "created_at": "2025-01-15T12:00:00Z",
+                "contacts": {
+                  "phone": true
+                }
+              }
+            ]
+          },
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "description": "Requested ids with no profile row — a normal state, not an error",
+            "example": [
+              "550e8400-e29b-41d4-a716-446655440000"
+            ]
+          }
+        },
+        "required": [
+          "missing",
+          "profiles"
+        ]
+      },
+      "ProfileContactFlags": {
+        "type": "object",
+        "description": "What a public profile says about a person's contacts — one bit.\n\nTrue means: there is at least one phone on this profile that is\nswitched on, proven by SMS, and not withheld from everyone. It is what a\nstorefront draws the \"Show phone\" button from. It is NOT a promise that\nthe caller will get a number: the policy on each number is applied by\n`POST /profiles/api/v1/contacts/reveal`, and the answer there may still\nbe an empty list or the registration door.\n\nViewer-independent on purpose: a bit that changed with the viewer would\nleak the policy itself (\"the button vanished when I signed out, so that\nnumber is members-only\") and would make a public field uncacheable.",
+        "properties": {
+          "phone": {
+            "type": "boolean",
+            "description": "Whether there is a phone worth asking for",
+            "example": true
+          }
+        },
+        "required": [
+          "phone"
+        ]
+      },
+      "ProfileFieldManifestEntry": {
+        "type": "object",
+        "description": "One active profile field, as the frontend skin needs it to render\nitself without hardcoding field names (docs/pending/profile-fields.md,\n\"Owner Addendum\" §1 — data-driven skin, tier 1 of the two-tier\nfront-pair answer). GET /profiles/api/v1/field-manifest/ returns a list\nof these for whatever the project's STAPEL_PROFILES[\"FIELDS\"] manifest\n(identity preset + standard_fields + custom_fields) actually selected.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Field name",
+            "example": "theme"
+          },
+          "kind": {
+            "type": "string",
+            "description": "Storage/presentation kind (text, bool, enum, model_ref, geohash)",
+            "example": "enum"
+          },
+          "docstring": {
+            "type": "string",
+            "description": "Human-readable field description, feeds help text",
+            "example": "UI theme preference."
+          },
+          "required": {
+            "type": "boolean",
+            "description": "Whether the field is required (not blank)",
+            "example": false
+          },
+          "order": {
+            "type": "integer",
+            "description": "Manifest declaration order — identity first, then standard_fields in listed order, then custom_fields",
+            "example": 0
+          },
+          "enum_values": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "description": "Choice values, only present when kind is enum",
+            "example": [
+              "light",
+              "dark",
+              "system"
+            ]
+          }
+        },
+        "required": [
+          "docstring",
+          "kind",
+          "name",
+          "order",
+          "required"
+        ]
+      },
+      "ProfilePublic": {
+        "type": "object",
+        "description": "Compact serializer for viewing other user's profile.\n\nThe three social fields (`followers_count`, `following_count`,\n`relationship_status`) are per-row queries by default. A caller\nserializing MANY profiles at once (POST .../batch) precomputes them for\nthe whole page and passes the maps through the serializer context (the\n`CTX_*` keys above); the methods below prefer the map when it is there.\nWithout that, a 50-tile grid would trade 50 HTTP requests for 150 SQL\nqueries — a worse deal than the problem the batch endpoint solves.",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User UUID from auth service"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "User's display name.",
+            "maxLength": 80
+          },
+          "avatar_source": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/AvatarSourceEnum"
+              }
+            ],
+            "description": "Where `avatar` points: uploaded file key, arbitrary URL, Gravatar email-hash, or a CDN ref. Defaults to file/url — cdn is opt-in, not the default.\n\n* `file` - File\n* `url` - URL\n* `gravatar` - Gravatar\n* `cdn` - CDN"
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true,
+            "description": "Avatar reference matching avatar_source: CDN 'avatar/<hash>' ref, a Gravatar email-hash, a plain URL, or an uploaded file key.",
+            "maxLength": 500
+          },
+          "avatar_image": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StapelImage"
+              }
+            ],
+            "nullable": true,
+            "readOnly": true
+          },
+          "location_id": {
+            "type": "integer",
+            "maximum": 9223372036854775807,
+            "minimum": -9223372036854775808,
+            "format": "int64",
+            "nullable": true,
+            "description": "User's location ID from geo service"
+          },
+          "location_display_name_narrow": {
+            "type": "string",
+            "description": "Cached narrow location display name from geo service",
+            "maxLength": 255
+          },
+          "location_display_name_broad": {
+            "type": "string",
+            "description": "Cached broad location display name from geo service",
+            "maxLength": 255
+          },
+          "followers_count": {
+            "type": "integer",
+            "description": "Get count of users following this profile.",
+            "readOnly": true
+          },
+          "following_count": {
+            "type": "integer",
+            "description": "Get count of users this profile is following.",
+            "readOnly": true
+          },
+          "relationship_status": {
+            "type": "string",
+            "nullable": true,
+            "description": "Get relationship status with current user.",
+            "readOnly": true
+          },
+          "seller_type": {
+            "type": "string",
+            "nullable": true,
+            "description": "The self-declared trading capacity, or `None` when unset.\n\n`None` covers both \"this deployment's profile model carries no\n`seller_type` field at all\" and \"it carries one and nobody filled it\nin\" — a caller cannot tell the two apart from this response, which is\ncorrect: neither means anything the caller should act on.",
+            "readOnly": true
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "contacts": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfileContactFlags"
+              }
+            ],
+            "readOnly": true
+          }
+        },
+        "required": [
+          "avatar_image",
+          "contacts",
+          "created_at",
+          "followers_count",
+          "following_count",
+          "relationship_status",
+          "seller_type",
+          "user_id"
+        ]
+      },
+      "ProfilePublicResponse": {
+        "type": "object",
+        "description": "Public profile for viewing other users.",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User UUID",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "The name shown to other users",
+            "example": "Grace Hopper"
+          },
+          "avatar_source": {
+            "type": "string",
+            "description": "Where avatar points (file, url, gravatar, cdn)",
+            "example": "file"
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true,
+            "description": "Avatar reference matching avatar_source",
+            "example": "avatar/def456"
+          },
+          "avatar_image": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StapelImageDTO"
+              }
+            ],
+            "nullable": true,
+            "description": "Renderable avatar descriptor, or null when there is no avatar"
+          },
+          "location_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Geo service location ID",
+            "example": 42
+          },
+          "location_display_name_narrow": {
+            "type": "string",
+            "description": "Short location",
+            "example": "LU - Mamer"
+          },
+          "location_display_name_broad": {
+            "type": "string",
+            "description": "Broad location",
+            "example": "LU - Differdange"
+          },
+          "followers_count": {
+            "type": "integer",
+            "description": "Number of followers",
+            "example": 120
+          },
+          "following_count": {
+            "type": "integer",
+            "description": "Number of users followed",
+            "example": 30
+          },
+          "relationship_status": {
+            "type": "string",
+            "nullable": true,
+            "description": "Relationship to current user",
+            "example": "following"
+          },
+          "seller_type": {
+            "type": "string",
+            "nullable": true,
+            "description": "Self-declared trading capacity (\"private\"/\"business\"), or null when this deployment's profile carries no such field or the person never declared one",
+            "example": "business"
+          },
+          "created_at": {
+            "type": "string",
+            "nullable": true,
+            "description": "ISO 8601 time this PROFILE was created — the tenure a seller page renders as \"on the site since March 2024\". Not a sign-in time and not an activity signal",
+            "example": "2025-01-15T12:00:00Z"
+          },
+          "contacts": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfileContactFlags"
+              }
+            ],
+            "description": "Which kinds of contact this person has published — the fact only, never the value",
+            "example": {
+              "phone": true
+            }
+          }
+        },
+        "required": [
+          "avatar",
+          "avatar_image",
+          "avatar_source",
+          "contacts",
+          "created_at",
+          "display_name",
+          "followers_count",
+          "following_count",
+          "location_display_name_broad",
+          "location_display_name_narrow",
+          "location_id",
+          "relationship_status",
+          "seller_type",
+          "user_id"
+        ]
+      },
+      "ProfileResponse": {
+        "type": "object",
+        "description": "Full user profile (for /me endpoint).\n\n§66 alpha-cut: only the hard core (docs/pending/profile-fields.md) is\nlisted here — display_name/currency_code/measurement_units/theme moved\nto the standard-field registry (`field_defs.py`); a project that swapped\nin an extended Profile model exposes those through its own DTO/presenter,\nnot this one.",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User UUID",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "display_name": {
+            "type": "string",
+            "description": "The name shown to other users",
+            "example": "Ada Lovelace"
+          },
+          "theme": {
+            "type": "string",
+            "description": "UI theme preference (light/dark/system)",
+            "example": "dark"
+          },
+          "avatar_source": {
+            "type": "string",
+            "description": "Where avatar points (file, url, gravatar, cdn)",
+            "example": "file"
+          },
+          "avatar": {
+            "type": "string",
+            "nullable": true,
+            "description": "Avatar reference matching avatar_source",
+            "example": "avatar/abc123"
+          },
+          "avatar_image": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/StapelImageDTO"
+              }
+            ],
+            "nullable": true,
+            "description": "Renderable avatar descriptor, or null when there is no avatar"
+          },
+          "location_id": {
+            "type": "integer",
+            "nullable": true,
+            "description": "Geo service location ID",
+            "example": 42
+          },
+          "location_display_name_narrow": {
+            "type": "string",
+            "description": "Short location",
+            "example": "LU - Mamer"
+          },
+          "location_display_name_broad": {
+            "type": "string",
+            "description": "Broad location",
+            "example": "LU - Differdange"
+          },
+          "app_language": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LanguageResponse"
+              }
+            ],
+            "nullable": true,
+            "description": "Selected app language, or null when none is chosen",
+            "example": {
+              "code": "en",
+              "name": "English",
+              "flag": "/flags/en.svg"
+            }
+          },
+          "understands": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "List of language codes the user understands",
+            "example": [
+              "en",
+              "fr"
+            ]
+          },
+          "use_device_language": {
+            "type": "boolean",
+            "description": "Use device language for UI",
+            "example": true
+          },
+          "auto_detected_language": {
+            "type": "string",
+            "description": "Last detected language from Accept-Language header",
+            "example": "de"
+          },
+          "auto_translate_content": {
+            "type": "boolean",
+            "description": "Auto-translate ad content",
+            "example": false
+          },
+          "email_messages": {
+            "type": "boolean",
+            "description": "Receive message notifications via email",
+            "example": true
+          },
+          "email_system": {
+            "type": "boolean",
+            "description": "Receive system notifications via email",
+            "example": true
+          },
+          "push_messages": {
+            "type": "boolean",
+            "description": "Receive message notifications via push",
+            "example": true
+          },
+          "push_system": {
+            "type": "boolean",
+            "description": "Receive system notifications via push",
+            "example": true
+          },
+          "essential_cookies_accepted": {
+            "type": "boolean",
+            "description": "Essential cookies consent",
+            "example": true
+          },
+          "initial_setup_passed": {
+            "type": "boolean",
+            "description": "Whether onboarding is complete",
+            "example": true
+          },
+          "followers_count": {
+            "type": "integer",
+            "description": "Number of followers",
+            "example": 42
+          },
+          "following_count": {
+            "type": "integer",
+            "description": "Number of users followed",
+            "example": 15
+          },
+          "created_at": {
+            "type": "string",
+            "description": "ISO 8601 creation time",
+            "example": "2025-01-15T12:00:00Z"
+          },
+          "updated_at": {
+            "type": "string",
+            "description": "ISO 8601 last update time",
+            "example": "2025-01-20T14:30:00Z"
+          }
+        },
+        "required": [
+          "app_language",
+          "auto_detected_language",
+          "auto_translate_content",
+          "avatar",
+          "avatar_image",
+          "avatar_source",
+          "created_at",
+          "display_name",
+          "email_messages",
+          "email_system",
+          "essential_cookies_accepted",
+          "followers_count",
+          "following_count",
+          "initial_setup_passed",
+          "location_display_name_broad",
+          "location_display_name_narrow",
+          "location_id",
+          "push_messages",
+          "push_system",
+          "theme",
+          "understands",
+          "updated_at",
+          "use_device_language",
+          "user_id"
+        ]
+      },
+      "RelationshipActionResponse": {
+        "type": "object",
+        "description": "Result of a relationship action.",
+        "properties": {
+          "success": {
+            "type": "boolean",
+            "description": "Whether the action succeeded",
+            "example": true
+          },
+          "status": {
+            "type": "string",
+            "description": "New relationship status",
+            "example": "following"
+          }
+        },
+        "required": [
+          "status",
+          "success"
+        ]
+      },
+      "RelationshipResponse": {
+        "type": "object",
+        "description": "User relationship status.",
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Target user UUID",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          "status": {
+            "type": "string",
+            "description": "Relationship status",
+            "example": "following"
+          }
+        },
+        "required": [
+          "status",
+          "user_id"
+        ]
+      },
+      "RevealedPhone": {
+        "type": "object",
+        "description": "One number a viewer was admitted to.\n\nDeliberately minimal: a label and a number. No id, no policy, no\ncounters — a viewer has no business knowing how a seller's contacts are\norganised, only how to call them.",
+        "properties": {
+          "label": {
+            "type": "string",
+            "description": "The owner's own label for it, possibly empty",
+            "example": "Work"
+          },
+          "value": {
+            "type": "string",
+            "description": "The number in E.164",
+            "example": "+15550100"
+          }
+        },
+        "required": [
+          "label",
+          "value"
+        ]
+      },
+      "StapelError": {
+        "type": "object",
+        "description": "Structured error returned by all Stapel API endpoints.",
+        "properties": {
+          "localizable_error": {
+            "type": "string",
+            "description": "Translation key for client-side localization",
+            "example": "error.404.not_found"
+          },
+          "error": {
+            "type": "string",
+            "description": "Human-readable fallback/debug message — not reliably English,"
+          },
+          "params": {
+            "type": "object",
+            "additionalProperties": {},
+            "description": "Context values for template placeholders",
+            "example": {
+              "retry_after": 30
+            }
+          },
+          "error_language": {
+            "type": "string",
+            "description": "The language `error` is written in (e.g. 'en', 'ru'),"
+          }
+        },
+        "required": [
+          "error",
+          "localizable_error"
+        ]
+      },
+      "StapelImage": {
+        "type": "object",
+        "description": "The source-agnostic image descriptor — mirrors ``StapelImage``.\n\n``variants`` is the CDN/PIL ladder, or ``[]`` for a ``\"link\"`` / unprocessed\nfile, in which case the renderer degrades to the single top-level ``url``.",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string",
+            "nullable": true
+          },
+          "width": {
+            "type": "integer",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "nullable": true
+          },
+          "aspect": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "square": {
+            "type": "boolean"
+          },
+          "preview_b64": {
+            "type": "string",
+            "nullable": true
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VariantMeta"
+            }
+          }
+        },
+        "required": [
+          "aspect",
+          "height",
+          "mime",
+          "preview_b64",
+          "source",
+          "square",
+          "url",
+          "variants",
+          "width"
+        ]
+      },
+      "StapelImageDTO": {
+        "type": "object",
+        "description": "Mirror of `types.StapelImage` — the source-agnostic image descriptor.",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string",
+            "nullable": true
+          },
+          "width": {
+            "type": "integer",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "nullable": true
+          },
+          "aspect": {
+            "type": "number",
+            "format": "double",
+            "nullable": true
+          },
+          "square": {
+            "type": "boolean"
+          },
+          "preview_b64": {
+            "type": "string",
+            "nullable": true
+          },
+          "variants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VariantMetaDTO"
+            }
+          }
+        },
+        "required": [
+          "aspect",
+          "height",
+          "mime",
+          "preview_b64",
+          "source",
+          "square",
+          "url",
+          "width"
+        ]
+      },
+      "VariantMeta": {
+        "type": "object",
+        "description": "One generated variant file (or the original) — mirrors ``VariantMeta``.",
+        "properties": {
+          "tier": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "type": "integer",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "nullable": true
+          }
+        },
+        "required": [
+          "branch",
+          "height",
+          "tier",
+          "url",
+          "width"
+        ]
+      },
+      "VariantMetaDTO": {
+        "type": "object",
+        "description": "Mirror of `types.VariantMeta`. ``tier`` ON THE WIRE is always a string —\na numeric px value as its decimal string (``\"320\"``) or the literal\n``\"original\"`` — matching the runtime `_TierField` (`drf.py`). The\n`@stapel/image` hand-mirror parses the numeric ones for its tier math.",
+        "properties": {
+          "tier": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string"
+          },
+          "width": {
+            "type": "integer",
+            "nullable": true
+          },
+          "height": {
+            "type": "integer",
+            "nullable": true
+          }
+        },
+        "required": [
+          "branch",
+          "height",
+          "tier",
+          "url",
+          "width"
+        ]
+      }
+    },
+    "securitySchemes": {
+      "JWTBearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "JWT access token in the `Authorization: Bearer <token>` header — the credential a native client sends. When the JWT cookie is also present, the cookie wins."
+      },
+      "JWTCookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "stapel_jwt",
+        "description": "JWT token stored in cookie. Login via /auth/admin/ to get the cookie."
+      }
+    }
+  }
+}

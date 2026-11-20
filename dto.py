@@ -34,12 +34,15 @@ class ProfileResponse:
 
     Attributes:
         user_id: User UUID. Example: 550e8400-e29b-41d4-a716-446655440000
+        display_name: The name shown to other users. Example: Ada Lovelace
+        theme: UI theme preference (light/dark/system). Example: dark
         avatar_source: Where avatar points (file, url, gravatar, cdn). Example: file
         avatar: Avatar reference matching avatar_source. Example: avatar/abc123
+        avatar_image: Renderable avatar descriptor, or null when there is no avatar. Example: null
         location_id: Geo service location ID. Example: 42
         location_display_name_narrow: Short location. Example: LU - Mamer
         location_display_name_broad: Broad location. Example: LU - Differdange
-        app_language: Selected app language.
+        app_language: Selected app language, or null when none is chosen. Example: {"code": "en", "name": "English", "flag": "/flags/en.svg"}
         understands: List of language codes the user understands. Example: ["en", "fr"]
         use_device_language: Use device language for UI. Example: true
         auto_detected_language: Last detected language from Accept-Language header. Example: de
@@ -92,8 +95,10 @@ class ProfilePublicResponse:
 
     Attributes:
         user_id: User UUID. Example: 550e8400-e29b-41d4-a716-446655440000
+        display_name: The name shown to other users. Example: Grace Hopper
         avatar_source: Where avatar points (file, url, gravatar, cdn). Example: file
         avatar: Avatar reference matching avatar_source. Example: avatar/def456
+        avatar_image: Renderable avatar descriptor, or null when there is no avatar. Example: null
         location_id: Geo service location ID. Example: 42
         location_display_name_narrow: Short location. Example: LU - Mamer
         location_display_name_broad: Broad location. Example: LU - Differdange
@@ -236,7 +241,7 @@ class ProfileBatchResponse:
     The status is 200 in every one of those cases, including "all missing".
 
     Attributes:
-        profiles: Profiles that exist, in the order their ids were first requested.
+        profiles: Profiles that exist, in the order their ids were first requested. Example: [{"user_id": "550e8400-e29b-41d4-a716-446655440000", "display_name": "Grace Hopper", "avatar_source": "file", "avatar": "avatar/def456", "avatar_image": null, "location_id": 42, "location_display_name_narrow": "LU - Mamer", "location_display_name_broad": "LU - Differdange", "followers_count": 120, "following_count": 30, "relationship_status": "following", "seller_type": "business", "created_at": "2025-01-15T12:00:00Z", "contacts": {"phone": true}}]
         missing: Requested ids with no profile row — a normal state, not an error. Example: ["550e8400-e29b-41d4-a716-446655440000"]
     """
     profiles: List[ProfilePublicResponse]

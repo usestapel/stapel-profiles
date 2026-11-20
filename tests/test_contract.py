@@ -59,7 +59,7 @@ TRIAD = ("schema.json", "flows.json", "errors.json")
 # The fifth artifact (badge-canon §3): docs/llms.txt, the module's own
 # context slice for an agent, rendered from capabilities.json + the triad by
 # stapel_tools.llms_txt. Same emit/drift discipline as the rest.
-ARTIFACTS = TRIAD + ("capabilities.json", "llms.txt")
+ARTIFACTS = TRIAD + ("schema.v2.json", "capabilities.json", "llms.txt")
 
 
 def _emit(out_dir: Path) -> None:

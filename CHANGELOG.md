@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.23.1] — 2026-11-20
+
+Patch. No migration, no consumer edit. Requires stapel-core 0.99.0.
+
+- **Contract profile 2:** `docs/schema.v2.json` (stapel_tools.codegen
+  `contract_profile=2`) beside the unchanged-profile `docs/schema.json`, for a
+  native client generator: bearer scheme, public operations from the running
+  permission stack, error codes bound per response (`x-stapel-errors`).
+- **Examples:** 5 of 21 examples did not validate against their own schema —
+  `ProfileResponse` / `ProfilePublicResponse` without `display_name`,
+  `avatar_image` (and `theme`, `app_language`), the batch and contacts lists
+  without a single item. Completed in the DTO docstrings; `Example: false`
+  fields are kept by core 0.99.0.
+- **Celery is not a dependency.** Nothing at runtime uses it; the
+  contract-emission harness imported it unconditionally and the package
+  declared `celery>=5.3` to satisfy that. The harness binds an eager app only
+  when celery is installed; `tests/test_celery_optional.py` emits the contract
+  with celery unimportable.
+- Gates (`tests/test_contract_profile2.py`, on stapel-tools 0.84.0's
+  `contract_gates`): `schema.v2.json` is profile 2 of the same surface with
+  bound codes drawn from `errors.json`; every example in both documents
+  validates against its schema (inversion included); no `@action` declares a
+  permission, authenticator or throttle its mount never runs.
+
 ## [0.23.0] — 2026-11-05
 
 - **`profiles.social_graph {user_id, limit?}` → `{following, blocked,
