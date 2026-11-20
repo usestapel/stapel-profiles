@@ -925,7 +925,7 @@ def test_every_caller_state_is_answered_as_declared(method, path):
     not refuse them 401. The first run found the public read answering a
     caller without an account with five required keys missing.
     """
-    from tests._contract_gates_next import AuthStateReplay
+    from stapel_tools.contract_gates import AuthStateReplay
 
     # The first document's `security` is the claim: profile 2 derives it from
     # the running permission stack, profile 1 does not.
