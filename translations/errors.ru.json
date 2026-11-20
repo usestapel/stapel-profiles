@@ -16,7 +16,6 @@
   "error.400.display_name_too_short": "Отображаемое имя должно содержать не менее 2 символов",
   "error.400.invalid_avatar_format": "Неверный формат ссылки на аватар. Ожидается: avatar/<hash>",
   "error.400.invalid_currency": "Неверный код валюты",
-  "error.400.too_many_ids": "Слишком много идентификаторов: запрошено {requested}, максимум {limit} за один запрос",
   "error.403.contacts_registration_required": "Зарегистрируйтесь, чтобы увидеть телефон продавца",
   "error.404.contact_not_found": "Контакт не найден",
   "error.404.profile_not_found": "Профиль не найден",

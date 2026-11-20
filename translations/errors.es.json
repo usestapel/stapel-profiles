@@ -16,7 +16,6 @@
   "error.400.display_name_too_short": "El nombre para mostrar debe tener al menos 2 caracteres",
   "error.400.invalid_avatar_format": "Formato de referencia de avatar no válido. Se esperaba: avatar/<hash>",
   "error.400.invalid_currency": "Código de moneda no válido",
-  "error.400.too_many_ids": "Demasiados identificadores: {requested} solicitados, como máximo {limit} por solicitud por lotes",
   "error.403.contacts_registration_required": "Regístrate para ver el teléfono del vendedor",
   "error.404.contact_not_found": "Contacto no encontrado",
   "error.404.profile_not_found": "Perfil no encontrado",

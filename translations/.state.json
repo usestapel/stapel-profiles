@@ -68,10 +68,6 @@
       "hash": "3a546b869a9ac4f5",
       "origin": "seed:stapel-builtin"
     },
-    "error.400.too_many_ids": {
-      "hash": "f6368a24e46084ec",
-      "origin": "llm"
-    },
     "error.403.contacts_registration_required": {
       "hash": "84b9cc8ca2a825e5",
       "origin": "llm"
@@ -169,10 +165,6 @@
     "error.400.invalid_currency": {
       "hash": "3a546b869a9ac4f5",
       "origin": "seed:stapel-builtin"
-    },
-    "error.400.too_many_ids": {
-      "hash": "f6368a24e46084ec",
-      "origin": "human"
     },
     "error.403.contacts_registration_required": {
       "hash": "84b9cc8ca2a825e5",

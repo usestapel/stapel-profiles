@@ -1,6 +1,14 @@
 """Custom error keys for the profiles service."""
 
-from stapel_core.django.api.errors import ErrorKeysView, register_service_errors
+from stapel_core.django.api.errors import (  # noqa: F401 - ERR_400_TOO_MANY_IDS re-exported
+    ERR_400_TOO_MANY_IDS,
+    ErrorKeysView,
+    register_service_errors,
+)
+
+#: POST .../batch over PROFILES_BATCH_MAX_IDS answers core's
+#: ERR_400_TOO_MANY_IDS with both numbers (requested, limit) so the caller can
+#: chunk; truncating would hide the overflow as "those people have no profile".
 
 ERR_404_PROFILE_NOT_FOUND = 'error.404.profile_not_found'
 ERR_400_CANNOT_FOLLOW_SELF = 'error.400.cannot_follow_self'
@@ -18,10 +26,6 @@ ERR_400_AVATAR_NOT_FOUND = 'error.400.avatar_not_found'
 #: caller's bug. A caller that states nothing gets the source derived from the
 #: ref instead (models.resolve_avatar_source) — nothing to correct there.
 ERR_400_AVATAR_SOURCE_MISMATCH = 'error.400.avatar_source_mismatch'
-#: POST .../batch over PROFILES_BATCH_MAX_IDS. Carries BOTH numbers so the
-#: caller can chunk without guessing — the alternative (truncate to the limit
-#: and answer 200) would hide the overflow as "those people have no profile".
-ERR_400_TOO_MANY_IDS = 'error.400.too_many_ids'
 #: An `avatar_source=url` avatar whose scheme this service will not accept.
 #: The avatar is a string one user controls and every consumer renders, so
 #: only inert, transport-safe schemes cross the boundary (an active scheme is
@@ -98,7 +102,6 @@ PROFILES_ERRORS = {
         'otherwise — send avatar_source="cdn" with it, or omit avatar_source '
         'and it will be derived from the reference'
     ),
-    ERR_400_TOO_MANY_IDS: 'Too many ids: {requested} requested, at most {limit} per batch request',
     ERR_400_AVATAR_URL_SCHEME: 'Avatar URL must use one of: {schemes}',
     ERR_400_AVATAR_URL_HOST: 'Avatar URL host is not allowed here',
     ERR_400_AVATAR_GRAVATAR_HASH: 'Gravatar avatar must be an email hash (32 or 64 hex characters)',
@@ -138,7 +141,6 @@ PROFILES_REMEDIATION = {
     ERR_400_INVALID_AVATAR_FORMAT: 'fix_input',
     ERR_400_AVATAR_NOT_FOUND: 'fix_input',
     ERR_400_AVATAR_SOURCE_MISMATCH: 'fix_input',
-    ERR_400_TOO_MANY_IDS: 'fix_input',
     ERR_400_AVATAR_URL_SCHEME: 'fix_input',
     ERR_400_AVATAR_URL_HOST: 'fix_input',
     ERR_400_AVATAR_GRAVATAR_HASH: 'fix_input',

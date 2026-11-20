@@ -27,10 +27,6 @@
     "hash": "85af5591b37ac81e",
     "text": "Política de visibilidad desconocida. Aquí se permiten: {policies}"
   },
-  "error.400.too_many_ids": {
-    "hash": "f6368a24e46084ec",
-    "text": "Demasiados identificadores: {requested} solicitados, como máximo {limit} por solicitud por lotes"
-  },
   "error.403.contacts_registration_required": {
     "hash": "84b9cc8ca2a825e5",
     "text": "Regístrate para ver el teléfono del vendedor"

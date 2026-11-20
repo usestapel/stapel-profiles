@@ -89,3 +89,15 @@ def test_service_keys_present_with_declared_remediation():
         assert entries[code]["remediation"] == "fix_input", code
     # Cross-cutting core keys (COMMON_ERRORS) are folded into the artifact.
     assert entries["error.404.not_found"]["remediation"] in REMEDIATION_VOCAB
+
+
+def test_too_many_ids_is_cores_key_not_registered_here():
+    """The batch bound answers core's generic key; a second registration with
+    another text is what made instances installing two such packages stale."""
+    from stapel_profiles.errors import PROFILES_ERRORS, PROFILES_REMEDIATION
+
+    assert "error.400.too_many_ids" not in PROFILES_ERRORS
+    assert "error.400.too_many_ids" not in PROFILES_REMEDIATION
+    (entry,) = [e for e in json.loads(ERRORS_JSON.read_text()) if e["code"] == "error.400.too_many_ids"]
+    assert entry["owner"] == "stapel_core"
+    assert entry["param_types"] == {"limit": "integer", "requested": "integer"}

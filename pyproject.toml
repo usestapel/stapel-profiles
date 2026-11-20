@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stapel-profiles"
-version = "0.23.1"
+version = "0.23.2"
 description = "User profiles Django app for the Stapel framework"
 readme = "README.md"
 license = { text = "MIT" }
@@ -55,7 +55,8 @@ dependencies = [
     # receipt in a service that installs this app.
     # 0.99.0: falsy docstring examples reach the contract (the committed
     # examples rely on it) and errors.json carries declared param_types.
-    "stapel-core>=0.99.0,<1.0",
+    # 0.99.1: error.400.too_many_ids is core's key (the batch bound raises it).
+    "stapel-core>=0.99.1,<1.0",
     # Direct import, not borrowed from core's requirements: contacts/phones.py
     # parses and E.164-normalises every stored number with it, and a module
     # that imports a package depends on it whether or not a sibling happens

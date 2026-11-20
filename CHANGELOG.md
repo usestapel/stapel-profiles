@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.23.2] — 2026-11-20
+
+Patch. No migration, no consumer edit. Requires stapel-core 0.99.1.
+
+- **`error.400.too_many_ids` is core's key.** The batch bound raises it with
+  `requested` and `limit` exactly as before (same text, now typed `integer`
+  in `errors.json`); this package no longer registers or translates it. Two
+  packages registered the key with different texts, so an instance
+  installing both failed core's stale-translation gate.
+
 ## [0.23.1] — 2026-11-20
 
 Patch. No migration, no consumer edit. Requires stapel-core 0.99.0.

@@ -113,9 +113,6 @@ _MACHINE_ES = {
     "error.400.avatar_gravatar_hash":
         "El avatar de Gravatar debe ser un hash de correo electrónico "
         "(32 o 64 caracteres hexadecimales)",
-    "error.400.too_many_ids":
-        "Demasiados identificadores: {requested} solicitados, como máximo "
-        "{limit} por solicitud por lotes",
     "error.403.network_blocked":
         "No se permiten solicitudes desde esta red.",
     "error.403.verification_enrollment_required":

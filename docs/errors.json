@@ -304,7 +304,11 @@
     ],
     "remediation": "fix_input",
     "en": "Too many ids: {requested} requested, at most {limit} per batch request",
-    "owner": "stapel_profiles"
+    "owner": "stapel_core",
+    "param_types": {
+      "limit": "integer",
+      "requested": "integer"
+    }
   },
   {
     "code": "error.400.validation_error",
